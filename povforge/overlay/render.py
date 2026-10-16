@@ -48,9 +48,18 @@ def render_segment(
     keyboard: KeyboardRenderer | None = None,
     offset_frames: float = 0.0,
     ffmpeg: str = "ffmpeg",
+    start_tick: float | None = None,
+    frames: int | None = None,
 ) -> dict[str, Path]:
+    """Render overlay layers for one clip.
+
+    ``start_tick`` is the demo tick of the clip's first frame (the recorder
+    reports the exact value); ``frames`` is the clip's real frame count.
+    Both default to the planned values.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
-    n = frame_count(seg.start_tick, seg.end_tick, plan.tickrate, fps)
+    start = seg.start_tick if start_tick is None else start_tick
+    n = frames or frame_count(seg.start_tick, seg.end_tick, plan.tickrate, fps)
     me_id = plan.player.steamid
     stem = f"r{seg.round_number:02d}"
 
@@ -62,7 +71,7 @@ def render_segment(
 
     try:
         for i in range(n):
-            tick = frame_to_tick(i, seg.start_tick, plan.tickrate, fps, offset_frames)
+            tick = frame_to_tick(i, start, plan.tickrate, fps, offset_frames)
             if minimap is not None:
                 players = track.players(tick)
                 me = next((p for p in players if p.steamid == me_id), None)

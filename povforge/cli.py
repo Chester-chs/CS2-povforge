@@ -31,9 +31,11 @@ def _cmd_plan(args, cfg) -> None:
 
 
 def _cmd_overlays(args, cfg) -> None:
-    from .pipeline import make_overlays
+    from .pipeline import load_plan, make_overlays
 
-    make_overlays(cfg, Path(args.job))
+    job = Path(args.job)
+    clips = [job / "clips" / f"clip_{i:03d}.mp4" for i in range(len(load_plan(job).segments))]
+    make_overlays(cfg, job, clips)
 
 
 def _cmd_record(args, cfg) -> None:
@@ -47,15 +49,65 @@ def _cmd_compose(args, cfg) -> None:
     from .pipeline import load_plan, make_overlays, make_recording
 
     job = Path(args.job)
-    layers = make_overlays(cfg, job)
     clips = make_recording(cfg, job, placeholder=args.placeholder)
-    print(compose(load_plan(job), job, clips, layers, cfg.record.fps, cfg.compose))
+    layers = make_overlays(cfg, job, clips)
+    print(compose(load_plan(job), job, clips, layers, cfg.record.fps, cfg.compose,
+                  size=(cfg.record.width, cfg.record.height)))
 
 
 def _cmd_run(args, cfg) -> None:
     from .pipeline import parse_rounds, run
 
     run(cfg, args.demo, args.player, placeholder=args.placeholder, rounds=parse_rounds(args.rounds))
+
+
+def _cmd_doctor(args, cfg) -> None:
+    import importlib
+    import shutil
+
+    from . import hlae
+
+    ok = True
+
+    def line(good: bool, what: str, detail: str = "", warn: bool = False) -> None:
+        nonlocal ok
+        mark = "OK  " if good else ("WARN" if warn else "FAIL")
+        if not good and not warn:
+            ok = False
+        print(f"[{mark}] {what}" + (f": {detail}" if detail else ""))
+
+    line(sys.version_info >= (3, 11), "Python", sys.version.split()[0])
+    try:
+        importlib.import_module("demoparser2")
+        line(True, "demoparser2")
+    except ImportError:
+        line(False, "demoparser2", "pip install demoparser2")
+    for tool in (cfg.compose.ffmpeg, "ffprobe"):
+        found = shutil.which(tool)
+        line(bool(found), tool, found or "not on PATH")
+    if sys.platform != "win32":
+        line(False, "Windows", "recording needs Windows; --placeholder works anywhere", warn=True)
+        print("\nAll good." if ok else "\nFix the FAIL lines above.")
+        return
+    try:
+        h = hlae.find_hlae(cfg.record)
+        dll = h.parent / "x64" / "AfxHookSource2.dll"
+        line(dll.is_file(), "HLAE", str(h) if dll.is_file() else f"{dll} missing")
+    except RuntimeError as e:
+        line(False, "HLAE", str(e))
+    try:
+        line(True, "CS2", str(hlae.find_cs2(cfg.record)))
+    except RuntimeError as e:
+        line(False, "CS2", str(e))
+    procs = hlae.running_processes()
+    line("steam.exe" in procs, "Steam running", "" if "steam.exe" in procs else "start Steam before recording",
+         warn=True)
+    line("cs2.exe" not in procs, "CS2 closed", "" if "cs2.exe" not in procs else "close CS2 before recording",
+         warn=True)
+    for exe, name in hlae.ANTI_CHEAT.items():
+        if exe in procs:
+            line(False, f"{name} running", "close it before recording", warn=True)
+    print("\nAll good." if ok else "\nFix the FAIL lines above.")
 
 
 def _cmd_maps(args, cfg) -> None:
@@ -86,12 +138,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--rounds", help="only these rounds, e.g. 1-3,7 (handy for a quick test)")
     s.set_defaults(func=_cmd_plan)
 
-    s = sub.add_parser("overlays", help="render minimap and keyboard layers for a planned job")
+    s = sub.add_parser("overlays", help="render minimap and keyboard layers for a job")
     s.add_argument("job", help="job folder created by 'plan'")
     s.set_defaults(func=_cmd_overlays)
 
     for name, func, helptext in (
-        ("record", _cmd_record, "record the planned clips in CS2 (via CSVG)"),
+        ("record", _cmd_record, "record the planned clips in CS2 (via HLAE)"),
         ("compose", _cmd_compose, "add overlays and join clips into the final video"),
     ):
         s = sub.add_parser(name, help=helptext)
@@ -107,6 +159,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="use grey test clips instead of recording (no CS2 needed)")
     s.add_argument("--rounds", help="only these rounds, e.g. 1-3,7 (handy for a quick test)")
     s.set_defaults(func=_cmd_run)
+
+    s = sub.add_parser("doctor", help="check that everything needed is installed")
+    s.set_defaults(func=_cmd_doctor)
 
     s = sub.add_parser("maps", help="download or refresh radar images")
     s.add_argument("names", nargs="+", help="map names, e.g. de_dust2 de_mirage")

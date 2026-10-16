@@ -7,6 +7,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from .media import probe
 from .model import Plan
 from .timeline import frame_count
 
@@ -39,13 +40,17 @@ def _xy(anchor: str, margin: int) -> tuple[str, str]:
     return x.format(m=margin), y.format(m=margin)
 
 
-def overlay_command(clip: Path, layers: dict[str, Path], out: Path, s: ComposeSettings) -> list[str]:
+def overlay_command(clip: Path, layers: dict[str, Path], out: Path, s: ComposeSettings,
+                    scale_to: tuple[int, int] | None = None) -> list[str]:
     cmd = [s.ffmpeg, "-y", "-loglevel", "error", "-i", str(clip)]
     order = [k for k in ("minimap", "keyboard") if k in layers]
     for k in order:
         cmd += ["-i", str(layers[k])]
-    if order:
+    if order or scale_to:
         parts, prev = [], "[0:v]"
+        if scale_to:
+            parts.append(f"[0:v]scale={scale_to[0]}:{scale_to[1]}:flags=lanczos,setsar=1[v0]")
+            prev = "[v0]"
         for i, k in enumerate(order, start=1):
             x, y = _xy(getattr(s, f"{k}_anchor"), s.margin)
             tag = f"[v{i}]"
@@ -96,7 +101,7 @@ def write_chapter_files(plan: Plan, fps: float, job_dir: Path) -> tuple[Path, Pa
 
 
 def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str, Path]],
-            fps: float, s: ComposeSettings) -> Path:
+            fps: float, s: ComposeSettings, size: tuple[int, int] | None = None) -> Path:
     parts_dir = job_dir / "parts"
     parts_dir.mkdir(parents=True, exist_ok=True)
     parts = []
@@ -105,7 +110,14 @@ def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str,
         if not out.exists():
             print(f"Composing {i + 1}/{len(clips)}", flush=True)
             tmp = out.with_name(out.stem + ".tmp.mp4")
-            subprocess.run(overlay_command(clip, lay, tmp, s), check=True)
+            scale_to = None
+            if size is not None:
+                info = probe(clip, s.ffmpeg)
+                if (info.width, info.height) != tuple(size):
+                    print(f"  recorded at {info.width}x{info.height}, scaling to {size[0]}x{size[1]}",
+                          flush=True)
+                    scale_to = size
+            subprocess.run(overlay_command(clip, lay, tmp, s, scale_to), check=True)
             tmp.replace(out)
         parts.append(out)
 

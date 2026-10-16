@@ -7,7 +7,7 @@ from dataclasses import dataclass, field, fields, is_dataclass
 from pathlib import Path
 
 from .compose import ComposeSettings
-from .csvg import RecordSettings
+from .hlae import RecordSettings
 from .planner import PlanOptions
 
 

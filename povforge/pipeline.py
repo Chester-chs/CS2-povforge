@@ -1,4 +1,4 @@
-"""End-to-end job: plan -> overlays -> record -> compose.
+"""End-to-end job: plan -> record -> overlays -> compose.
 
 Every step writes into one job folder and skips work that's already done, so
 a job can be stopped and resumed, or run step by step.
@@ -14,9 +14,10 @@ import pandas as pd
 
 from .compose import compose, safe_filename
 from .config import Config
-from .csvg import record, write_compilation
+from . import hlae
 from .demo import find_player, load_demo, load_ticks, prepare_demo
 from .maps import get_map
+from .media import probe
 from .model import Plan
 from .overlay.keyboard import KeyboardRenderer
 from .overlay.minimap import MinimapRenderer
@@ -74,12 +75,12 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     plan = Plan(str(demo_path.resolve()), demo.map_name, demo.tickrate, player, segments)
     plan_file = job / "plan.json"
     if plan_file.exists() and load_plan(job).segments != plan.segments:
-        # The clip list changed: earlier recordings no longer line up.
+        # The clip list changed: finished clips are numbered by position, so
+        # they no longer line up. Raw recordings (per round) are kept.
         for folder in ("clips", "parts"):
             for f in (job / folder).glob("*.mp4"):
                 f.unlink()
     plan_file.write_text(json.dumps(plan.to_dict(), indent=2), encoding="utf-8")
-    write_compilation(plan, job, cfg.record)
 
     mins = plan.total_seconds() / 60
     _log(f"{demo.map_name}: {len(demo.rounds)} rounds, {player.name} played {len(segments)}; "
@@ -115,22 +116,31 @@ def _renderers(cfg: Config, plan: Plan):
     return minimap, keyboard
 
 
-def make_overlays(cfg: Config, job: Path) -> list[dict[str, Path]]:
+def make_overlays(cfg: Config, job: Path, clips: list[Path] | None = None) -> list[dict[str, Path]]:
+    """Render overlays for each clip, matched to the recorded clip's real
+    start tick and length when a recording exists."""
     plan, track = load_plan(job), load_track(job)
     minimap, keyboard = _renderers(cfg, plan)
+    starts = hlae.actual_starts(job)
     out_dir = job / "overlays"
     results = []
-    for i, seg in enumerate(plan.segments, 1):
-        done = out_dir / f"r{seg.round_number:02d}.done"
-        stem = out_dir / f"r{seg.round_number:02d}"
-        stamp = f"{seg.start_tick}-{seg.end_tick}@{cfg.record.fps}/{cfg.record.height} {cfg.overlay}"
+    for i, seg in enumerate(plan.segments):
+        cid = hlae.clip_id(seg)
+        start = starts.get(cid, float(seg.start_tick))
+        frames = None
+        if clips is not None and clips[i].exists():
+            frames = probe(clips[i], cfg.compose.ffmpeg).frames
+        done = out_dir / f"{cid}.done"
+        stem = out_dir / cid
+        stamp = f"{start}+{frames}@{cfg.record.fps}/{cfg.record.height} {cfg.overlay}"
         if done.exists() and done.read_text() == stamp:
             layers = {k: Path(f"{stem}_{k}.mov") for k in ("minimap", "keyboard")
                       if Path(f"{stem}_{k}.mov").exists()}
         else:
-            _log(f"Overlays {i}/{len(plan.segments)} (round {seg.round_number})")
+            _log(f"Overlays {i + 1}/{len(plan.segments)} (round {seg.round_number})")
             layers = render_segment(plan, seg, track, out_dir, cfg.record.fps, minimap, keyboard,
-                                    cfg.overlay.sync_offset_frames, cfg.compose.ffmpeg)
+                                    cfg.overlay.sync_offset_frames, cfg.compose.ffmpeg,
+                                    start_tick=start, frames=frames)
             done.write_text(stamp)
         results.append(layers)
     return results
@@ -164,7 +174,7 @@ def make_placeholder_clips(cfg: Config, job: Path) -> list[Path]:
 def make_recording(cfg: Config, job: Path, placeholder: bool = False) -> list[Path]:
     if placeholder:
         return make_placeholder_clips(cfg, job)
-    return record(load_plan(job), job, cfg.record)
+    return hlae.record(load_plan(job), job, cfg.record, cfg.compose.ffmpeg)
 
 
 # --- all ----------------------------------------------------------------------
@@ -172,8 +182,9 @@ def make_recording(cfg: Config, job: Path, placeholder: bool = False) -> list[Pa
 def run(cfg: Config, demo: str | Path, player: str, placeholder: bool = False,
         rounds: set[int] | None = None) -> Path:
     _, job = make_plan(cfg, demo, player, rounds)
-    layers = make_overlays(cfg, job)
     clips = make_recording(cfg, job, placeholder)
-    final = compose(load_plan(job), job, clips, layers, cfg.record.fps, cfg.compose)
+    layers = make_overlays(cfg, job, clips)
+    final = compose(load_plan(job), job, clips, layers, cfg.record.fps, cfg.compose,
+                    size=(cfg.record.width, cfg.record.height))
     _log(f"Done: {final}")
     return final

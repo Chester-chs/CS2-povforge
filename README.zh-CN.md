@@ -17,14 +17,14 @@
 ## 工作原理
 
 ```
-demo ──► 规划 ──► 叠加层 ──► 录制（CSVG 驱动 CS2）──► 合成 ──► 成片.mp4
-        录哪些 tick   小地图 +    每回合一段，逐帧精确     叠加 + 拼接
-                     键盘                                + 章节
+demo ──► 规划 ──► 录制（HLAE 驱动 CS2）──► 叠加层 ──► 合成 ──► 成片.mp4
+        录哪些 tick   每回合一段，固定帧率      小地图 +    叠加 + 拼接
+                                              键盘        + 章节
 ```
 
 1. **规划**：用 [demoparser2](https://github.com/LaihoE/demoparser) 读取回合、死亡和坐标，为每回合确定一个 tick 区间（冻结时间结束 → 阵亡或回合结束）。
-2. **叠加层**：按每段录像的精确帧数渲染小地图和按键显示。
-3. **录制**：把片段清单交给 [CS2 Video Generator（CSVG）](https://github.com/CS2OpenDev/CS2VideoGenerator)，由它在 CS2 中离线逐帧渲染，并锁定该选手视角。
+2. **录制**：通过 [HLAE](https://github.com/advancedfx/advancedfx) 启动 CS2，加载一个"导演"脚本：逐回合跳到片段开头、锁定该选手视角、以固定帧率录制，全部录完自动关闭游戏。每段的实际起始 tick 会从 CS2 的控制台日志读回，保证叠加层对齐。
+3. **叠加层**：按每段录像的实际帧数渲染小地图和按键显示。
 4. **合成**：用 FFmpeg 把叠加层盖到每段录像上并拼接成片。
 
 按键数据优先使用 demo 中记录的选手真实输入指令（FACEIT demo 有），包括一个 tick 内完成的快速点按；没有时退回服务器端的按键状态。
@@ -34,7 +34,10 @@ demo ──► 规划 ──► 叠加层 ──► 录制（CSVG 驱动 CS2）�
 - 装有 Counter-Strike 2 的 Windows 10/11（录制需要）
 - Python 3.11+
 - [FFmpeg](https://ffmpeg.org) 并加入 PATH，例如 `winget install Gyan.FFmpeg`
-- [CS2 Video Generator](https://github.com/CS2OpenDev/CS2VideoGenerator/releases)：下载 `win-x64` 压缩包，解压后把文件夹加入 PATH（运行 `csvg doctor` 应全部通过）
+- [HLAE](https://github.com/advancedfx/advancedfx/releases)：下载最新的 `hlae_*.zip`，解压到 `C:\Tools\hlae`（解压后应有 `C:\Tools\hlae\HLAE.exe`）
+- 录制时 Steam 要开着；关闭 CS2 和各平台反作弊客户端（FACEIT、5E、完美世界）
+
+运行 `povforge doctor` 可以一次检查全部环境。
 
 ## 安装
 
@@ -45,6 +48,7 @@ pip install git+https://github.com/Chester-chs/cs2-povforge
 ## 使用
 
 ```
+povforge doctor                                # 检查环境
 povforge inspect match.dem.zst                 # 查看地图、回合数、选手名
 povforge run match.dem.zst donk --rounds 1-2 --placeholder   # 快速测试，不需要 CS2
 povforge run match.dem.zst donk                # 正式录制
@@ -57,12 +61,12 @@ povforge run match.dem.zst donk                # 正式录制
 
 各项设置（片段前后留白、分辨率、叠加层大小和位置、小地图是否显示敌人等）写在 `povforge.toml`，参考 [config.example.toml](config.example.toml)。
 
-> **关于 VAC**：CSVG 录制时会以 `-insecure` 启动 CS2，结束后自动恢复你的设置。录制期间不要进入任何在线服务器。
+> **关于 VAC**：录制时通过 HLAE 以 `-insecure` 启动 CS2（本次运行关闭 VAC）。录制期间不要进入任何在线服务器；之后正常从 Steam 启动即可恢复。游戏目录里只会临时添加 `cfg/povforge_job.cfg`，录制结束自动删除。
 
 ## 开发计划
 
 - [x] 回合规划、跳过无效时间、小地图、键盘叠加层、章节
-- [x] CSVG 录制后端
+- [x] HLAE 录制后端（待首次真机测试）
 - [ ] 监控文件夹，自动处理新 demo
 - [ ] 从 HLTV 下载职业比赛 demo
 - [ ] FACEIT：查找并下载关注选手的比赛
@@ -74,7 +78,7 @@ povforge run match.dem.zst donk                # 正式录制
 
 ## 致谢
 
-基于 [demoparser2](https://github.com/LaihoE/demoparser)（MIT）、[CS2 Video Generator](https://github.com/CS2OpenDev/CS2VideoGenerator)（GPL-3.0，作为外部程序调用）、通过 [cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons) 获取的雷达数据（运行时下载，不存放于本仓库）以及 FFmpeg。详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+基于 [demoparser2](https://github.com/LaihoE/demoparser)（MIT）和 [HLAE](https://github.com/advancedfx/advancedfx)（MIT，作为外部程序调用）；HLAE 启动设置参考了 [CS Demo Manager](https://github.com/akiver/cs-demo-manager)（MIT，仅参考）；通过 [cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons) 获取的雷达数据（运行时下载，不存放于本仓库）以及 FFmpeg。详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 本项目与 Valve、FACEIT、HLTV 无关联。Counter-Strike 2 及其地图归 Valve Corporation 所有。
 
