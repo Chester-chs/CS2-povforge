@@ -115,7 +115,7 @@ class MinimapRenderer:
                     d.line((x - c, y - c, x + c, y + c), fill=(255, 255, 255, 255), width=int(r * 0.6))
                     d.line((x - c, y + c, x + c, y - c), fill=(255, 255, 255, 255), width=int(r * 0.6))
 
-        frame.alpha_composite(layer.resize((self.size, self.size), Image.LANCZOS))
+        frame.alpha_composite(layer.reduce(SS))  # box-filter downsample = anti-aliasing
         return frame
 
     def render(self, me: PlayerState | None, others: list[PlayerState]) -> bytes:
