@@ -1,3 +1,5 @@
+English | [简体中文](README.zh-CN.md)
+
 # CS2 POVForge
 
 A personal, non-commercial tool that turns Counter-Strike 2 demos into full-match first-person (POV) videos of a chosen player.
