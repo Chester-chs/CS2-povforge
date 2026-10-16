@@ -151,13 +151,10 @@ def make_placeholder_clips(cfg: Config, job: Path) -> list[Path]:
         if not p.exists():
             _log(f"Test clip {i + 1}/{len(plan.segments)}")
             n = frame_count(seg.start_tick, seg.end_tick, plan.tickrate, fps)
-            label = f"Round {seg.round_number}"
             subprocess.run([
                 cfg.compose.ffmpeg, "-y", "-loglevel", "error",
                 "-f", "lavfi", "-i", f"color=c=0x3a3f47:s={w}x{h}:r={fps}",
                 "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
-                "-vf", f"drawtext=text='{label}':fontcolor=white:fontsize={h // 12}"
-                       ":x=(w-tw)/2:y=(h-th)/2",
                 "-frames:v", str(n), "-shortest", "-c:v", "libx264", "-preset", "ultrafast",
                 "-c:a", "aac", str(p)], check=True)
         out.append(p)

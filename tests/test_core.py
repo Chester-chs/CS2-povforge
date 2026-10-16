@@ -127,7 +127,7 @@ class Misc(unittest.TestCase):
                               Path("o.mp4"), ComposeSettings())
         graph = cmd[cmd.index("-filter_complex") + 1]
         self.assertIn("[0:v][1:v]overlay=x=24:y=24", graph)          # minimap first
-        self.assertIn("[v1][2:v]overlay=x=(W-w)/2:y=H-h-24", graph)  # then keyboard
+        self.assertIn("[v1][2:v]overlay=x=24:y=(H-h)/2", graph)  # then keyboard, left middle
 
     def test_chapters(self):
         plan = Plan("d.dem", "de_dust2", 64, Player("1", "p"),

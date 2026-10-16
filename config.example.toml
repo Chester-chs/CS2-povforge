@@ -27,8 +27,9 @@ keyboard_scale = 1.0
 sync_offset_frames = 0.0         # nudge overlays if they lead/lag the video
 
 [compose]
-minimap_anchor = "top-left"      # top-left, top-right, top-center,
-keyboard_anchor = "bottom-center" # bottom-left, bottom-right, bottom-center
+minimap_anchor = "top-left"      # top-left, top-center, top-right,
+keyboard_anchor = "left-center"  # left-center, right-center,
+                                 # bottom-left, bottom-center, bottom-right
 margin = 24
 crf = 18                         # x264 quality: lower = better and bigger
 preset = "medium"

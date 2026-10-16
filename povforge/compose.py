@@ -17,13 +17,15 @@ ANCHORS = {
     "bottom-right": ("W-w-{m}", "H-h-{m}"),
     "bottom-center": ("(W-w)/2", "H-h-{m}"),
     "top-center": ("(W-w)/2", "{m}"),
+    "left-center": ("{m}", "(H-h)/2"),
+    "right-center": ("W-w-{m}", "(H-h)/2"),
 }
 
 
 @dataclass
 class ComposeSettings:
     minimap_anchor: str = "top-left"
-    keyboard_anchor: str = "bottom-center"
+    keyboard_anchor: str = "left-center"
     margin: int = 24
     crf: int = 18
     preset: str = "medium"
