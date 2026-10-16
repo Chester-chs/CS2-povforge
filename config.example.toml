@@ -1,0 +1,35 @@
+# Copy this file to povforge.toml (in the folder you run povforge from) and
+# change what you need. Everything is optional; these are the defaults.
+
+[output]
+dir = "povforge-output"          # one sub-folder per demo + player
+
+[plan]
+pre_roll_seconds = 0.0           # start this long before freeze time ends
+post_death_seconds = 2.0         # keep recording this long after the player dies
+post_round_seconds = 2.0         # ...or after the round is decided
+min_segment_seconds = 1.0        # skip clips shorter than this
+
+[record]                         # passed to CS2 Video Generator (csvg)
+executable = "csvg"              # full path if csvg isn't on PATH
+width = 1920
+height = 1080
+fps = 60
+# HUD on, no X-ray. Other flags: XrayEnabled, ShowOnlyDeathNotices
+clip_options = "TrueViewEnabled, HudEnabled, ShowAssistsInFeed"
+
+[overlay]
+minimap = true
+minimap_size = 360               # pixels at 1080p (scaled for other heights)
+show_enemies = false             # true = enemies on the minimap too
+keyboard = true
+keyboard_scale = 1.0
+sync_offset_frames = 0.0         # nudge overlays if they lead/lag the video
+
+[compose]
+minimap_anchor = "top-left"      # top-left, top-right, top-center,
+keyboard_anchor = "bottom-center" # bottom-left, bottom-right, bottom-center
+margin = 24
+crf = 18                         # x264 quality: lower = better and bigger
+preset = "medium"
+ffmpeg = "ffmpeg"

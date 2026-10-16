@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cs2-povforge"
+version = "0.1.0"
+description = "Turn CS2 demos into full-match POV videos of any player, with dead time skipped and minimap/keyboard overlays."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    "demoparser2>=0.40",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "pillow>=10.1",
+    "zstandard>=0.22",
+]
+
+[project.scripts]
+povforge = "povforge.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["povforge*"]
