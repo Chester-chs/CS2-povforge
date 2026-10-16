@@ -149,6 +149,7 @@ def make_placeholder_clips(cfg: Config, job: Path) -> list[Path]:
     for i, seg in enumerate(plan.segments):
         p = clips_dir / f"clip_{i:03d}.mp4"
         if not p.exists():
+            _log(f"Test clip {i + 1}/{len(plan.segments)}")
             n = frame_count(seg.start_tick, seg.end_tick, plan.tickrate, fps)
             label = f"Round {seg.round_number}"
             subprocess.run([

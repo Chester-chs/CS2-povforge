@@ -101,6 +101,7 @@ def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str,
     for i, (clip, lay) in enumerate(zip(clips, layers)):
         out = parts_dir / f"part_{i:03d}.mp4"
         if not out.exists():
+            print(f"Composing {i + 1}/{len(clips)}", flush=True)
             tmp = out.with_name(out.stem + ".tmp.mp4")
             subprocess.run(overlay_command(clip, lay, tmp, s), check=True)
             tmp.replace(out)
@@ -110,6 +111,7 @@ def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str,
     listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in parts), encoding="utf-8")
     _, meta = write_chapter_files(plan, fps, job_dir)
     final = job_dir / f"{safe_filename(plan.player.name)}_{plan.map_name}_POV.mp4"
+    print("Joining parts ...", flush=True)
     subprocess.run([s.ffmpeg, "-y", "-loglevel", "error",
                     "-f", "concat", "-safe", "0", "-i", str(listing),
                     "-i", str(meta), "-map_metadata", "1", "-map_chapters", "1",
