@@ -99,19 +99,49 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def test_user_config_backup_and_restore(tmp_path, monkeypatch):
-    from povforge import hlae
-    cfg = tmp_path / "steam" / "userdata" / "123" / "730" / "local" / "cfg"
-    cfg.mkdir(parents=True)
-    f = cfg / "cs2_user_convars_0_slot0.vcfg"
-    f.write_text('"cl_spec_stats" "1"')
-    monkeypatch.setattr(hlae, "_steam_dir", lambda: tmp_path / "steam")
-    pairs = hlae.backup_user_config(tmp_path / "backup")
-    assert len(pairs) == 1 and (tmp_path / "backup" / "123" / f.name).exists()
-    f.write_text('"cl_spec_stats" "0"')          # what CS2 saves on exit
-    assert hlae.restore_user_config(pairs) == 1
+def _fake_cs2_dirs(tmp_path):
+    steam = tmp_path / "steam"
+    ucfg = steam / "userdata" / "123" / "730" / "local" / "cfg"
+    ucfg.mkdir(parents=True)
+    csgo = tmp_path / "game" / "csgo"
+    (csgo / "cfg").mkdir(parents=True)
+    (ucfg / "cs2_user_convars_0_slot0.vcfg").write_text('"cl_spec_stats" "1"')
+    (ucfg / "cs2_video.txt").write_text('"setting.defaultres" "2560"')
+    (csgo / "cfg" / "boot.vcfg").write_text("boot")
+    (csgo / "cfg" / "autoexec.cfg").write_text("mine")
+    return steam, csgo, ucfg
+
+
+def test_settings_are_restored_exactly(tmp_path, monkeypatch):
+    from povforge import settings_guard as g
+    monkeypatch.setenv("POVFORGE_STATE", str(tmp_path / "state"))
+    steam, csgo, ucfg = _fake_cs2_dirs(tmp_path)
+    before = {f: f.read_bytes() for f in tmp_path.rglob("*") if f.is_file()}
+    assert g.backup(steam, csgo) == 3          # 2 userdata files + boot.vcfg
+    assert g.pending()
+    # what CS2 does during a recording
+    (ucfg / "cs2_user_convars_0_slot0.vcfg").write_text('"cl_spec_stats" "0"')
+    (ucfg / "cs2_video.txt").write_text('"setting.defaultres" "1920"')
+    (ucfg / "new_file.vcfg").write_text("created by cs2")
+    (csgo / "cfg" / "boot.vcfg").unlink()
+    assert g.restore() == 4
+    assert not g.pending()
+    after = {f: f.read_bytes() for f in tmp_path.rglob("*") if f.is_file() and "state" not in f.parts}
+    assert after == before
+
+
+def test_unfinished_backup_is_restored_before_a_new_one(tmp_path, monkeypatch):
+    from povforge import settings_guard as g
+    monkeypatch.setenv("POVFORGE_STATE", str(tmp_path / "state"))
+    steam, csgo, ucfg = _fake_cs2_dirs(tmp_path)
+    f = ucfg / "cs2_user_convars_0_slot0.vcfg"
+    g.backup(steam, csgo)
+    f.write_text("changed by an interrupted recording")
+    g.backup(steam, csgo)                       # must not back up the changed file
     assert f.read_text() == '"cl_spec_stats" "1"'
-    assert hlae.restore_user_config(pairs) == 0
+    f.write_text("changed again")
+    g.restore()
+    assert f.read_text() == '"cl_spec_stats" "1"'
 
 
 def test_player_hud_setting():

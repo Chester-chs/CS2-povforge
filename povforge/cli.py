@@ -108,6 +108,9 @@ def _cmd_doctor(args, cfg) -> None:
     procs = hlae.running_processes()
     line("steam.exe" in procs, "Steam running", "" if "steam.exe" in procs else "start Steam before recording",
          warn=True)
+    from . import settings_guard
+    line(not settings_guard.pending(), "CS2 settings",
+         "unchanged" if not settings_guard.pending() else "backup not restored yet: run povforge restore-settings")
     line("cs2.exe" not in procs, "CS2 closed", "" if "cs2.exe" not in procs else "close CS2 before recording",
          warn=True)
     for exe, name in hlae.ANTI_CHEAT.items():
@@ -123,6 +126,33 @@ def _cmd_maps(args, cfg) -> None:
         a = get_map(name, refresh=True)
         print(f"{name}: ok{' (+ lower level)' if a.radar_lower else ''}")
     print(f"Cached in {cache_dir()}")
+
+
+def _cmd_restore_settings(args, cfg) -> None:
+    from . import hlae, settings_guard
+
+    if not settings_guard.pending():
+        print("Nothing to restore: your CS2 settings are as they were.")
+        return
+    if "cs2.exe" in hlae.running_processes():
+        raise RuntimeError("Close CS2 first, then run this again.")
+    n = settings_guard.restore()
+    if settings_guard.pending():
+        raise RuntimeError(f"Some files could not be restored. The backup is kept in {settings_guard.guard_dir()}")
+    print(f"Your CS2 settings are back as before ({n} file(s) put back).")
+
+
+def _restore_leftover_settings() -> None:
+    """A recording that was cut off may have left the backup unrestored."""
+    from . import hlae, settings_guard
+
+    if not settings_guard.pending() or "cs2.exe" in hlae.running_processes():
+        return
+    try:
+        n = settings_guard.restore()
+        print(f"Restored your CS2 settings left over from an interrupted recording ({n} file(s)).")
+    except Exception as e:
+        print(f"Warning: could not restore your CS2 settings ({e}). Run: povforge restore-settings")
 
 
 def _cmd_faceit(args, cfg) -> None:
@@ -193,6 +223,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("names", nargs="+", help="map names, e.g. de_dust2 de_mirage")
     s.set_defaults(func=_cmd_maps)
 
+    s = sub.add_parser("restore-settings", help="put your CS2 settings back (normally automatic)")
+    s.set_defaults(func=_cmd_restore_settings)
+
     s = sub.add_parser("faceit", help="screenshot a FACEIT match room (what the intro uses)")
     s.add_argument("demo", help="FACEIT demo file name, or the match id")
     s.add_argument("--out", help="image file (default: faceit_<match id>.png here)")
@@ -204,6 +237,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        if args.func is not _cmd_restore_settings:
+            _restore_leftover_settings()
         cfg = load_config(args.config)
         args.func(args, cfg)
     except (ValueError, RuntimeError) as e:

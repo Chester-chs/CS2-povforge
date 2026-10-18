@@ -25,6 +25,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import settings_guard
 from .maps import parse_keyvalues
 from .model import Plan, Segment
 
@@ -272,33 +273,30 @@ def _log(msg: str) -> None:
     print(msg, flush=True)
 
 
-def user_config_files() -> list[Path]:
-    """CS2's saved settings (Steam/userdata/<id>/730/local/cfg/*.vcfg)."""
-    steam = _steam_dir()
-    if steam is None:
-        return []
-    return sorted((steam / "userdata").glob("*/730/local/cfg/*.vcfg"))
-
-
-def backup_user_config(dest: Path) -> list[tuple[Path, Path]]:
-    """Copy CS2's settings files away; console settings used for recording would
-    otherwise stay in the player's own config after CS2 saves on exit."""
-    pairs = []
-    for f in user_config_files():
-        b = dest / f.parent.parent.parent.parent.name / f.name   # <accountid>/<file>
-        b.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(f, b)
-        pairs.append((f, b))
-    return pairs
-
-
-def restore_user_config(pairs: list[tuple[Path, Path]]) -> int:
-    changed = 0
-    for orig, b in pairs:
-        if not orig.exists() or orig.read_bytes() != b.read_bytes():
-            shutil.copy2(b, orig)
-            changed += 1
-    return changed
+def _put_settings_back(finished: bool) -> None:
+    """Restore the player's CS2 settings once CS2 is closed. If recording was
+    interrupted, the recording CS2 is closed at once (forced, so it doesn't
+    save anything) before restoring."""
+    if not finished and "cs2.exe" in running_processes():
+        subprocess.run(["taskkill", "/im", "cs2.exe", "/f"], capture_output=True)
+    for _ in range(60):  # CS2 writes its settings while closing
+        if "cs2.exe" not in running_processes():
+            break
+        time.sleep(2)
+    if "cs2.exe" in running_processes():
+        _log("CS2 is still open, so your settings could not be put back yet. "
+             "Close CS2, then run: povforge restore-settings")
+        return
+    time.sleep(2)
+    try:
+        changed = settings_guard.restore()
+    except Exception as e:
+        _log(f"Could not restore your CS2 settings ({e}). Run: povforge restore-settings")
+        return
+    if settings_guard.pending():
+        _log("Your CS2 settings could not be fully restored. Run: povforge restore-settings")
+    else:
+        _log(f"Your CS2 settings are back as before ({changed} file(s) put back).")
 
 
 def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg") -> list[Path]:
@@ -333,6 +331,10 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg")
         if exe in procs:
             _log(f"Warning: {name} is running. Close its client/anti-cheat before recording.")
 
+    # Back up the player's CS2 settings before anything else touches them.
+    n = settings_guard.backup(_steam_dir(), csgo_dir(cs2))
+    _log(f"Backed up your CS2 settings ({n} files); they are put back after recording.")
+
     ensure_ffmpeg_ini(hlae, ffmpeg)
     director = write_director(build_job(plan, todo, raw_dir, s), job_dir / "director.js")
     csgo = csgo_dir(cs2)
@@ -343,11 +345,11 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg")
     if console_log.exists():
         console_log.unlink()
 
-    backups = backup_user_config(job_dir / "cs2_config_backup")
     seconds = sum(sg.duration_seconds(plan.tickrate) for sg in todo)
     limit = seconds * s.timeout_factor + 600
     _log(f"Starting CS2 through HLAE to record {len(todo)} clips (~{seconds / 60:.1f} min of video). "
          "Don't use the PC for games meanwhile; CS2 will close by itself when done.")
+    finished = False
     try:
         # HLAE starts CS2 and normally exits right away; don't wait on it.
         subprocess.Popen(launch_command(hlae, cs2, s))
@@ -367,16 +369,11 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg")
                     done.add(cid)
                     _log(f"Recorded {cid} ({len(done)}/{len(todo)})")
             time.sleep(5)
+        finished = True
     finally:
         if cfg.exists():
             cfg.unlink()
-        if backups:
-            for _ in range(15):  # CS2 writes its settings while closing
-                if "cs2.exe" not in running_processes():
-                    break
-                time.sleep(2)
-            if restore_user_config(backups):
-                _log("Your CS2 settings were restored to how they were before recording.")
+        _put_settings_back(finished)
         if console_log.exists():
             shutil.copy(console_log, job_dir / "cs2_console.log")
 
