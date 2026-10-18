@@ -46,7 +46,7 @@ class RecordSettings:
     game_hud: str = "full"        # full = keep CS2's own HUD; killfeed = only the kill feed, povforge draws a HUD
     extra_setup: str = ""         # extra console commands, separated by ;
     timeout_factor: float = 3.0   # give up after this many times the video length (+10 min)
-    player_hud: bool = True       # CS2's own player HUD at the bottom instead of the spectator card
+    player_hud: bool = False      # try cl_spec_stats 0 (on its own it doesn't replace the spectator card)
 
 
 # --- finding things -------------------------------------------------------------
@@ -151,10 +151,9 @@ def setup_commands(s: RecordSettings) -> list[str]:
         "cl_demo_predict 1",
         "r_show_build_info 0",
         "cl_trueview_show_status 0",
-        # Demo playback normally shows a spectator card at the bottom (name, avatar,
-        # weapon skin). Turning it off makes CS2 show its own player HUD instead:
-        # health, armor, team badge with kills this round, ammo.
-        f"cl_spec_stats {0 if s.player_hud else 1}",
+        # Experimental: hides the demo spectator card only together with a
+        # Panorama mod, so it's off by default and the card stays.
+        *(["cl_spec_stats 0"] if s.player_hud else []),
         "cl_spec_show_bindings 0",
         "cl_hud_telemetry_frametime_show 0",
         "cl_hud_telemetry_net_misdelivery_show 0",

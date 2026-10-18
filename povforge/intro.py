@@ -6,7 +6,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 from .compose import AUDIO_RATE, ComposeSettings, encode_args
 from .demo import TeamStats
@@ -87,11 +87,22 @@ def render_card(info: IntroInfo, size: tuple[int, int], background: Image.Image 
     return im
 
 
+def trim_border(im: Image.Image, tolerance: int = 18, pad: int = 8) -> Image.Image:
+    """Cut away plain margins (same colour as the corner) so the content is centred."""
+    bg = Image.new("RGB", im.size, im.getpixel((0, 0)))
+    mask = ImageChops.difference(im, bg).convert("L").point(lambda v: 255 if v > tolerance else 0)
+    box = mask.getbbox()
+    if not box:
+        return im
+    x0, y0, x1, y1 = box
+    return im.crop((max(0, x0 - pad), max(0, y0 - pad), min(im.width, x1 + pad), min(im.height, y1 + pad)))
+
+
 def render_screenshot_card(info: IntroInfo, size: tuple[int, int], shot: Image.Image) -> Image.Image:
     """A screenshot (e.g. the FACEIT match room) with the title written over it."""
     W, H = size
     k = H / 1080
-    shot = shot.convert("RGB")
+    shot = trim_border(shot.convert("RGB"))
     # blurred, cropped copy fills the frame; the full screenshot sits on top
     sc = max(W / shot.width, H / shot.height)
     cover = shot.resize((int(shot.width * sc) + 1, int(shot.height * sc) + 1))

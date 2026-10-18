@@ -146,5 +146,5 @@ def test_unfinished_backup_is_restored_before_a_new_one(tmp_path, monkeypatch):
 
 def test_player_hud_setting():
     from povforge import hlae
-    assert "cl_spec_stats 0" in hlae.setup_commands(hlae.RecordSettings())
-    assert "cl_spec_stats 1" in hlae.setup_commands(hlae.RecordSettings(player_hud=False))
+    assert not any("cl_spec_stats" in c for c in hlae.setup_commands(hlae.RecordSettings()))
+    assert "cl_spec_stats 0" in hlae.setup_commands(hlae.RecordSettings(player_hud=True))

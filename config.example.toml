@@ -22,8 +22,7 @@ preroll_seconds = 2.0            # wait this long at each clip start before reco
 spec_mode = ""                   # only if a CS2 update needs it
 game_hud = "full"                # full: keep CS2's own HUD (demo bar and game radar are hidden)
                                  # killfeed: game shows only the kill feed, povforge draws a HUD
-player_hud = true                # CS2's own player HUD at the bottom (health, armor, team badge,
-                                 # kills this round, ammo) instead of the spectator card
+player_hud = false               # experimental: cl_spec_stats 0 (alone it keeps the spectator card)
 extra_setup = ""                 # extra console commands, e.g. "cl_hud_color 3; safezonex 0.9"
 timeout_factor = 3.0
 
