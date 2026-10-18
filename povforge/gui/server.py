@@ -168,8 +168,9 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
 # --- recording job -----------------------------------------------------------------
 
 def cli_command(*args: str) -> list[str]:
-    if getattr(sys, "frozen", False):          # packaged PovForge.exe
-        return [sys.executable, *args]
+    if getattr(sys, "frozen", False):          # packaged app: povforge.exe sits next to PovForge.exe
+        cli = Path(sys.executable).with_name("povforge.exe")
+        return [str(cli if cli.exists() else sys.executable), *args]
     return [sys.executable, "-m", "povforge.cli", *args]
 
 
