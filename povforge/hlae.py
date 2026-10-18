@@ -327,9 +327,11 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg")
     procs = running_processes()
     if "cs2.exe" in procs:
         raise RuntimeError("CS2 is already running. Close it first.")
-    for exe, name in ANTI_CHEAT.items():
-        if exe in procs:
-            _log(f"Warning: {name} is running. Close its client/anti-cheat before recording.")
+    running = sorted({name for exe, name in ANTI_CHEAT.items() if exe in procs})
+    if running:
+        raise RuntimeError(
+            f"{', '.join(running)} is running. Its anti-cheat stops CS2 from starting through HLAE "
+            "(CS2 closes after a few seconds). Quit it completely (tray icon -> Exit), then run again.")
 
     # Back up the player's CS2 settings before anything else touches them.
     n = settings_guard.backup(_steam_dir(), csgo_dir(cs2))
@@ -358,18 +360,25 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg")
             time.sleep(2)
         if "cs2.exe" not in running_processes():
             raise RuntimeError("CS2 did not start. Is Steam running? Is HLAE up to date?")
+        started = time.time()
         done = set()
         while "cs2.exe" in running_processes():
             if time.time() - began > limit:
                 subprocess.run(["taskkill", "/im", "cs2.exe", "/f"], capture_output=True)
                 raise RuntimeError("Recording took far too long and was stopped. "
                                    f"Check {console_log} for [povforge] lines.")
-            for cid, ev in read_console_log(console_log).items():
+            events = read_console_log(console_log)
+            for cid, ev in events.items():
                 if "END" in ev and cid not in done:
                     done.add(cid)
                     _log(f"Recorded {cid} ({len(done)}/{len(todo)})")
             time.sleep(5)
         finished = True
+        if not done and not read_console_log(console_log) and time.time() - started < 90:
+            raise RuntimeError(
+                "CS2 closed right after starting, before recording began. Usual causes: an anti-cheat "
+                "client (FACEIT, 5E, Perfect World) still running in the background, or HLAE needing "
+                "an update after a CS2 patch.")
     finally:
         if cfg.exists():
             cfg.unlink()
