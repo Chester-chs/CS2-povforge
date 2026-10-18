@@ -20,6 +20,7 @@ window_mode = "windowed"         # or "fullscreen" if your screen is smaller tha
 video_options = "-c:v libx264 -pix_fmt yuv420p -preset veryfast -crf 16"
 preroll_seconds = 2.0            # wait this long at each clip start before recording
 spec_mode = ""                   # only if a CS2 update needs it
+hide_demo_ui = true              # hide CS2's demo playback bar (set false if it shows up instead)
 extra_setup = ""                 # extra console commands, e.g. "cl_hud_color 3; safezonex 0.9"
 timeout_factor = 3.0
 
@@ -37,5 +38,5 @@ keyboard_anchor = "left-center"  # left-center, right-center,
                                  # bottom-left, bottom-center, bottom-right
 margin = 24
 crf = 18                         # x264 quality: lower = better and bigger
-preset = "medium"
+preset = "veryfast"               # x264 speed; slower presets = smaller files
 ffmpeg = "ffmpeg"

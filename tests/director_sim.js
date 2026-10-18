@@ -12,7 +12,7 @@ function runScenario(name, opts) {
 	const job = Object.assign({
 		player: 'donk666', steamid: '76561198386265483', demo: 'D:/demos/x.dem', outDir: 'D:/out',
 		tickrate: 64, prerollTicks: 128, specMode: '', setup: ['sv_cheats 1'], frameStage: 12,
-		bootFrames: 5, loadTimeoutFrames: 500, seekRetryFrames: 50, finishFrames: 3, quitWhenDone: true,
+		bootFrames: 5, loadTimeoutFrames: 500, hideDemoUi: true, seekRetryFrames: 50, finishFrames: 3, quitWhenDone: true,
 		clips: [{ id: 'r01', start: 1000, end: 1300 }, { id: 'r02', start: 2000, end: 2200 }],
 	}, opts.job || {});
 
@@ -94,6 +94,7 @@ function check(name, cond, info) {
 	check('normal: camera on player while recording', game.takes.every((t) => !t.wrongCam), game.takes);
 	check('normal: setup and demo loaded', game.cmds.includes('sv_cheats 1') && game.cmds.some((c) => c.startsWith('playdemo')), game.cmds.slice(0, 5));
 	check('normal: START/END logged', game.log.filter((l) => /START|END/.test(l)).length === 4, game.log);
+	check('normal: demo bar hidden once', game.cmds.filter((c) => c === 'demoui').length === 1, game.cmds);
 	check('normal: record name per clip', game.cmds.includes('mirv_streams record name "D:/out/r02"'), game.cmds);
 }
 

@@ -42,6 +42,7 @@ class RecordSettings:
     video_options: str = "-c:v libx264 -pix_fmt yuv420p -preset veryfast -crf 16"
     preroll_seconds: float = 2.0  # time spent at the clip start before recording
     spec_mode: str = ""           # optional spec_mode value, if a CS2 update needs it
+    hide_demo_ui: bool = True     # toggle off CS2's demo playback bar once the demo starts
     extra_setup: str = ""         # extra console commands, separated by ;
     timeout_factor: float = 3.0   # give up after this many times the video length (+10 min)
 
@@ -171,6 +172,7 @@ def build_job(plan: Plan, segments: list[Segment], raw_dir: Path, s: RecordSetti
         "clips": [{"id": clip_id(sg), "start": sg.start_tick, "end": sg.end_tick} for sg in segments],
         "prerollTicks": int(round(s.preroll_seconds * plan.tickrate)),
         "specMode": s.spec_mode,
+        "hideDemoUi": s.hide_demo_ui,
         "setup": setup_commands(s),
         "frameStage": 12,          # FRAME_RENDER_PASS in CS2 (HLAE docs)
         "bootFrames": 300,

@@ -29,7 +29,7 @@ class ComposeSettings:
     keyboard_anchor: str = "left-center"
     margin: int = 24
     crf: int = 18
-    preset: str = "medium"
+    preset: str = "veryfast"
     ffmpeg: str = "ffmpeg"
 
 
