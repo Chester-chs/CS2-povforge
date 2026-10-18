@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cs2-povforge"
-version = "0.4.0"
+version = "0.5.0"
 description = "Turn CS2 demos into full-match POV videos of any player, with dead time skipped and minimap/keyboard overlays."
 readme = "README.md"
 license = { text = "MIT" }
@@ -15,6 +15,7 @@ dependencies = [
     "numpy>=1.24",
     "pillow>=10.1",
     "zstandard>=0.22",
+    "playwright>=1.40",
 ]
 
 [project.scripts]

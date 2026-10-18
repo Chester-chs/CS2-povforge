@@ -34,8 +34,10 @@ class IntroSettings:
     title: str = "{player} POV"      # {player} {map} placeholders
     subtitle: str = "{map}  ·  {date}  ·  {width}x{height}"
     date: str = ""                   # empty = date of the demo file
-    image: str = ""                  # screenshot for the background (e.g. FACEIT match room);
-                                     # "latest" = newest file in Pictures\\Screenshots
+    image: str = "auto"              # "auto" = screenshot the FACEIT match room by itself
+                                     # (FACEIT demos), otherwise the scoreboard card;
+                                     # "" = scoreboard card; or an image file path
+    show_browser: bool = False       # show the browser window while taking the screenshot
 
 
 @dataclass

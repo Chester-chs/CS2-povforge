@@ -54,5 +54,8 @@ seconds = 4.0
 title = "{player} POV"           # placeholders: {player} {map} {date} {width} {height}
 subtitle = "{map}  ·  {date}  ·  {width}x{height}"
 date = ""                        # empty = date of the demo file
-image = ""                       # screenshot for the background, e.g. the FACEIT match room;
-                                 # "latest" = your newest screenshot (Pictures\Screenshots)
+image = "auto"                   # "auto": FACEIT demos get a screenshot of the match room, taken
+                                 # automatically (needs Edge or Chrome); other demos get the
+                                 # scoreboard card. "" = always the scoreboard card;
+                                 # "latest" = your newest screenshot; or an image file path
+show_browser = false             # true = show the browser window while taking the screenshot

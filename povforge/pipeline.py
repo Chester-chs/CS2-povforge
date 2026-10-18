@@ -14,7 +14,7 @@ import pandas as pd
 
 from .compose import compose, safe_filename
 from .config import Config
-from . import hlae
+from . import faceit, hlae
 import datetime
 from dataclasses import asdict
 
@@ -83,8 +83,9 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
         _log(f"Note: no scoreboard for the intro ({e})")
         teams = []
     date = datetime.date.fromtimestamp(source.stat().st_mtime).isoformat()
-    (job / "meta.json").write_text(json.dumps({"date": date, "teams": [asdict(t) for t in teams]},
-                                              indent=2, ensure_ascii=False), encoding="utf-8")
+    meta = {"date": date, "faceit_match": faceit.match_id(source.name),
+            "teams": [asdict(t) for t in teams]}
+    (job / "meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
     segments = plan_segments(
         demo.rounds, demo.deaths, player.steamid, demo.tickrate, demo.last_tick,
@@ -233,10 +234,29 @@ def make_intro_clip(cfg: Config, job: Path, clips: list[Path]) -> Path | None:
     info = IntroInfo(c.title.format(**fields), c.subtitle.format(**fields), plan.player.steamid, teams)
     out = job / "parts" / "intro.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
-    image = resolve_intro_image(c.image)
+    if c.image.strip().lower() == "auto":
+        image = faceit_screenshot(cfg, job, meta.get("faceit_match") or faceit.match_id(plan.demo_path))
+    else:
+        image = resolve_intro_image(c.image)
     _log("Making intro" + (f" from {image.name}" if image else "") + " ...")
     return make_intro(info, out, (cfg.record.width, cfg.record.height), cfg.record.fps, c.seconds,
                       cfg.compose, clips[0] if clips else None, screenshot=image)
+
+
+def faceit_screenshot(cfg: Config, job: Path, mid: str | None) -> Path | None:
+    """Screenshot of the FACEIT match room (kept for later runs); None if not possible."""
+    if not mid:
+        return None
+    shot = job / "faceit_room.png"
+    if shot.exists():
+        return shot
+    _log(f"Taking a screenshot of the FACEIT match room {mid} ...")
+    try:
+        return faceit.screenshot_room(mid, shot, (cfg.record.width, cfg.record.height),
+                                      headless=not cfg.intro.show_browser)
+    except Exception as e:
+        _log(f"Note: FACEIT screenshot failed, using the scoreboard card instead ({e})")
+        return None
 
 
 IMAGE_TYPES = (".png", ".jpg", ".jpeg", ".webp", ".bmp")

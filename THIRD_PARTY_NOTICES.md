@@ -13,6 +13,7 @@ downloaded data, as described here.
 | [CS Demo Manager](https://github.com/akiver/cs-demo-manager) by AkiVer | MIT | Reference only: our HLAE launch options and CS2 console settings follow what it does. No code copied. 仅作参考：HLAE 启动参数和 CS2 控制台设置参考了它的做法，未复制代码。 |
 | [cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons) by MurkyYT | Assets are Valve's / 素材版权归 Valve | Radar images and overview files are downloaded at runtime into a local cache. They are **not** stored in this repository. 雷达图与地图坐标数据在运行时下载到本地缓存，**不**存放于本仓库。 |
 | [FFmpeg](https://ffmpeg.org) | LGPL/GPL | External program for encoding. 外部程序，用于编码合成。 |
+| [Playwright for Python](https://github.com/microsoft/playwright-python) by Microsoft | Apache-2.0 | Python dependency that drives the Edge/Chrome already on the PC to screenshot the public FACEIT match room for the intro. 作为 Python 依赖库，调用电脑自带的 Edge/Chrome 截取公开的 FACEIT 比赛房间页面做片头。 |
 | [pandas](https://pandas.pydata.org), [NumPy](https://numpy.org), [Pillow](https://python-pillow.org), [zstandard](https://github.com/indygreg/python-zstandard) | BSD-3-Clause / MIT-CMU (Pillow) | Python dependencies. Python 依赖库。 |
 
 Counter-Strike 2, its maps and radar images are trademarks and property of

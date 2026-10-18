@@ -12,7 +12,7 @@
 - 保留 CS2 原本的 HUD，只隐藏 demo 播放控制栏和游戏雷达
 - 同步的 2D 小地图：队友位置、所在区域名、道具飞行轨迹、烟雾和燃烧瓶（带倒计时）
 - 键鼠显示（Shift、Ctrl、W A S D、空格、鼠标左右键），位于 HUD 正上方
-- 片头：在比赛房间截图（`--intro-image`）上写 "选手名 POV"，没有截图时使用全场战绩卡
+- 片头：在 FACEIT 比赛房间画面上写 "选手名 POV"。程序根据 demo 文件名里的比赛 ID 自动截图（后台无界面打开 Edge/Chrome，无需登录，隐藏 cookie 弹窗、不点同意）。非 FACEIT demo 使用全场战绩卡
 - 按回合生成章节标记（嵌入视频，并输出可直接粘贴到 YouTube/B 站的 `chapters.txt`）
 
 一场 28 分钟的 FACEIT demo 会生成约 16 分钟的 POV 视频。
@@ -55,7 +55,7 @@ povforge doctor                                # 检查环境
 povforge inspect match.dem.zst                 # 查看地图、回合数、选手名
 povforge run match.dem.zst donk --rounds 1-2 --placeholder   # 快速测试，不需要 CS2
 povforge run match.dem.zst donk                # 正式录制
-povforge run match.dem.zst donk --intro-image latest   # 用你最新的一张截图做片头
+povforge run match.dem.zst donk --intro-image latest   # 改用你自己最新的一张截图做片头
 ```
 
 - 支持 `.dem`，以及 FACEIT 直接下载的 `.dem.zst` / `.dem.gz`。HLTV 的 demo 是 `.rar`，需先解压出 `.dem`。

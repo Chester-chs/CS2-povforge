@@ -12,7 +12,7 @@ A personal, non-commercial tool that turns Counter-Strike 2 demos into full-matc
 - Keeps CS2's own HUD; the demo playback bar and game radar are hidden
 - Synced 2D minimap: teammates, the player's location, grenade flight paths, smokes and molotovs with countdowns
 - Keyboard/mouse display (Shift, Ctrl, W A S D, Space, mouse buttons) just above the HUD
-- Intro: "<player> POV" written over a screenshot of the match room (`--intro-image`), or over the final scoreboard
+- Intro: "<player> POV" written over the FACEIT match room. The screenshot is taken automatically from the demo's match id (headless Edge/Chrome, no login, cookie banner hidden, nothing accepted). Other demos get the final scoreboard
 - Writes chapter markers per round (embedded in the video and as a YouTube-ready `chapters.txt`)
 
 A 28-minute FACEIT demo becomes a ~16-minute POV video.
@@ -55,7 +55,7 @@ povforge doctor                                # check the setup
 povforge inspect match.dem.zst                 # map, rounds, player names
 povforge run match.dem.zst donk --rounds 1-2 --placeholder   # quick test, no CS2 needed
 povforge run match.dem.zst donk                # the real thing
-povforge run match.dem.zst donk --intro-image latest   # intro from your newest screenshot
+povforge run match.dem.zst donk --intro-image latest   # intro from your own screenshot instead
 ```
 
 - Demos can be `.dem`, or FACEIT's `.dem.zst` / `.dem.gz` as downloaded. HLTV demos come as `.rar`: extract the `.dem` first.
