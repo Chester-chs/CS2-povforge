@@ -42,7 +42,7 @@ class RecordSettings:
     video_options: str = "-c:v libx264 -pix_fmt yuv420p -preset veryfast -crf 16"
     preroll_seconds: float = 2.0  # time spent at the clip start before recording
     spec_mode: str = ""           # optional spec_mode value, if a CS2 update needs it
-    hide_demo_ui: bool = True     # toggle off CS2's demo playback bar once the demo starts
+    game_hud: str = "killfeed"    # killfeed = game draws only the kill feed (we draw the rest); full = spectator HUD
     extra_setup: str = ""         # extra console commands, separated by ;
     timeout_factor: float = 3.0   # give up after this many times the video length (+10 min)
 
@@ -141,7 +141,9 @@ def setup_commands(s: RecordSettings) -> list[str]:
     cmds = [
         "sv_cheats 1",
         "demo_timescale 1",
-        "cl_draw_only_deathnotices 0",
+        "demo_ui_mode 0",                       # no demo playback bar
+        f"cl_draw_only_deathnotices {1 if s.game_hud == 'killfeed' else 0}",
+        "cl_drawhud_force_radar -1",            # our minimap replaces the game radar
         "spec_show_xray 0",
         "mp_display_kill_assists 1",
         "cl_demo_predict 1",
@@ -172,7 +174,6 @@ def build_job(plan: Plan, segments: list[Segment], raw_dir: Path, s: RecordSetti
         "clips": [{"id": clip_id(sg), "start": sg.start_tick, "end": sg.end_tick} for sg in segments],
         "prerollTicks": int(round(s.preroll_seconds * plan.tickrate)),
         "specMode": s.spec_mode,
-        "hideDemoUi": s.hide_demo_ui,
         "setup": setup_commands(s),
         "frameStage": 12,          # FRAME_RENDER_PASS in CS2 (HLAE docs)
         "bootFrames": 300,

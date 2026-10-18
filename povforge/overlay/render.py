@@ -1,17 +1,20 @@
-"""Render overlay layers for each clip as transparent videos.
+"""Render overlay layers for each clip.
 
-Each overlay is written as a QuickTime Animation (qtrle) .mov with an alpha
-channel, frame-for-frame aligned with the recorded clip, so compositing is a
-plain ffmpeg ``overlay``.
+Changing layers (minimap, keyboard, HUD) are written as QuickTime Animation
+(qtrle) .mov files with alpha, frame-for-frame aligned with the recorded clip.
+Fixed images (crosshair, sniper scope) are drawn once as PNG; for those we
+only store *when* they are visible, and ffmpeg switches them on and off.
 """
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
 from ..model import Plan, Segment
 from ..timeline import Track, frame_count, frame_to_tick
+from .hud import HudRenderer, intervals
 from .keyboard import KeyboardRenderer
 from .minimap import MinimapRenderer
 
@@ -50,12 +53,14 @@ def render_segment(
     ffmpeg: str = "ffmpeg",
     start_tick: float | None = None,
     frames: int | None = None,
+    hud: HudRenderer | None = None,
 ) -> dict[str, Path]:
-    """Render overlay layers for one clip.
+    """Render overlay layers for one clip; returns {layer name: file}.
 
     ``start_tick`` is the demo tick of the clip's first frame (the recorder
     reports the exact value); ``frames`` is the clip's real frame count.
-    Both default to the planned values.
+    Both default to the planned values. Visibility of the fixed crosshair and
+    scope images is saved to ``<round>_static.json``.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     start = seg.start_tick if start_tick is None else start_tick
@@ -65,20 +70,34 @@ def render_segment(
 
     sinks: dict[str, _Sink] = {}
     if minimap is not None:
-        sinks["minimap"] = _Sink(out_dir / f"{stem}_minimap.mov", (minimap.size, minimap.size), fps, ffmpeg)
+        sinks["minimap"] = _Sink(out_dir / f"{stem}_minimap.mov", minimap.layer_size, fps, ffmpeg)
     if keyboard is not None:
         sinks["keyboard"] = _Sink(out_dir / f"{stem}_keyboard.mov", keyboard.size, fps, ffmpeg)
+    if hud is not None:
+        sinks["hud"] = _Sink(out_dir / f"{stem}_hud.mov", hud.size, fps, ffmpeg)
 
+    crosshair, scope = [], []
     try:
         for i in range(n):
             tick = frame_to_tick(i, start, plan.tickrate, fps, offset_frames)
+            st = track.hud(tick)
+            crosshair.append(st.alive and not st.scoped)
+            scope.append(st.alive and st.scoped)
             if minimap is not None:
                 players = track.players(tick)
                 me = next((p for p in players if p.steamid == me_id), None)
-                sinks["minimap"].write(minimap.render(me, players))
+                sinks["minimap"].write(minimap.render(me, players, st.place if st.alive else ""))
             if keyboard is not None:
                 sinks["keyboard"].write(keyboard.render(track.keys(tick)))
+            if hud is not None:
+                sinks["hud"].write(hud.render(st))
     finally:
         for s in sinks.values():
             s.close()
-    return {k: s.path for k, s in sinks.items()}
+
+    static = {"crosshair": intervals(crosshair, fps), "scope": intervals(scope, fps)}
+    static_file = out_dir / f"{stem}_static.json"
+    static_file.write_text(json.dumps(static))
+    out = {k: s.path for k, s in sinks.items()}
+    out["static"] = static_file
+    return out

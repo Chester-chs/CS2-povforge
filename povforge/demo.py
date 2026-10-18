@@ -228,6 +228,81 @@ def load_ticks(path: str | Path, target_steamid: str) -> tuple[pd.DataFrame, pd.
     return pos, keys
 
 
+# What the player's own HUD shows, sampled every tick for the followed player.
+HUD_FIELDS = ["health", "armor_value", "has_helmet", "balance", "active_weapon_name",
+              "active_weapon_ammo", "total_ammo_left", "is_alive", "is_scoped", "last_place_name"]
+
+
+def load_hud(path: str | Path, target_steamid: str) -> pd.DataFrame:
+    parser = _parser(Path(path))
+    try:
+        df = parser.parse_ticks(HUD_FIELDS, players=[int(target_steamid)])
+    except Exception:
+        return pd.DataFrame(columns=["tick", *HUD_FIELDS])
+    df = df[df["steamid"].map(_sid) == target_steamid]
+    keep = ["tick"] + [c for c in HUD_FIELDS if c in df]
+    return df[keep].sort_values("tick").reset_index(drop=True)
+
+
+@dataclass
+class PlayerStats:
+    steamid: str
+    name: str
+    kills: int
+    deaths: int
+    assists: int
+    adr: float
+    hs_pct: float
+    mvps: int
+
+
+@dataclass
+class TeamStats:
+    name: str
+    score: int
+    players: list[PlayerStats]
+
+
+SCOREBOARD_FIELDS = ["team_num", "team_rounds_total", "team_clan_name", "kills_total", "deaths_total",
+                     "assists_total", "damage_total", "headshot_kills_total", "mvps"]
+
+
+def load_scoreboard(path: str | Path, rounds_played: int) -> list[TeamStats]:
+    """Final scoreboard (as shown in game) from the last tick of the demo."""
+    parser = _parser(Path(path))
+    last = int(parser.parse_ticks(["is_alive"])["tick"].max())
+    df = None
+    for t in range(last, max(0, last - 640), -64):  # some demos end with empty ticks
+        d = parser.parse_ticks(SCOREBOARD_FIELDS, ticks=[t])
+        if len(d) and d["team_num"].isin([2, 3]).any():
+            df = d
+            break
+    if df is None:
+        return []
+    rounds = max(1, rounds_played)
+    teams: list[TeamStats] = []
+    for team_num in (2, 3):
+        rows = df[df["team_num"] == team_num]
+        if not len(rows):
+            continue
+        players = []
+        for _, r in rows.iterrows():
+            kills = int(r.get("kills_total") or 0)
+            players.append(PlayerStats(
+                steamid=_sid(r["steamid"]) or "", name=str(r["name"]),
+                kills=kills, deaths=int(r.get("deaths_total") or 0),
+                assists=int(r.get("assists_total") or 0),
+                adr=float(r.get("damage_total") or 0) / rounds,
+                hs_pct=100.0 * int(r.get("headshot_kills_total") or 0) / kills if kills else 0.0,
+                mvps=int(r.get("mvps") or 0),
+            ))
+        players.sort(key=lambda p: (-p.kills, p.deaths))
+        name = str(rows["team_clan_name"].iloc[0] or "") if "team_clan_name" in rows else ""
+        teams.append(TeamStats(name or ("T" if team_num == 2 else "CT"),
+                               int(rows["team_rounds_total"].iloc[0] or 0), players))
+    return teams
+
+
 def find_player(players: list[Player], query: str) -> Player:
     """Match by steamid, exact name, or a unique case-insensitive substring."""
     q = query.strip()

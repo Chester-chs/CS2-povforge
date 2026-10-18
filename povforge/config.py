@@ -19,6 +19,19 @@ class OverlaySettings:
     keyboard: bool = True
     keyboard_scale: float = 1.0      # 1.0 = sized for 1080p
     sync_offset_frames: float = 0.0  # shift overlays if a recording shows drift
+    place_label: bool = True         # location name under the minimap
+    hud: bool = True                 # health / armor / money / ammo
+    crosshair: bool = True
+    scope: bool = True               # sniper scope while scoped in
+
+
+@dataclass
+class IntroSettings:
+    enabled: bool = True
+    seconds: float = 4.0
+    title: str = "{player} POV"      # {player} {map} placeholders
+    subtitle: str = "{map}  ·  {date}  ·  {width}x{height}"
+    date: str = ""                   # empty = date of the demo file
 
 
 @dataclass
@@ -28,6 +41,7 @@ class Config:
     record: RecordSettings = field(default_factory=RecordSettings)
     overlay: OverlaySettings = field(default_factory=OverlaySettings)
     compose: ComposeSettings = field(default_factory=ComposeSettings)
+    intro: IntroSettings = field(default_factory=IntroSettings)
 
 
 def _apply(obj, values: dict, where: str) -> None:
@@ -52,7 +66,7 @@ def load_config(path: str | Path | None) -> Config:
     data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
     if "output" in data and "dir" in data["output"]:
         cfg.output_dir = Path(data["output"]["dir"])
-    for section in ("plan", "record", "overlay", "compose"):
+    for section in ("plan", "record", "overlay", "compose", "intro"):
         if section in data:
             _apply(getattr(cfg, section), data[section], section)
     return cfg

@@ -15,7 +15,12 @@ import pandas as pd
 from .compose import compose, safe_filename
 from .config import Config
 from . import hlae
-from .demo import find_player, load_demo, load_ticks, prepare_demo
+import datetime
+from dataclasses import asdict
+
+from .demo import TeamStats, PlayerStats, find_player, load_demo, load_hud, load_scoreboard, load_ticks, prepare_demo
+from .intro import IntroInfo, make_intro, pretty_map
+from .overlay.hud import HudRenderer, crosshair_png, scope_png
 from .maps import get_map
 from .media import probe
 from .model import Plan
@@ -53,6 +58,7 @@ def parse_rounds(spec: str | None) -> set[int] | None:
 
 def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
               rounds: set[int] | None = None) -> tuple[Plan, Path]:
+    source = Path(demo_path)
     demo_path = prepare_demo(demo_path, cfg.output_dir / "demos")
     _log(f"Reading {demo_path.name} ...")
     demo = load_demo(demo_path)
@@ -64,7 +70,16 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     pos, keys = load_ticks(demo_path, player.steamid)
     pos.to_pickle(job / "positions.pkl")
     keys.to_pickle(job / "keys.pkl")
+    load_hud(demo_path, player.steamid).to_pickle(job / "hud.pkl")
     track = Track(pos, keys)
+    try:
+        teams = load_scoreboard(demo_path, len(demo.rounds))
+    except Exception as e:  # scoreboard is only for the intro card
+        _log(f"Note: no scoreboard for the intro ({e})")
+        teams = []
+    date = datetime.date.fromtimestamp(source.stat().st_mtime).isoformat()
+    (job / "meta.json").write_text(json.dumps({"date": date, "teams": [asdict(t) for t in teams]},
+                                              indent=2, ensure_ascii=False), encoding="utf-8")
 
     segments = plan_segments(
         demo.rounds, demo.deaths, player.steamid, demo.tickrate, demo.last_tick,
@@ -95,7 +110,13 @@ def load_plan(job: Path) -> Plan:
 
 
 def load_track(job: Path) -> Track:
-    return Track(pd.read_pickle(job / "positions.pkl"), pd.read_pickle(job / "keys.pkl"))
+    hud = pd.read_pickle(job / "hud.pkl") if (job / "hud.pkl").exists() else None
+    return Track(pd.read_pickle(job / "positions.pkl"), pd.read_pickle(job / "keys.pkl"), hud)
+
+
+def load_meta(job: Path) -> dict:
+    f = job / "meta.json"
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
 
 
 # --- overlays -----------------------------------------------------------------
@@ -103,24 +124,40 @@ def load_track(job: Path) -> Track:
 def _renderers(cfg: Config, plan: Plan):
     scale = cfg.record.height / 1080
     o = cfg.overlay
-    minimap = keyboard = None
+    minimap = keyboard = hud = None
     if o.minimap:
         try:
             assets = get_map(plan.map_name)
             minimap = MinimapRenderer(assets.info, assets.radar, assets.radar_lower,
-                                      size=int(o.minimap_size * scale), show_enemies=o.show_enemies)
+                                      size=int(o.minimap_size * scale), show_enemies=o.show_enemies,
+                                      place_label=o.place_label)
         except RuntimeError as e:
             _log(f"Minimap disabled: {e}")
     if o.keyboard:
         keyboard = KeyboardRenderer(scale=o.keyboard_scale * scale)
-    return minimap, keyboard
+    if o.hud:
+        hud = HudRenderer(cfg.record.width, scale)
+    return minimap, keyboard, hud
+
+
+def static_images(cfg: Config, job: Path) -> dict[str, Path]:
+    """Crosshair and scope PNGs, drawn once per job."""
+    out_dir = job / "overlays"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    scale = cfg.record.height / 1080
+    imgs = {}
+    if cfg.overlay.crosshair:
+        imgs["crosshair"] = crosshair_png(out_dir / "crosshair.png", scale)
+    if cfg.overlay.scope:
+        imgs["scope"] = scope_png(out_dir / "scope.png", cfg.record.width, cfg.record.height)
+    return imgs
 
 
 def make_overlays(cfg: Config, job: Path, clips: list[Path] | None = None) -> list[dict[str, Path]]:
     """Render overlays for each clip, matched to the recorded clip's real
     start tick and length when a recording exists."""
     plan, track = load_plan(job), load_track(job)
-    minimap, keyboard = _renderers(cfg, plan)
+    minimap, keyboard, hud = _renderers(cfg, plan)
     starts = hlae.actual_starts(job)
     out_dir = job / "overlays"
     results = []
@@ -134,13 +171,14 @@ def make_overlays(cfg: Config, job: Path, clips: list[Path] | None = None) -> li
         stem = out_dir / cid
         stamp = f"{start}+{frames}@{cfg.record.fps}/{cfg.record.height} {cfg.overlay}"
         if done.exists() and done.read_text() == stamp:
-            layers = {k: Path(f"{stem}_{k}.mov") for k in ("minimap", "keyboard")
+            layers = {k: Path(f"{stem}_{k}.mov") for k in ("minimap", "keyboard", "hud")
                       if Path(f"{stem}_{k}.mov").exists()}
+            layers["static"] = Path(f"{stem}_static.json")
         else:
             _log(f"Overlays {i + 1}/{len(plan.segments)} (round {seg.round_number})")
             layers = render_segment(plan, seg, track, out_dir, cfg.record.fps, minimap, keyboard,
                                     cfg.overlay.sync_offset_frames, cfg.compose.ffmpeg,
-                                    start_tick=start, frames=frames)
+                                    start_tick=start, frames=frames, hud=hud)
             done.write_text(stamp)
         results.append(layers)
     return results
@@ -171,6 +209,32 @@ def make_placeholder_clips(cfg: Config, job: Path) -> list[Path]:
     return out
 
 
+def make_intro_clip(cfg: Config, job: Path, clips: list[Path]) -> Path | None:
+    c = cfg.intro
+    if not c.enabled:
+        return None
+    plan, meta = load_plan(job), load_meta(job)
+    teams = [TeamStats(t["name"], t["score"], [PlayerStats(**p) for p in t["players"]])
+             for t in meta.get("teams", [])]
+    fields = {"player": plan.player.name, "map": pretty_map(plan.map_name),
+              "date": c.date or meta.get("date", ""), "width": cfg.record.width,
+              "height": cfg.record.height}
+    info = IntroInfo(c.title.format(**fields), c.subtitle.format(**fields), plan.player.steamid, teams)
+    out = job / "parts" / "intro.mp4"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    _log("Making intro ...")
+    return make_intro(info, out, (cfg.record.width, cfg.record.height), cfg.record.fps, c.seconds,
+                      cfg.compose, clips[0] if clips else None)
+
+
+def make_video(cfg: Config, job: Path, clips: list[Path]) -> Path:
+    layers = make_overlays(cfg, job, clips)
+    intro = make_intro_clip(cfg, job, clips)
+    return compose(load_plan(job), job, clips, layers, cfg.record.fps, cfg.compose,
+                   size=(cfg.record.width, cfg.record.height), intro=intro,
+                   static_images=static_images(cfg, job))
+
+
 def make_recording(cfg: Config, job: Path, placeholder: bool = False) -> list[Path]:
     if placeholder:
         return make_placeholder_clips(cfg, job)
@@ -183,8 +247,6 @@ def run(cfg: Config, demo: str | Path, player: str, placeholder: bool = False,
         rounds: set[int] | None = None) -> Path:
     _, job = make_plan(cfg, demo, player, rounds)
     clips = make_recording(cfg, job, placeholder)
-    layers = make_overlays(cfg, job, clips)
-    final = compose(load_plan(job), job, clips, layers, cfg.record.fps, cfg.compose,
-                    size=(cfg.record.width, cfg.record.height))
+    final = make_video(cfg, job, clips)
     _log(f"Done: {final}")
     return final

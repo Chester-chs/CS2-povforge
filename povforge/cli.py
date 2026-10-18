@@ -45,14 +45,11 @@ def _cmd_record(args, cfg) -> None:
 
 
 def _cmd_compose(args, cfg) -> None:
-    from .compose import compose
-    from .pipeline import load_plan, make_overlays, make_recording
+    from .pipeline import make_recording, make_video
 
     job = Path(args.job)
     clips = make_recording(cfg, job, placeholder=args.placeholder)
-    layers = make_overlays(cfg, job, clips)
-    print(compose(load_plan(job), job, clips, layers, cfg.record.fps, cfg.compose,
-                  size=(cfg.record.width, cfg.record.height)))
+    print(make_video(cfg, job, clips))
 
 
 def _cmd_run(args, cfg) -> None:

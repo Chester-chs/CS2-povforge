@@ -1,7 +1,8 @@
-"""Put overlays on each recorded clip and join everything into one video."""
+"""Put overlays on each recorded clip, add the intro, and join everything."""
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from dataclasses import dataclass
@@ -9,59 +10,92 @@ from pathlib import Path
 
 from .media import probe
 from .model import Plan
-from .timeline import frame_count
+from .overlay.hud import enable_expr
 
 ANCHORS = {
     "top-left": ("{m}", "{m}"),
     "top-right": ("W-w-{m}", "{m}"),
+    "top-center": ("(W-w)/2", "{m}"),
     "bottom-left": ("{m}", "H-h-{m}"),
     "bottom-right": ("W-w-{m}", "H-h-{m}"),
     "bottom-center": ("(W-w)/2", "H-h-{m}"),
-    "top-center": ("(W-w)/2", "{m}"),
     "left-center": ("{m}", "(H-h)/2"),
     "right-center": ("W-w-{m}", "(H-h)/2"),
+    "center": ("(W-w)/2", "(H-h)/2"),
 }
+
+AUDIO_RATE = 48000
 
 
 @dataclass
 class ComposeSettings:
     minimap_anchor: str = "top-left"
-    keyboard_anchor: str = "left-center"
-    margin: int = 24
+    minimap_margin: int = 24        # pixels at 1080p
+    keyboard_anchor: str = "bottom-center"
+    keyboard_margin: int = 140      # sits just above the HUD
     crf: int = 18
     preset: str = "veryfast"
     ffmpeg: str = "ffmpeg"
 
 
-def _xy(anchor: str, margin: int) -> tuple[str, str]:
+def _xy(anchor: str, margin: float) -> tuple[str, str]:
     if anchor not in ANCHORS:
         raise ValueError(f"Unknown position '{anchor}'. Use one of: {', '.join(ANCHORS)}")
     x, y = ANCHORS[anchor]
-    return x.format(m=margin), y.format(m=margin)
+    m = str(int(round(margin)))
+    return x.format(m=m), y.format(m=m)
+
+
+def encode_args(s: ComposeSettings) -> list[str]:
+    """Identical output settings for every part, so they can be joined without re-encoding."""
+    return ["-c:v", "libx264", "-crf", str(s.crf), "-preset", s.preset, "-pix_fmt", "yuv420p",
+            "-video_track_timescale", "90000",
+            "-c:a", "aac", "-b:a", "192k", "-ar", str(AUDIO_RATE), "-ac", "2"]
 
 
 def overlay_command(clip: Path, layers: dict[str, Path], out: Path, s: ComposeSettings,
-                    scale_to: tuple[int, int] | None = None) -> list[str]:
+                    scale_to: tuple[int, int] | None = None, height: int = 1080,
+                    static_images: dict[str, Path] | None = None) -> list[str]:
+    """ffmpeg command putting all overlay layers on one clip.
+
+    Stacking order: scope, crosshair, HUD, minimap, keyboard.
+    """
+    k = height / 1080
     cmd = [s.ffmpeg, "-y", "-loglevel", "error", "-i", str(clip)]
-    order = [k for k in ("minimap", "keyboard") if k in layers]
-    for k in order:
-        cmd += ["-i", str(layers[k])]
-    if order or scale_to:
-        parts, prev = [], "[0:v]"
-        if scale_to:
-            parts.append(f"[0:v]scale={scale_to[0]}:{scale_to[1]}:flags=lanczos,setsar=1[v0]")
-            prev = "[v0]"
-        for i, k in enumerate(order, start=1):
-            x, y = _xy(getattr(s, f"{k}_anchor"), s.margin)
-            tag = f"[v{i}]"
-            parts.append(f"{prev}[{i}:v]overlay=x={x}:y={y}:eof_action=pass{tag}")
-            prev = tag
+    inputs: list[tuple[str, str, float, str | None]] = []  # (file, anchor, margin, enable)
+
+    static = {}
+    if "static" in layers and Path(layers["static"]).exists():
+        static = json.loads(Path(layers["static"]).read_text())
+    for name in ("scope", "crosshair"):
+        img = (static_images or {}).get(name)
+        if img is not None and static.get(name):
+            inputs.append((str(img), "center", 0, enable_expr(static[name])))
+    if "hud" in layers:
+        inputs.append((str(layers["hud"]), "bottom-center", 0, None))
+    if "minimap" in layers:
+        inputs.append((str(layers["minimap"]), s.minimap_anchor, s.minimap_margin * k, None))
+    if "keyboard" in layers:
+        inputs.append((str(layers["keyboard"]), s.keyboard_anchor, s.keyboard_margin * k, None))
+
+    for f, *_ in inputs:
+        cmd += ["-i", f]
+    parts, prev = [], "[0:v]"
+    if scale_to:
+        parts.append(f"[0:v]scale={scale_to[0]}:{scale_to[1]}:flags=lanczos,setsar=1[v0]")
+        prev = "[v0]"
+    for i, (_, anchor, margin, enable) in enumerate(inputs, start=1):
+        x, y = _xy(anchor, margin)
+        opts = f"x={x}:y={y}:eof_action=pass"
+        if enable:
+            opts += f":enable='{enable}'"
+        parts.append(f"{prev}[{i}:v]overlay={opts}[v{i}]")
+        prev = f"[v{i}]"
+    if parts:
         cmd += ["-filter_complex", ";".join(parts), "-map", prev]
     else:
         cmd += ["-map", "0:v"]
-    cmd += ["-map", "0:a?",
-            "-c:v", "libx264", "-crf", str(s.crf), "-preset", s.preset, "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "192k", str(out)]
+    cmd += ["-map", "0:a?"] + encode_args(s) + [str(out)]
     return cmd
 
 
@@ -77,18 +111,19 @@ def _ts(seconds: float) -> str:
     return f"{h}:{m:02d}:{sec:02d}" if h else f"{m:02d}:{sec:02d}"
 
 
-def chapters(plan: Plan, fps: float) -> list[tuple[float, float, str]]:
-    """(start_s, end_s, title) per round, using exact frame counts."""
+def chapters(plan: Plan, durations: list[float], intro: float = 0.0) -> list[tuple[float, float, str]]:
+    """(start_s, end_s, title): the intro (if any), then one chapter per round."""
     out, t = [], 0.0
-    for seg in plan.segments:
-        dur = frame_count(seg.start_tick, seg.end_tick, plan.tickrate, fps) / fps
+    if intro > 0:
+        out.append((0.0, intro, "Intro"))
+        t = intro
+    for seg, dur in zip(plan.segments, durations):
         out.append((t, t + dur, f"Round {seg.round_number}"))
         t += dur
     return out
 
 
-def write_chapter_files(plan: Plan, fps: float, job_dir: Path) -> tuple[Path, Path]:
-    chs = chapters(plan, fps)
+def write_chapter_files(plan: Plan, chs: list[tuple[float, float, str]], job_dir: Path) -> tuple[Path, Path]:
     yt = job_dir / "chapters.txt"
     yt.write_text("\n".join(f"{_ts(a)} {title}" for a, _, title in chs) + "\n", encoding="utf-8")
     meta = job_dir / "chapters.ffmetadata"
@@ -101,9 +136,11 @@ def write_chapter_files(plan: Plan, fps: float, job_dir: Path) -> tuple[Path, Pa
 
 
 def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str, Path]],
-            fps: float, s: ComposeSettings, size: tuple[int, int] | None = None) -> Path:
+            fps: float, s: ComposeSettings, size: tuple[int, int] | None = None,
+            intro: Path | None = None, static_images: dict[str, Path] | None = None) -> Path:
     parts_dir = job_dir / "parts"
     parts_dir.mkdir(parents=True, exist_ok=True)
+    height = size[1] if size else 1080
     parts = []
     for i, (clip, lay) in enumerate(zip(clips, layers)):
         out = parts_dir / f"part_{i:03d}.mp4"
@@ -117,13 +154,16 @@ def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str,
                     print(f"  recorded at {info.width}x{info.height}, scaling to {size[0]}x{size[1]}",
                           flush=True)
                     scale_to = size
-            subprocess.run(overlay_command(clip, lay, tmp, s, scale_to), check=True)
+            subprocess.run(overlay_command(clip, lay, tmp, s, scale_to, height, static_images), check=True)
             tmp.replace(out)
         parts.append(out)
 
+    all_parts = ([intro] if intro else []) + parts
     listing = job_dir / "parts.txt"
-    listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in parts), encoding="utf-8")
-    _, meta = write_chapter_files(plan, fps, job_dir)
+    listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in all_parts), encoding="utf-8")
+    durations = [probe(p, s.ffmpeg).duration for p in parts]
+    intro_len = probe(intro, s.ffmpeg).duration if intro else 0.0
+    _, meta = write_chapter_files(plan, chapters(plan, durations, intro_len), job_dir)
     final = job_dir / f"{safe_filename(plan.player.name)}_{plan.map_name}_POV.mp4"
     print("Joining parts ...", flush=True)
     subprocess.run([s.ffmpeg, "-y", "-loglevel", "error",

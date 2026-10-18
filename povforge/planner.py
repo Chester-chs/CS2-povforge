@@ -19,7 +19,7 @@ from .model import Death, Round, Segment
 
 @dataclass
 class PlanOptions:
-    pre_roll_seconds: float = 0.0     # extra time before freeze end
+    pre_roll_seconds: float = 3.0     # start this long before freeze time ends
     post_death_seconds: float = 2.0   # keep the kill feed on screen briefly
     post_round_seconds: float = 2.0   # show the round result briefly
     min_segment_seconds: float = 1.0  # drop clips shorter than this

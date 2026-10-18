@@ -5,7 +5,7 @@
 dir = "povforge-output"          # one sub-folder per demo + player
 
 [plan]
-pre_roll_seconds = 0.0           # start this long before freeze time ends
+pre_roll_seconds = 3.0           # start this long before freeze time ends
 post_death_seconds = 2.0         # keep recording this long after the player dies
 post_round_seconds = 2.0         # ...or after the round is decided
 min_segment_seconds = 1.0        # skip clips shorter than this
@@ -20,7 +20,8 @@ window_mode = "windowed"         # or "fullscreen" if your screen is smaller tha
 video_options = "-c:v libx264 -pix_fmt yuv420p -preset veryfast -crf 16"
 preroll_seconds = 2.0            # wait this long at each clip start before recording
 spec_mode = ""                   # only if a CS2 update needs it
-hide_demo_ui = true              # hide CS2's demo playback bar (set false if it shows up instead)
+game_hud = "killfeed"            # killfeed: game shows only the kill feed, povforge draws a player HUD
+                                 # full: keep CS2's spectator HUD
 extra_setup = ""                 # extra console commands, e.g. "cl_hud_color 3; safezonex 0.9"
 timeout_factor = 3.0
 
@@ -31,12 +32,23 @@ show_enemies = false             # true = enemies on the minimap too
 keyboard = true
 keyboard_scale = 1.0
 sync_offset_frames = 0.0         # nudge overlays if they lead/lag the video
+place_label = true               # location name under the minimap
+hud = true                       # health, armor, money, ammo
+crosshair = true
+scope = true                     # sniper scope while scoped in
 
 [compose]
-minimap_anchor = "top-left"      # top-left, top-center, top-right,
-keyboard_anchor = "left-center"  # left-center, right-center,
-                                 # bottom-left, bottom-center, bottom-right
-margin = 24
+minimap_anchor = "top-left"      # top-left, top-center, top-right, left-center, right-center,
+minimap_margin = 24              # bottom-left, bottom-center, bottom-right, center
+keyboard_anchor = "bottom-center"
+keyboard_margin = 140            # distance from the edge, in pixels at 1080p
 crf = 18                         # x264 quality: lower = better and bigger
-preset = "veryfast"               # x264 speed; slower presets = smaller files
+preset = "veryfast"              # x264 speed; slower presets = smaller files
 ffmpeg = "ffmpeg"
+
+[intro]
+enabled = true
+seconds = 4.0
+title = "{player} POV"           # placeholders: {player} {map} {date} {width} {height}
+subtitle = "{map}  ·  {date}  ·  {width}x{height}"
+date = ""                        # empty = date of the demo file

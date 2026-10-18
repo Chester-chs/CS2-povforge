@@ -39,7 +39,7 @@ class PlanSegments(unittest.TestCase):
     rounds = [Round(1, 1000, 3000), Round(2, 4000, 6000), Round(3, 7000, 9000)]
 
     def plan(self, deaths, **kw):
-        opts = PlanOptions(post_death_seconds=1, post_round_seconds=2, min_segment_seconds=0)
+        opts = PlanOptions(pre_roll_seconds=0, post_death_seconds=1, post_round_seconds=2, min_segment_seconds=0)
         return plan_segments(self.rounds, deaths, ME, 64, 10000, opts, **kw)
 
     def test_death_cuts_the_round(self):
@@ -50,6 +50,11 @@ class PlanSegments(unittest.TestCase):
     def test_exit_frag_after_round_end(self):
         segs = self.plan([Death(3050, ME, OTHER, "ak47")])
         self.assertEqual(segs[0], Segment(1, 1000, 3114, "round_end"))
+
+    def test_pre_roll(self):
+        opts = PlanOptions(pre_roll_seconds=3, min_segment_seconds=0)
+        segs = plan_segments(self.rounds, [], ME, 64, 10000, opts)
+        self.assertEqual(segs[0].start_tick, 1000 - 192)
 
     def test_rounds_not_played_are_skipped(self):
         segs = self.plan([], alive_at=lambda t: t < 5000)
@@ -126,19 +131,72 @@ class Misc(unittest.TestCase):
         cmd = overlay_command(Path("c.mp4"), {"keyboard": Path("k.mov"), "minimap": Path("m.mov")},
                               Path("o.mp4"), ComposeSettings())
         graph = cmd[cmd.index("-filter_complex") + 1]
-        self.assertIn("[0:v][1:v]overlay=x=24:y=24", graph)          # minimap first
-        self.assertIn("[v1][2:v]overlay=x=24:y=(H-h)/2", graph)  # then keyboard, left middle
+        self.assertIn("[0:v][1:v]overlay=x=24:y=24", graph)                 # minimap, top left
+        self.assertIn("[v1][2:v]overlay=x=(W-w)/2:y=H-h-140", graph)       # keyboard above the HUD
+        self.assertIn("48000", cmd)                                         # same audio for every part
+
+    def test_overlay_command_static_layers(self):
+        with tempfile.TemporaryDirectory() as d:
+            static = Path(d) / "s.json"
+            static.write_text('{"crosshair": [[0, 1.5], [2, 3]], "scope": []}')
+            cmd = overlay_command(Path("c.mp4"), {"hud": Path("h.mov"), "static": static}, Path("o.mp4"),
+                                  ComposeSettings(), height=1440,
+                                  static_images={"crosshair": Path("x.png"), "scope": Path("s.png")})
+        graph = cmd[cmd.index("-filter_complex") + 1]
+        self.assertNotIn("s.png", cmd)                                      # never scoped: no scope input
+        self.assertIn("enable='between(t,0,1.4999)+between(t,2,2.9999)'", graph)
+        self.assertIn("[v1][2:v]overlay=x=(W-w)/2:y=H-h-0", graph)          # HUD at the very bottom
 
     def test_chapters(self):
         plan = Plan("d.dem", "de_dust2", 64, Player("1", "p"),
                     [Segment(1, 0, 640, "death"), Segment(2, 1000, 1320, "death")])
-        self.assertEqual(chapters(plan, 60), [(0.0, 10.0, "Round 1"), (10.0, 15.0, "Round 2")])
+        self.assertEqual(chapters(plan, [10.0, 5.0]), [(0.0, 10.0, "Round 1"), (10.0, 15.0, "Round 2")])
+        self.assertEqual(chapters(plan, [10.0, 5.0], intro=4.0)[0], (0.0, 4.0, "Intro"))
+        self.assertEqual(chapters(plan, [10.0, 5.0], intro=4.0)[2], (14.0, 19.0, "Round 2"))
 
     def test_keyboard_cache(self):
         kb = KeyboardRenderer(scale=0.5)
-        a = kb.render({"FORWARD": True})
-        self.assertIs(a, kb.render({"FORWARD": True}))
+        a = kb.render({"FORWARD": True, "FIRE": True})
+        self.assertIs(a, kb.render({"FORWARD": True, "FIRE": True}))
         self.assertEqual(len(a), kb.size[0] * kb.size[1] * 4)
+        self.assertNotEqual(a, kb.render({"FORWARD": True}))               # mouse button shows
+
+    def test_hud(self):
+        from povforge.overlay.hud import HudRenderer, intervals
+        from povforge.timeline import HudState
+        hud = HudRenderer(1920, 1.0)
+        dead = hud.render(HudState(alive=False))
+        alive = hud.render(HudState(alive=True, health=100, money=800, weapon="Glock-18", ammo=20, reserve=120))
+        self.assertEqual(len(alive), 1920 * hud.size[1] * 4)
+        self.assertNotEqual(dead, alive)
+        self.assertEqual(intervals([True, True, False, True], 2.0), [(0.0, 1.0), (1.5, 2.0)])
+
+    def test_place_names(self):
+        from povforge.overlay.minimap import pretty_place
+        self.assertEqual(pretty_place("BombsiteB"), "Bombsite B")
+        self.assertEqual(pretty_place("TopofMid"), "Top of Mid")
+        self.assertEqual(pretty_place("CTSpawn"), "CT Spawn")
+
+    def test_hud_sampling(self):
+        hud = pd.DataFrame({"tick": [10, 20], "health": [100, 40], "is_alive": [True, True],
+                            "active_weapon_name": ["Smoke Grenade", "AK-47"], "active_weapon_ammo": [0, 25],
+                            "total_ammo_left": [1, 90], "balance": [800, 0], "armor_value": [0, 100],
+                            "has_helmet": [False, True], "is_scoped": [False, False],
+                            "last_place_name": ["TSpawn", "BombsiteB"]})
+        tr = Track(pd.DataFrame(columns=["tick", "steamid", "X", "Y", "Z", "yaw", "is_alive", "team_num"]),
+                   None, hud)
+        self.assertEqual(tr.hud(15).ammo, -1)            # grenade: no magazine
+        st = tr.hud(25)
+        self.assertEqual((st.health, st.ammo, st.reserve, st.helmet, st.place), (40, 25, 90, True, "BombsiteB"))
+
+    def test_intro_card(self):
+        from povforge.demo import PlayerStats, TeamStats
+        from povforge.intro import IntroInfo, pretty_map, render_card
+        teams = [TeamStats("team_a", 13, [PlayerStats("1", "donk666", 36, 14, 10, 151.8, 55.6, 6)]),
+                 TeamStats("team_b", 10, [PlayerStats("2", "shuliZ", 21, 16, 2, 76.5, 47.6, 1)])]
+        im = render_card(IntroInfo("donk666 POV", "Cache", "1", teams), (1280, 720))
+        self.assertEqual(im.size, (1280, 720))
+        self.assertEqual(pretty_map("de_cache"), "Cache")
 
     def test_config_file(self):
         with tempfile.TemporaryDirectory() as d:

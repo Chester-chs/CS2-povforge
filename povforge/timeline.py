@@ -67,10 +67,31 @@ class _Series:
         return x, y, z, yaw, bool(self.alive[j]), int(self.team[j])
 
 
+@dataclass
+class HudState:
+    alive: bool = False
+    health: int = 0
+    armor: int = 0
+    helmet: bool = False
+    money: int = 0
+    weapon: str = ""
+    ammo: int = -1          # -1 = weapon without a magazine (knife, grenade)
+    reserve: int = 0
+    scoped: bool = False
+    place: str = ""
+
+
 class Track:
     """Fast per-tick lookups over the parsed position and button tables."""
 
-    def __init__(self, positions: pd.DataFrame, buttons: pd.DataFrame | None = None):
+    def __init__(self, positions: pd.DataFrame, buttons: pd.DataFrame | None = None,
+                 hud: pd.DataFrame | None = None):
+        self._hud_ticks = np.empty(0)
+        self._hud: pd.DataFrame | None = None
+        if hud is not None and len(hud):
+            h = hud.sort_values("tick").drop_duplicates("tick", keep="last").reset_index(drop=True)
+            self._hud_ticks = h["tick"].to_numpy(dtype=np.float64)
+            self._hud = h
         self._players = {
             sid: _Series(g) for sid, g in positions.groupby("steamid") if sid
         }
@@ -119,3 +140,31 @@ class Track:
     @property
     def has_keys(self) -> bool:
         return bool(self._keys)
+
+    def hud(self, tick: float) -> HudState:
+        if self._hud is None or tick < self._hud_ticks[0]:
+            return HudState()
+        j = int(np.searchsorted(self._hud_ticks, tick, side="right")) - 1
+        r = self._hud.iloc[j]
+
+        def num(k, default=0):
+            v = r.get(k)
+            return default if v is None or (isinstance(v, float) and np.isnan(v)) else int(v)
+
+        weapon = r.get("active_weapon_name")
+        weapon = "" if weapon is None or (isinstance(weapon, float) and np.isnan(weapon)) else str(weapon)
+        place = r.get("last_place_name")
+        place = "" if place is None or (isinstance(place, float) and np.isnan(place)) else str(place)
+        has_mag = weapon and not any(k in weapon.lower() for k in
+                                     ("knife", "grenade", "flashbang", "molotov", "decoy", "c4",
+                                      "incendiary", "bayonet", "karambit", "daggers", "zeus"))
+        return HudState(
+            alive=bool(r.get("is_alive")), health=num("health"), armor=num("armor_value"),
+            helmet=bool(r.get("has_helmet")), money=num("balance"), weapon=weapon,
+            ammo=num("active_weapon_ammo") if has_mag else -1, reserve=num("total_ammo_left"),
+            scoped=bool(r.get("is_scoped")), place=place,
+        )
+
+    @property
+    def has_hud(self) -> bool:
+        return self._hud is not None

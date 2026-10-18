@@ -12,8 +12,20 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
+import re
+
 from ..maps import RADAR_SIZE, MapInfo
 from ..timeline import PlayerState
+from . import font, shadow_text
+
+PLACE_COLOR = (120, 180, 255, 255)
+
+
+def pretty_place(name: str) -> str:
+    """'BombsiteB' -> 'Bombsite B', 'TSpawn' -> 'T Spawn', 'TopofMid' -> 'Top of Mid'."""
+    s = re.sub(r"(?<=[a-z])of(?=[A-Z])", " of ", name)
+    s = re.sub(r"(?<=[a-z])(?=[A-Z0-9])|(?<=[A-Z])(?=[A-Z][a-z])|(?<=[0-9])(?=[A-Za-z])", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
 
 TEAM_COLORS = {
     2: (234, 179, 64),    # T
@@ -31,9 +43,13 @@ class MinimapRenderer:
         size: int = 360,
         show_enemies: bool = False,
         opacity: float = 0.92,
+        place_label: bool = True,
     ):
         self.info = info
         self.size = size
+        self.label_h = int(size * 0.13) if place_label else 0
+        self.layer_size = (size, size + self.label_h)
+        self._label_cache: dict[str, Image.Image] = {}
         self.show_enemies = show_enemies
         self._bases = {False: self._base(radar, opacity)}
         if radar_lower is not None:
@@ -118,5 +134,21 @@ class MinimapRenderer:
         frame.alpha_composite(layer.reduce(SS))  # box-filter downsample = anti-aliasing
         return frame
 
-    def render(self, me: PlayerState | None, others: list[PlayerState]) -> bytes:
-        return self.render_image(me, others).tobytes()
+    def _label(self, place: str) -> Image.Image:
+        im = self._label_cache.get(place)
+        if im is None:
+            im = Image.new("RGBA", (self.size, self.label_h), (0, 0, 0, 0))
+            if place:
+                shadow_text(ImageDraw.Draw(im), (self.size / 2, self.label_h / 2), pretty_place(place),
+                            font(self.label_h * 0.62), PLACE_COLOR, anchor="mm")
+            self._label_cache[place] = im
+        return im
+
+    def render(self, me: PlayerState | None, others: list[PlayerState], place: str = "") -> bytes:
+        radar = self.render_image(me, others)
+        if not self.label_h:
+            return radar.tobytes()
+        out = Image.new("RGBA", self.layer_size, (0, 0, 0, 0))
+        out.paste(radar, (0, 0))
+        out.paste(self._label(place), (0, self.size))
+        return out.tobytes()

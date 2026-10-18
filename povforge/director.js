@@ -131,8 +131,6 @@
 			case S.LOADING:
 				if (playing && tick > 0) {
 					log('demo playing at tick ' + tick + ', ' + JOB.clips.length + ' clips to record');
-					// CS2 shows its demo playback bar by default; 'demoui' toggles it off.
-					if (JOB.hideDemoUi) mirv.exec('demoui');
 					setState(JOB.clips.length ? S.SEEK : S.FINISH);
 				} else if (frame - stateFrame > JOB.loadTimeoutFrames) {
 					log('ERROR demo did not start');
