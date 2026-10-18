@@ -2,6 +2,12 @@
 
 const TEXT = {
   zh: {
+    setupTitle: "先准备一下录制环境", setupBody: "第一次用需要这几步，之后打开就能直接录。",
+    ckCs2: "安装 Steam 和 CS2", ckCs2Help: "在 Steam 里安装 Counter-Strike 2，装好后这里会自动变绿。",
+    ckTools: "安装录制工具 HLAE 和 FFmpeg", ckToolsHelp: "点下面的按钮，从官方 GitHub 自动下载，大约 150 MB。", ckToolsDone: "已就绪。",
+    ckAc: "退出反作弊客户端", ckAcDone: "FACEIT、5E、完美世界都没有在运行。",
+    ckDemo: "准备一个 demo", ckDemoHelp: "从 FACEIT 比赛房间或 HLTV 下载 demo，放进下载文件夹即可。", ckDemoDone: "下载文件夹里有 {n} 个 demo，在左边选一个。",
+    offlineTitle: "PovForge 已经关闭", offlineBody: "后台程序已退出。重新打开 PovForge 即可继续。",
     demos: "Demo", refresh: "刷新", lookingIn: "正在看：", noDemos: "这个文件夹里还没有 demo。下载一个 FACEIT 或 HLTV demo，或者手动选择文件。",
     openFile: "选择 demo 文件…", demoFolder: "更换 demo 文件夹…",
     setup: "录制环境", found: "已就绪", cs2Missing: "没找到，请先在 Steam 安装", notInstalled: "未安装",
@@ -28,6 +34,12 @@ const TEXT = {
     keep: "CS2 会在录完后自己关闭，期间别用电脑玩游戏。",
   },
   en: {
+    setupTitle: "Set up recording first", setupBody: "These steps are needed once; after that you can record straight away.",
+    ckCs2: "Install Steam and CS2", ckCs2Help: "Install Counter-Strike 2 in Steam; this turns green once it's found.",
+    ckTools: "Install the recording tools HLAE and FFmpeg", ckToolsHelp: "Downloads both from their official GitHub pages, about 150 MB.", ckToolsDone: "Ready.",
+    ckAc: "Quit anti-cheat clients", ckAcDone: "FACEIT, 5E and Perfect World aren't running.",
+    ckDemo: "Get a demo", ckDemoHelp: "Download a demo from a FACEIT match room or HLTV into your Downloads folder.", ckDemoDone: "{n} demos in your Downloads folder; pick one on the left.",
+    offlineTitle: "PovForge has closed", offlineBody: "The background program stopped. Open PovForge again to carry on.",
     demos: "Demos", refresh: "Refresh", lookingIn: "Looking in", noDemos: "No demos in this folder yet. Download a FACEIT or HLTV demo, or choose a file.",
     openFile: "Choose a demo file…", demoFolder: "Change demo folder…",
     setup: "Recording setup", found: "Ready", cs2Missing: "Not found, install it in Steam", notInstalled: "Not installed",
@@ -58,7 +70,7 @@ const TEXT = {
 document.addEventListener("alpine:init", () => {
   Alpine.data("povforge", () => ({
     version: "", lang: "zh", prefs: {}, setup: {}, job: { state: "idle", lines: [], recorded: [], planned: [], step: [0, 0] },
-    demos: [], demosLoaded: false, demo: null, inspecting: false, inspectError: "",
+    demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
     player: null, chosenRounds: [], lastRun: null,
     stages: ["read", "record", "overlays", "intro", "compose"],
 
@@ -72,7 +84,10 @@ document.addEventListener("alpine:init", () => {
         try {
           if (this.job.state === "running") this.job = await this.get("/api/job");
           else await this.refresh();
-        } catch (e) { /* app closing */ }
+          this.failures = 0; this.offline = false;
+        } catch (e) {
+          if (++this.failures >= 3) this.offline = true;
+        }
         setTimeout(tick, this.job.state === "running" ? 1000 : 2500);
       };
       setTimeout(tick, 1000);
@@ -95,6 +110,7 @@ document.addEventListener("alpine:init", () => {
     },
     async refresh() {
       const s = await this.get("/api/state");
+      if (s.error) throw new Error(s.error);
       this.version = s.version; this.prefs = s.prefs; this.setup = s.setup; this.job = s.job;
     },
     async loadDemos() { this.demos = await this.get("/api/demos"); this.demosLoaded = true; },
@@ -103,6 +119,7 @@ document.addEventListener("alpine:init", () => {
       this.inspecting = true; this.inspectError = ""; this.demo = null; this.player = null;
       try {
         this.demo = await this.post("/api/inspect", { path });
+        this.loadDemos();  // the list now knows this demo's map
         this.chosenRounds = this.roundList.slice();
       } catch (e) {
         this.inspectError = e.message === "not_a_demo" ? "Not a CS2 demo file (.dem, .dem.zst, .dem.gz)." : e.message;
@@ -182,6 +199,7 @@ document.addEventListener("alpine:init", () => {
 
     niceDemoName(d) { return d.name.replace(/\.dem(\.(zst|gz|bz2))?$/i, ""); },
     shortPath(p) { return (p || "").replace(/^.*[\\/](.+[\\/].+)$/, "…\\$1"); },
+    clock(s) { s = Math.round(s); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); },
     mb(n) { return (n / 1048576).toFixed(0) + " MB"; },
     ago(ts) {
       const s = Date.now() / 1000 - ts, zh = this.lang === "zh";

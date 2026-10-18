@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PovForge</title>
+<link rel="icon" href="/static/icon.png">
 <link rel="stylesheet" href="/static/app.css">
 <script defer src="/static/app.js"></script>
 <script defer src="/static/vendor/alpine.min.js"></script>
@@ -13,7 +14,7 @@
 
 <aside class="side">
   <header class="brand">
-    <svg class="ic brand-mark"><use href="#i-crosshair"/></svg>
+    <img class="brand-mark" src="/static/icon.png" alt="">
     <span class="brand-name">PovForge</span>
     <span class="brand-ver" x-text="'v' + version"></span>
   </header>
@@ -31,8 +32,13 @@
           <button class="demo" role="option" :aria-selected="demo && demo.path === d.path"
                   :class="{ on: demo && demo.path === d.path }" @click="pickDemo(d.path)"
                   :disabled="job.state === 'running'">
-            <span class="demo-name" x-text="niceDemoName(d)"></span>
+            <span class="demo-name">
+              <b x-show="d.map" x-text="d.map"></b>
+              <span x-show="d.score" class="demo-score" x-text="d.score"></span>
+              <span x-show="!d.map" x-text="niceDemoName(d)"></span>
+            </span>
             <span class="demo-meta">
+              <span x-show="d.map" class="demo-file" x-text="niceDemoName(d)"></span>
               <span x-text="ago(d.mtime)"></span>
               <span x-text="mb(d.size)"></span>
               <span class="tag" x-show="d.faceit">FACEIT</span>
@@ -56,15 +62,15 @@
   <section class="env" :class="{ warn: !ready }">
     <div class="side-head"><h2 x-text="t('setup')"></h2></div>
     <ul class="env-list">
-      <li :class="setup.cs2 ? 'ok' : 'bad'">
+      <li :class="setup.cs2 ? 'ok' : 'bad'" :title="setup.cs2">
         <span class="dot"></span><span>CS2</span>
         <span class="env-val" x-text="setup.cs2 ? t('found') : t('cs2Missing')"></span>
       </li>
-      <li :class="setup.hlae ? 'ok' : 'bad'">
+      <li :class="setup.hlae ? 'ok' : 'bad'" :title="setup.hlae">
         <span class="dot"></span><span>HLAE</span>
         <span class="env-val" x-text="setup.hlae ? t('found') : t('notInstalled')"></span>
       </li>
-      <li :class="setup.ffmpeg ? 'ok' : 'bad'">
+      <li :class="setup.ffmpeg ? 'ok' : 'bad'" :title="setup.ffmpeg">
         <span class="dot"></span><span>FFmpeg</span>
         <span class="env-val" x-text="setup.ffmpeg ? t('found') : t('notInstalled')"></span>
       </li>
@@ -99,10 +105,39 @@
 <main class="main">
 
   <!-- nothing chosen yet -->
-  <section class="blank" x-show="!demo && !inspecting && job.state === 'idle'">
-    <svg class="ic blank-ic"><use href="#i-film"/></svg>
-    <h1 x-text="t('blankTitle')"></h1>
-    <p x-text="t('blankBody')"></p>
+  <section class="welcome" x-show="!demo && !inspecting && !inspectError && job.state === 'idle'">
+    <h1 x-text="ready ? t('blankTitle') : t('setupTitle')"></h1>
+    <p class="welcome-sub" x-text="ready ? t('blankBody') : t('setupBody')"></p>
+    <ol class="checklist">
+      <li :class="setup.cs2 ? 'ok' : 'todo'">
+        <span class="ck"><svg class="ic" x-show="setup.cs2"><use href="#i-check"/></svg><span x-show="!setup.cs2">1</span></span>
+        <div><b x-text="t('ckCs2')"></b><p x-text="setup.cs2 ? setup.cs2 : t('ckCs2Help')"></p></div>
+      </li>
+      <li :class="setup.hlae && setup.ffmpeg ? 'ok' : 'todo'">
+        <span class="ck"><svg class="ic" x-show="setup.hlae && setup.ffmpeg"><use href="#i-check"/></svg><span x-show="!(setup.hlae && setup.ffmpeg)">2</span></span>
+        <div>
+          <b x-text="t('ckTools')"></b>
+          <p x-show="setup.hlae && setup.ffmpeg" x-text="t('ckToolsDone')"></p>
+          <p x-show="!(setup.hlae && setup.ffmpeg) && !setup.installing" x-text="t('ckToolsHelp')"></p>
+          <button class="btn primary" x-show="!(setup.hlae && setup.ffmpeg) && !setup.installing" @click="install()">
+            <svg class="ic"><use href="#i-hard-drive-download"/></svg><span x-text="t('installTools')"></span>
+          </button>
+          <div class="install" x-show="setup.installing">
+            <svg class="ic spin"><use href="#i-loader-circle"/></svg><span x-text="setup.message || t('preparing')"></span>
+            <div class="bar" x-show="setup.fraction >= 0"><i :style="'width:' + Math.round(setup.fraction * 100) + '%'"></i></div>
+          </div>
+        </div>
+      </li>
+      <li :class="setup.anticheat?.length ? 'todo' : 'ok'">
+        <span class="ck"><svg class="ic" x-show="!setup.anticheat?.length"><use href="#i-check"/></svg><span x-show="setup.anticheat?.length">3</span></span>
+        <div><b x-text="t('ckAc')"></b><p x-text="setup.anticheat?.length ? t('needAntiCheat', { list: setup.anticheat.join(', ') }) : t('ckAcDone')"></p></div>
+      </li>
+      <li :class="demos.length ? 'ok' : 'todo'">
+        <span class="ck"><svg class="ic" x-show="demos.length"><use href="#i-check"/></svg><span x-show="!demos.length">4</span></span>
+        <div><b x-text="t('ckDemo')"></b><p x-text="demos.length ? t('ckDemoDone', { n: demos.length }) : t('ckDemoHelp')"></p></div>
+      </li>
+    </ol>
+    <p class="err-note" x-show="setup.problems?.length" x-text="(setup.problems || []).join(' · ')"></p>
   </section>
 
   <section class="blank" x-show="inspecting">
@@ -206,7 +241,7 @@
   <section class="run" x-show="job.state !== 'idle'">
     <header class="run-head">
       <h1 x-text="runTitle"></h1>
-      <p x-text="runSub"></p>
+      <p><span x-text="runSub"></span><span class="elapsed" x-show="job.state === 'running' && job.elapsed" x-text="clock(job.elapsed)"></span></p>
     </header>
 
     <ol class="stages" x-show="job.state !== 'done'">
@@ -260,5 +295,12 @@
     </div>
   </section>
 </main>
+
+<div class="offline" x-show="offline" x-cloak>
+  <div>
+    <h1 x-text="t('offlineTitle')"></h1>
+    <p x-text="t('offlineBody')"></p>
+  </div>
+</div>
 </body>
 </html>

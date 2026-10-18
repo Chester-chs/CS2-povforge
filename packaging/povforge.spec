@@ -16,8 +16,8 @@ a_app = Analysis(["app_main.py"], **common)
 a_cli = Analysis(["cli_main.py"], **common)
 
 exe_app = EXE(PYZ(a_app.pure), a_app.scripts, [], exclude_binaries=True, name="PovForge",
-              console=False, icon=None)
+              console=False, icon="povforge.ico")
 exe_cli = EXE(PYZ(a_cli.pure), a_cli.scripts, [], exclude_binaries=True, name="povforge-cli",
-              console=True, icon=None)
+              console=True, icon="povforge.ico")
 
 COLLECT(exe_app, a_app.binaries, a_app.datas, exe_cli, a_cli.binaries, a_cli.datas, name="PovForge")

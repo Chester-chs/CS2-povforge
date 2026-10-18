@@ -122,11 +122,47 @@ def csgo_dir(cs2_exe: Path) -> Path:
 
 
 def running_processes() -> set[str]:
+    """Lower-case names of running programs. Uses the Windows API directly, so no
+    console window flashes up (the app checks this every few seconds)."""
     if sys.platform != "win32":
         return set()
-    out = subprocess.run(["tasklist", "/fo", "csv", "/nh"], capture_output=True, text=True,
-                         errors="replace").stdout
-    return {line.split('","')[0].strip('"').lower() for line in out.splitlines() if line}
+    try:
+        return _process_names_win32()
+    except Exception:
+        out = subprocess.run(["tasklist", "/fo", "csv", "/nh"], capture_output=True, text=True,
+                             errors="replace", creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+        return {line.split('","')[0].strip('"').lower() for line in out.splitlines() if line}
+
+
+def _process_names_win32() -> set[str]:
+    import ctypes
+    from ctypes import wintypes
+
+    class PROCESSENTRY32W(ctypes.Structure):
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                    ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_size_t),
+                    ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+                    ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long),
+                    ("dwFlags", wintypes.DWORD), ("szExeFile", ctypes.c_wchar * 260)]
+
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    snap = k32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+    if snap in (None, wintypes.HANDLE(-1).value):
+        raise OSError("process snapshot failed")
+    names = set()
+    try:
+        entry = PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+        ok = k32.Process32FirstW(snap, ctypes.byref(entry))
+        while ok:
+            names.add(entry.szExeFile.lower())
+            ok = k32.Process32NextW(snap, ctypes.byref(entry))
+    finally:
+        k32.CloseHandle(snap)
+    if not names:
+        raise OSError("no processes listed")
+    return names
 
 
 ANTI_CHEAT = {"faceit.exe": "FACEIT", "faceitclient.exe": "FACEIT", "faceitservice.exe": "FACEIT AC",

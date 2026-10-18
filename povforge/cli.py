@@ -130,7 +130,9 @@ def _cmd_maps(args, cfg) -> None:
 
 
 def _cmd_gui(args, cfg) -> None:
+    from .app import hide_console_windows
     from .gui.server import main as gui_main
+    hide_console_windows()
     gui_main(port=args.port, open_browser=not args.no_window)
 
 

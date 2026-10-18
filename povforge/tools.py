@@ -49,7 +49,19 @@ def find_ffmpeg(configured: str = "ffmpeg") -> str | None:
         return on_path
     if ffmpeg_exe().is_file():
         return str(ffmpeg_exe())
+    for p in _usual_ffmpeg_places():
+        if p.is_file():
+            return str(p)
     return None
+
+
+def _usual_ffmpeg_places() -> list[Path]:
+    """Where people usually put ffmpeg on Windows (for when PATH isn't set up)."""
+    local = Path(os.environ.get("LOCALAPPDATA", str(Path.home())))
+    pf = Path(os.environ.get("ProgramFiles", "C:/Program Files"))
+    return [Path("C:/ffmpeg/bin/ffmpeg.exe"), pf / "ffmpeg/bin/ffmpeg.exe",
+            local / "Microsoft/WinGet/Links/ffmpeg.exe", Path.home() / "scoop/shims/ffmpeg.exe",
+            Path("C:/ProgramData/chocolatey/bin/ffmpeg.exe")]
 
 
 def _get(url: str, accept: str | None = None):

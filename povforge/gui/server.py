@@ -103,7 +103,27 @@ def find_demos(folders: list[str], limit: int = 40) -> list[dict]:
             out.append({"path": str(p), "name": p.name, "size": st.st_size, "mtime": st.st_mtime,
                         "faceit": bool(re.search(r"1-[0-9a-f]{8}-", p.name, re.I))})
     out.sort(key=lambda d: -d["mtime"])
+    known = _known_demos()
+    for d in out:
+        k = known.get(d["path"])
+        if k:
+            d["map"], d["score"] = k.get("map", ""), k.get("score", "")
     return out[:limit]
+
+
+def _known_demos() -> dict:
+    f = app_dir() / "demos.json"
+    try:
+        return json.loads(f.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _remember_demo(path: str, map_pretty: str, score: str) -> None:
+    known = _known_demos()
+    known[path] = {"map": map_pretty, "score": score}
+    app_dir().mkdir(parents=True, exist_ok=True)
+    (app_dir() / "demos.json").write_text(json.dumps(known, ensure_ascii=False), encoding="utf-8")
 
 
 _inspect_cache: dict[str, dict] = {}
@@ -162,6 +182,8 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
             "rounds": n, "minutes": round(d.last_tick / d.tickrate / 60, 1), "faceit_match": match_id(src.name),
             "date": time.strftime("%Y-%m-%d %H:%M", time.localtime(src.stat().st_mtime)), "teams": out_teams}
     _inspect_cache[key] = info
+    score = f"{out_teams[0]['score']}:{out_teams[1]['score']}" if len(out_teams) >= 2 and out_teams[1]["score"] is not None else ""
+    _remember_demo(str(src), info["map_pretty"], score)
     return info
 
 
@@ -311,21 +333,25 @@ class Setup:
         from ..config import Config
         cfg = Config()
         out = {"windows": sys.platform == "win32" or bool(os.environ.get("POVFORGE_PLACEHOLDER")),
-               "placeholder": bool(os.environ.get("POVFORGE_PLACEHOLDER"))}
-        try:
-            out["hlae"] = str(hlae.find_hlae(cfg.record))
-        except RuntimeError:
-            out["hlae"] = ""
-        out["ffmpeg"] = tools.find_ffmpeg() or ""
-        try:
-            out["cs2"] = str(hlae.find_cs2(cfg.record)) if sys.platform == "win32" else ""
-        except RuntimeError:
-            out["cs2"] = ""
-        procs = hlae.running_processes()
+               "placeholder": bool(os.environ.get("POVFORGE_PLACEHOLDER")), "problems": []}
+
+        def check(key, fn, default=""):
+            try:
+                out[key] = fn()
+            except Exception as e:  # each check on its own: one failure mustn't blank the panel
+                out[key] = default
+                if not isinstance(e, RuntimeError):
+                    out["problems"].append(f"{key}: {e}")
+
+        check("hlae", lambda: str(hlae.find_hlae(cfg.record)))
+        check("ffmpeg", lambda: tools.find_ffmpeg() or "")
+        check("cs2", lambda: str(hlae.find_cs2(cfg.record)) if sys.platform == "win32" else "")
+        check("procs", lambda: sorted(hlae.running_processes()), [])
+        procs = set(out.pop("procs"))
         out["anticheat"] = sorted({n for exe, n in hlae.ANTI_CHEAT.items() if exe in procs})
         out["cs2_running"] = "cs2.exe" in procs
         out["steam_running"] = "steam.exe" in procs if sys.platform == "win32" else True
-        out["settings_pending"] = settings_guard.pending()
+        check("settings_pending", settings_guard.pending, False)
         with self.lock:
             out["installing"], out["message"] = self.installing, self.message
             out["fraction"], out["install_error"] = self.fraction, self.error

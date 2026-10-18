@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 import tempfile
+import sys
 import unittest
 from pathlib import Path
 
@@ -148,3 +149,10 @@ def test_player_hud_setting():
     from povforge import hlae
     assert not any("cl_spec_stats" in c for c in hlae.setup_commands(hlae.RecordSettings()))
     assert "cl_spec_stats 0" in hlae.setup_commands(hlae.RecordSettings(player_hud=True))
+
+
+@unittest.skipUnless(sys.platform == "win32", "Windows only")
+def test_process_list_without_a_console():
+    from povforge import hlae
+    names = hlae._process_names_win32()
+    assert "python.exe" in names or any(n.startswith("python") for n in names)
