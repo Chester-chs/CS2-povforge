@@ -1,4 +1,4 @@
-# PyInstaller entry for povforge.exe (command line; the app runs it to record).
+# PyInstaller entry for povforge-cli.exe (command line; the app runs it to record).
 import sys
 
 from povforge.cli import main

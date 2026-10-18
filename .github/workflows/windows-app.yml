@@ -34,10 +34,11 @@ jobs:
         shell: pwsh
         run: |
           $dir = "packaging/dist/PovForge"
-          & "$dir/povforge.exe" --help
-          if ($LASTEXITCODE -ne 0) { throw "povforge.exe --help failed" }
-          & "$dir/povforge.exe" doctor
-          $server = Start-Process "$dir/povforge.exe" -ArgumentList "gui","--port","8765","--no-window" -PassThru
+          & "$dir/povforge-cli.exe" --help
+          if ($LASTEXITCODE -ne 0) { throw "povforge-cli.exe --help failed" }
+          & "$dir/povforge-cli.exe" doctor
+          if (-not (Test-Path "$dir/PovForge.exe")) { throw "PovForge.exe missing" }
+          $server = Start-Process "$dir/povforge-cli.exe" -ArgumentList "gui","--port","8765","--no-window" -PassThru
           Start-Sleep -Seconds 8
           $state = Invoke-RestMethod "http://127.0.0.1:8765/api/state"
           if (-not $state.version) { throw "app server did not answer" }
