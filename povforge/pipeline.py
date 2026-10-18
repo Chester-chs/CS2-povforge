@@ -248,5 +248,5 @@ def run(cfg: Config, demo: str | Path, player: str, placeholder: bool = False,
     _, job = make_plan(cfg, demo, player, rounds)
     clips = make_recording(cfg, job, placeholder)
     final = make_video(cfg, job, clips)
-    _log(f"Done: {final}")
+    _log(f"Done: {final.resolve()}")
     return final
