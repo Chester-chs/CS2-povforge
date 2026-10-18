@@ -88,9 +88,10 @@ def _cmd_doctor(args, cfg) -> None:
         line(True, "Playwright", "FACEIT intro screenshot")
     except ImportError:
         line(False, "Playwright", "pip install playwright (needed for the FACEIT intro screenshot)", warn=True)
-    for tool in (cfg.compose.ffmpeg, "ffprobe"):
+    from .media import ffprobe_for
+    for tool in (cfg.compose.ffmpeg, ffprobe_for(cfg.compose.ffmpeg)):
         found = shutil.which(tool)
-        line(bool(found), tool, found or "not on PATH")
+        line(bool(found), Path(tool).stem, found or "missing: run povforge setup")
     if sys.platform != "win32":
         line(False, "Windows", "recording needs Windows; --placeholder works anywhere", warn=True)
         print("\nAll good." if ok else "\nFix the FAIL lines above.")
@@ -126,6 +127,28 @@ def _cmd_maps(args, cfg) -> None:
         a = get_map(name, refresh=True)
         print(f"{name}: ok{' (+ lower level)' if a.radar_lower else ''}")
     print(f"Cached in {cache_dir()}")
+
+
+def _cmd_setup(args, cfg) -> None:
+    """Download HLAE and FFmpeg if they're missing."""
+    from . import hlae, tools
+
+    def show(msg: str, frac: float) -> None:
+        pct = f" {frac * 100:3.0f}%" if frac >= 0 else ""
+        print(f"\r  {msg}{pct}   ", end="", flush=True)
+
+    try:
+        print(f"HLAE: {hlae.find_hlae(cfg.record)}")
+    except RuntimeError:
+        print("HLAE: downloading ...")
+        print(f"\r  installed: {tools.install_hlae(show)}            ")
+    ff = tools.find_ffmpeg(cfg.compose.ffmpeg)
+    if ff and not args.force:
+        print(f"FFmpeg: {ff}")
+    else:
+        print("FFmpeg: downloading ...")
+        print(f"\r  installed: {tools.install_ffmpeg(show)}            ")
+    print("Ready. Check everything with: povforge doctor")
 
 
 def _cmd_restore_settings(args, cfg) -> None:
@@ -223,6 +246,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("names", nargs="+", help="map names, e.g. de_dust2 de_mirage")
     s.set_defaults(func=_cmd_maps)
 
+    s = sub.add_parser("setup", help="download HLAE and FFmpeg if they're missing")
+    s.add_argument("--force", action="store_true", help="download FFmpeg even if one is found")
+    s.set_defaults(func=_cmd_setup)
+
     s = sub.add_parser("restore-settings", help="put your CS2 settings back (normally automatic)")
     s.set_defaults(func=_cmd_restore_settings)
 
@@ -240,6 +267,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.func is not _cmd_restore_settings:
             _restore_leftover_settings()
         cfg = load_config(args.config)
+        from . import tools
+        cfg.compose.ffmpeg = tools.find_ffmpeg(cfg.compose.ffmpeg) or cfg.compose.ffmpeg
         args.func(args, cfg)
     except (ValueError, RuntimeError) as e:
         print(f"Error: {e}", file=sys.stderr)

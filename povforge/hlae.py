@@ -25,7 +25,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import settings_guard
+from . import settings_guard, tools
 from .maps import parse_keyvalues
 from .model import Plan, Segment
 
@@ -60,6 +60,7 @@ def find_hlae(s: RecordSettings) -> Path:
         candidates.append(Path(on_path))
     local = os.environ.get("LOCALAPPDATA", "")
     candidates += [
+        tools.hlae_exe(),                      # downloaded by `povforge setup` / the app
         Path("C:/Tools/hlae/HLAE.exe"),
         Path("C:/hlae/HLAE.exe"),
         Path(local) / "HLAE" / "HLAE.exe" if local else None,
@@ -69,8 +70,7 @@ def find_hlae(s: RecordSettings) -> Path:
         if c is not None and c.is_file():
             return c
     raise RuntimeError(
-        "HLAE not found. Download it from https://github.com/advancedfx/advancedfx/releases, "
-        "unzip it to C:\\Tools\\hlae, or set [record] hlae_path in povforge.toml."
+        "HLAE not found. Run `povforge setup` to download it, or set [record] hlae_path in povforge.toml."
     )
 
 
@@ -201,9 +201,9 @@ def ensure_ffmpeg_ini(hlae: Path, ffmpeg: str) -> None:
     """Tell HLAE where FFmpeg is (HLAE reads ffmpeg\\ffmpeg.ini next to HLAE.exe)."""
     if (hlae.parent / "ffmpeg" / "bin" / "ffmpeg.exe").is_file():
         return
-    exe = shutil.which(ffmpeg)
+    exe = tools.find_ffmpeg(ffmpeg)
     if not exe:
-        raise RuntimeError("FFmpeg not found on PATH; HLAE needs it to encode video.")
+        raise RuntimeError("FFmpeg not found. Run `povforge setup` to download it.")
     ini = hlae.parent / "ffmpeg" / "ffmpeg.ini"
     ini.parent.mkdir(exist_ok=True)
     ini.write_text(f"[Ffmpeg]\nPath={Path(exe).resolve()}\n", encoding="utf-8")
