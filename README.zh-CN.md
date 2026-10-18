@@ -11,12 +11,24 @@
 - 自动跳过无效时间：每回合从冻结时间结束前 3 秒开始录，不录暂停和半场换边；选手阵亡后片刻即切到下一回合
 - 保留 CS2 原本的 HUD，只隐藏 demo 播放控制栏和游戏雷达
 - 不会改动你的 CS2 设置：CS2 启动前备份所有设置文件（Steam userdata 里的 cfg 和游戏 cfg），关闭后逐字节还原。录制中途被打断的话，下次运行任何 povforge 命令都会先还原（也可以手动运行 `povforge restore-settings`）
-- 同步的 2D 小地图：队友位置、所在区域名、道具飞行轨迹、烟雾和燃烧瓶（带倒计时）
-- 键鼠显示（Shift、Ctrl、W A S D、空格、鼠标左右键），位于 HUD 正上方
+- 同步的 2D 小地图：队友位置、道具飞行轨迹、烟雾和燃烧瓶（带倒计时）
+- 键鼠显示（Shift、Ctrl、W A S D、空格、鼠标左右键），位于底部 HUD 击杀图标正上方
 - 片头：在 FACEIT 比赛房间画面上写 "选手名 POV"。程序根据 demo 文件名里的比赛 ID 自动截图（后台无界面打开 Edge/Chrome，无需登录，隐藏 cookie 弹窗、不点同意）。片头同时写上比赛开始的具体时间（按你电脑的时区）。非 FACEIT demo 使用全场战绩卡
 - 按回合生成章节标记（嵌入视频，并输出可直接粘贴到 YouTube/B 站的 `chapters.txt`）
 
 一场 28 分钟的 FACEIT demo 会生成约 16 分钟的 POV 视频。
+
+## 软件
+
+在 [Releases](https://github.com/Chester-chs/cs2-povforge/releases/latest) 下载 **PovForge-windows.zip**，解压到任意位置，双击 **PovForge.exe**，会打开一个窗口：
+
+1. 选一个 demo（自动列出"下载"文件夹里的 demo，也可以手动选择文件）；
+2. 在战绩表上点一位选手，需要的话再挑要录的回合（每个回合会显示他的击杀数和是否阵亡）；
+3. 点 **录制**，看着进度走完；录好后可以直接播放，或打开所在文件夹。
+
+第一次使用时，点左下角 **一键安装 HLAE 和 FFmpeg**，两者都从官方 GitHub 发布页下载到 `%LOCALAPPDATA%\povforge\tools`。需要已安装 Steam 和 CS2。视频默认保存到 `视频\PovForge`（可以更改）。
+
+命令行里运行 `povforge gui` 也能打开同一个窗口。
 
 ## 工作原理
 
@@ -36,9 +48,8 @@ demo ──► 规划 ──► 录制（HLAE 驱动 CS2）──► 叠加层 �
 ## 环境要求
 
 - 装有 Counter-Strike 2 的 Windows 10/11（录制需要）
-- Python 3.11+
-- [FFmpeg](https://ffmpeg.org) 并加入 PATH，例如 `winget install Gyan.FFmpeg`
-- [HLAE](https://github.com/advancedfx/advancedfx/releases)：下载最新的 `hlae_*.zip`，解压到 `C:\Tools\hlae`（解压后应有 `C:\Tools\hlae\HLAE.exe`）
+- 使用命令行时需要 Python 3.11+（软件版不需要）
+- HLAE 和 FFmpeg：运行 `povforge setup`（或软件里的安装按钮）自动下载。如果 PATH 里已有 FFmpeg、或 `C:\Tools\hlae` 里已有 HLAE，会直接使用
 - 录制时 Steam 要开着；关闭 CS2 和各平台反作弊客户端（FACEIT、5E、完美世界）
 
 运行 `povforge doctor` 可以一次检查全部环境。

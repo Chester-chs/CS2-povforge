@@ -15,6 +15,12 @@ downloaded data, as described here.
 | [CS2-insight-agent](https://github.com/DrEAmSs59/CS2-insight-agent) by DrEAmSs59 | PolyForm Noncommercial 1.0.0 | Reference only: its notes on demo HUD settings (`cl_spec_stats`) and on backing up CS2's settings while recording. No code or files copied. 仅作参考：参考了它关于回放 HUD 设置（`cl_spec_stats`）和录制时备份 CS2 设置的说明。未复制任何代码或文件。 |
 | [FFmpeg](https://ffmpeg.org) | LGPL/GPL | External program for encoding. 外部程序，用于编码合成。 |
 | [Playwright for Python](https://github.com/microsoft/playwright-python) by Microsoft | Apache-2.0 | Python dependency that drives the Edge/Chrome already on the PC to screenshot the public FACEIT match room for the intro. 作为 Python 依赖库，调用电脑自带的 Edge/Chrome 截取公开的 FACEIT 比赛房间页面做片头。 |
+| [HLAE / advancedfx](https://github.com/advancedfx/advancedfx/releases) download | MIT | `povforge setup` / the app download the official release zip to the user's PC at runtime. Not bundled. 运行时从官方发布页下载到用户电脑，不随本项目分发。 |
+| [FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) by BtbN | GPL (FFmpeg) | Downloaded at runtime by `povforge setup` / the app from the official release. Not bundled; run as a separate program. 运行时下载并作为独立程序调用，不随本项目分发。 |
+| [Alpine.js](https://github.com/alpinejs/alpine) by Caleb Porzio | MIT | Vendored unmodified in `povforge/gui/static/vendor/alpine.min.js` (v3.17.4) with its licence. 原样随附（含许可证），用于软件界面交互。 |
+| [Lucide](https://github.com/lucide-icons/lucide) icons | ISC | 24 icons copied unmodified into `povforge/gui/static/vendor/icons.svg` (lucide-static 1.59.0), licence included. 原样复制 24 个图标（含许可证）。 |
+| [Barlow Semi Condensed](https://github.com/jpt/barlow) via [Fontsource](https://github.com/fontsource/font-files) | SIL OFL 1.1 | Font files vendored unmodified in `povforge/gui/static/vendor/fonts/` with the licence. 字体文件原样随附（含许可证）。 |
+| [PyInstaller](https://github.com/pyinstaller/pyinstaller) | GPL 2.0 with bootloader exception | Builds the Windows app; the exception allows distributing the built program under our own licence. 用于打包 Windows 程序，其例外条款允许按本项目协议分发打包结果。 |
 | [pandas](https://pandas.pydata.org), [NumPy](https://numpy.org), [Pillow](https://python-pillow.org), [zstandard](https://github.com/indygreg/python-zstandard) | BSD-3-Clause / MIT-CMU (Pillow) | Python dependencies. Python 依赖库。 |
 
 Counter-Strike 2, its maps and radar images are trademarks and property of

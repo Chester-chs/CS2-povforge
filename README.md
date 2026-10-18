@@ -11,12 +11,24 @@ A personal, non-commercial tool that turns Counter-Strike 2 demos into full-matc
 - Skips dead time: each round starts 3 seconds before freeze time ends (no timeouts, no halftime) and stops shortly after the player dies
 - Keeps CS2's own HUD; the demo playback bar and game radar are hidden
 - Your CS2 settings are never changed: every settings file (Steam userdata cfg and game cfg) is backed up before CS2 starts and put back byte for byte after it closes. If a recording is interrupted, the next povforge command restores them first (`povforge restore-settings` does it on demand)
-- Synced 2D minimap: teammates, the player's location, grenade flight paths, smokes and molotovs with countdowns
-- Keyboard/mouse display (Shift, Ctrl, W A S D, Space, mouse buttons) just above the HUD
+- Synced 2D minimap: teammates, grenade flight paths, smokes and molotovs with countdowns
+- Keyboard/mouse display (Shift, Ctrl, W A S D, Space, mouse buttons) just above the HUD's kill icons
 - Intro: "<player> POV" written over the FACEIT match room. The screenshot is taken automatically from the demo's match id (headless Edge/Chrome, no login, cookie banner hidden, nothing accepted). The intro also shows the match start time in your time zone. Other demos get the final scoreboard
 - Writes chapter markers per round (embedded in the video and as a YouTube-ready `chapters.txt`)
 
 A 28-minute FACEIT demo becomes a ~16-minute POV video.
+
+## The app
+
+Download **PovForge-windows.zip** from [Releases](https://github.com/Chester-chs/cs2-povforge/releases/latest), unzip it anywhere and double-click **PovForge.exe**. It opens a window where you:
+
+1. pick a demo (demos in your Downloads folder are listed; any file can be chosen),
+2. click a player on the scoreboard and, if you like, the rounds to record (each round shows that player's kills and whether they died),
+3. press **Record** and follow the progress; when it's done, play the video or open its folder.
+
+The first time, click **Install HLAE and FFmpeg** in the setup panel; both are downloaded from their official GitHub releases into `%LOCALAPPDATA%\povforge\tools`. Steam and CS2 must be installed. Videos go to `Videos\PovForge` (changeable).
+
+From the command line, `povforge gui` opens the same window.
 
 ## How it works
 
@@ -36,9 +48,8 @@ Key input comes from the player's real input commands when the demo has them (FA
 ## Requirements
 
 - Windows 10/11 with Counter-Strike 2 installed (for recording)
-- Python 3.11+
-- [FFmpeg](https://ffmpeg.org) on PATH, e.g. `winget install Gyan.FFmpeg`
-- [HLAE](https://github.com/advancedfx/advancedfx/releases): download the latest `hlae_*.zip` and extract it to `C:\Tools\hlae` (so that `C:\Tools\hlae\HLAE.exe` exists)
+- For the command line: Python 3.11+ (the app needs nothing else)
+- HLAE and FFmpeg: `povforge setup` (or the app's install button) downloads both. An FFmpeg on PATH or HLAE in `C:\Tools\hlae` is used if present
 - Steam running; close CS2 and anti-cheat clients (FACEIT, 5E, Perfect World) before recording
 
 Run `povforge doctor` to check everything.
