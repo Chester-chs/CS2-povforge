@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PovForge</title>
+<link rel="stylesheet" href="/static/app.css">
+<script defer src="/static/app.js"></script>
+<script defer src="/static/vendor/alpine.min.js"></script>
+</head>
+<body x-data="povforge" x-init="boot()" :class="{ busy: job.state === 'running' }">
+<div id="icons"></div>
+
+<aside class="side">
+  <header class="brand">
+    <svg class="ic brand-mark"><use href="#i-crosshair"/></svg>
+    <span class="brand-name">PovForge</span>
+    <span class="brand-ver" x-text="'v' + version"></span>
+  </header>
+
+  <section class="demos">
+    <div class="side-head">
+      <h2 x-text="t('demos')"></h2>
+      <button class="icon-btn" @click="loadDemos()" :title="t('refresh')"><svg class="ic"><use href="#i-refresh-cw"/></svg></button>
+    </div>
+    <p class="side-note" x-show="prefs.demo_folders" x-text="t('lookingIn') + ' ' + shortPath(prefs.demo_folders?.[0] || '')"></p>
+
+    <ul class="demo-list" role="listbox" :aria-label="t('demos')">
+      <template x-for="d in demos" :key="d.path">
+        <li>
+          <button class="demo" role="option" :aria-selected="demo && demo.path === d.path"
+                  :class="{ on: demo && demo.path === d.path }" @click="pickDemo(d.path)"
+                  :disabled="job.state === 'running'">
+            <span class="demo-name" x-text="niceDemoName(d)"></span>
+            <span class="demo-meta">
+              <span x-text="ago(d.mtime)"></span>
+              <span x-text="mb(d.size)"></span>
+              <span class="tag" x-show="d.faceit">FACEIT</span>
+            </span>
+          </button>
+        </li>
+      </template>
+    </ul>
+    <p class="empty-note" x-show="demosLoaded && !demos.length" x-text="t('noDemos')"></p>
+
+    <div class="side-actions">
+      <button class="btn ghost" @click="browse()" :disabled="job.state === 'running'">
+        <svg class="ic"><use href="#i-folder-open"/></svg><span x-text="t('openFile')"></span>
+      </button>
+      <button class="btn ghost" @click="chooseFolder('demos')" :disabled="job.state === 'running'">
+        <svg class="ic"><use href="#i-folder"/></svg><span x-text="t('demoFolder')"></span>
+      </button>
+    </div>
+  </section>
+
+  <section class="env" :class="{ warn: !ready }">
+    <div class="side-head"><h2 x-text="t('setup')"></h2></div>
+    <ul class="env-list">
+      <li :class="setup.cs2 ? 'ok' : 'bad'">
+        <span class="dot"></span><span>CS2</span>
+        <span class="env-val" x-text="setup.cs2 ? t('found') : t('cs2Missing')"></span>
+      </li>
+      <li :class="setup.hlae ? 'ok' : 'bad'">
+        <span class="dot"></span><span>HLAE</span>
+        <span class="env-val" x-text="setup.hlae ? t('found') : t('notInstalled')"></span>
+      </li>
+      <li :class="setup.ffmpeg ? 'ok' : 'bad'">
+        <span class="dot"></span><span>FFmpeg</span>
+        <span class="env-val" x-text="setup.ffmpeg ? t('found') : t('notInstalled')"></span>
+      </li>
+      <li :class="setup.anticheat?.length ? 'bad' : 'ok'">
+        <span class="dot"></span><span x-text="t('antiCheat')"></span>
+        <span class="env-val" x-text="setup.anticheat?.length ? setup.anticheat.join(', ') + ' ' + t('running') : t('closed')"></span>
+      </li>
+    </ul>
+    <template x-if="(!setup.hlae || !setup.ffmpeg) && !setup.installing">
+      <button class="btn small" @click="install()">
+        <svg class="ic"><use href="#i-hard-drive-download"/></svg><span x-text="t('installTools')"></span>
+      </button>
+    </template>
+    <div class="install" x-show="setup.installing">
+      <svg class="ic spin"><use href="#i-loader-circle"/></svg>
+      <span x-text="setup.message || t('preparing')"></span>
+      <div class="bar" x-show="setup.fraction >= 0"><i :style="'width:' + Math.round(setup.fraction * 100) + '%'"></i></div>
+    </div>
+    <p class="err-note" x-show="setup.install_error" x-text="setup.install_error"></p>
+    <p class="err-note" x-show="setup.settings_pending">
+      <span x-text="t('settingsPending')"></span>
+      <button class="link" @click="restoreSettings()" x-text="t('restoreNow')"></button>
+    </p>
+  </section>
+
+  <footer class="side-foot">
+    <button class="link" @click="toggleLang()" x-text="lang === 'zh' ? 'English' : '中文'"></button>
+    <span x-text="t('safeNote')"></span>
+  </footer>
+</aside>
+
+<main class="main">
+
+  <!-- nothing chosen yet -->
+  <section class="blank" x-show="!demo && !inspecting && job.state === 'idle'">
+    <svg class="ic blank-ic"><use href="#i-film"/></svg>
+    <h1 x-text="t('blankTitle')"></h1>
+    <p x-text="t('blankBody')"></p>
+  </section>
+
+  <section class="blank" x-show="inspecting">
+    <svg class="ic blank-ic spin"><use href="#i-loader-circle"/></svg>
+    <h1 x-text="t('reading')"></h1>
+    <p x-text="t('readingBody')"></p>
+  </section>
+
+  <section class="blank error" x-show="inspectError && !inspecting">
+    <svg class="ic blank-ic"><use href="#i-circle-alert"/></svg>
+    <h1 x-text="t('cantRead')"></h1>
+    <p x-text="inspectError"></p>
+  </section>
+
+  <!-- match: pick a player and rounds -->
+  <section class="match" x-show="demo && !inspecting && job.state === 'idle'">
+    <header class="match-head">
+      <template x-if="demo"><img class="radar" :src="'/api/radar?map=' + demo.map" alt="" x-on:error="$el.remove()"></template>
+      <div class="match-title">
+        <h1 x-text="demo?.map_pretty"></h1>
+        <div class="score" x-show="demo?.teams?.length >= 2">
+          <span :class="{ win: demo?.teams[0].score > demo?.teams[1].score }" x-text="demo?.teams[0].score"></span>
+          <span class="colon">:</span>
+          <span :class="{ win: demo?.teams[1].score > demo?.teams[0].score }" x-text="demo?.teams[1].score"></span>
+        </div>
+      </div>
+      <p class="match-meta">
+        <span x-text="demo?.rounds + ' ' + t('rounds')"></span>
+        <span x-text="Math.round(demo?.minutes || 0) + ' ' + t('minDemo')"></span>
+        <span x-show="demo?.faceit_match">FACEIT</span>
+      </p>
+    </header>
+
+    <p class="prompt" x-text="player ? t('playerPicked') : t('pickPlayer')"></p>
+
+    <div class="teams">
+      <template x-for="(team, ti) in demo?.teams || []" :key="ti">
+        <table class="team">
+          <thead>
+            <tr>
+              <th class="tname" x-text="team.name || t('others')"></th>
+              <th>K</th><th>D</th><th>A</th><th>ADR</th><th>HS%</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="p in team.players" :key="p.steamid">
+              <tr :class="{ on: player && player.steamid === p.steamid }" @click="pickPlayer(p)"
+                  tabindex="0" @keydown.enter="pickPlayer(p)" @keydown.space.prevent="pickPlayer(p)">
+                <td class="pname" x-text="p.name"></td>
+                <td x-text="p.k ?? '–'"></td><td x-text="p.d ?? '–'"></td><td x-text="p.a ?? '–'"></td>
+                <td x-text="p.adr ?? '–'"></td><td x-text="p.hs == null ? '–' : p.hs + '%'"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </template>
+    </div>
+
+    <div class="rounds-wrap" x-show="player">
+      <div class="rounds-head">
+        <h2 x-text="t('roundsTitle')"></h2>
+        <span class="rounds-count" x-text="chosenRounds.length + ' / ' + (demo?.rounds || 0)"></span>
+        <button class="link" @click="allRounds()" x-text="t('all')"></button>
+        <button class="link" @click="noRounds()" x-text="t('none')"></button>
+      </div>
+      <div class="strip" role="group" :aria-label="t('roundsTitle')">
+        <template x-for="r in roundList" :key="r">
+          <button class="rt" :class="{ on: chosenRounds.includes(r), died: player?.rounds_died?.[r - 1] }"
+                  @click="toggleRound(r)" :aria-pressed="chosenRounds.includes(r)"
+                  :title="roundTitle(r)">
+            <span class="rn" x-text="r"></span>
+            <span class="pips"><template x-for="k in Math.min(player?.rounds_k?.[r - 1] || 0, 5)"><i></i></template></span>
+          </button>
+        </template>
+      </div>
+      <p class="strip-legend">
+        <span><i class="pip"></i><span x-text="t('legendKill')"></span></span>
+        <span><i class="deadmark"></i><span x-text="t('legendDied')"></span></span>
+      </p>
+    </div>
+
+    <footer class="go" x-show="player">
+      <div class="opts">
+        <label class="chip"><input type="checkbox" x-model="prefs.intro" @change="savePrefs()"><span x-text="t('optIntro')"></span></label>
+        <label class="chip"><input type="checkbox" x-model="prefs.minimap" @change="savePrefs()"><span x-text="t('optMinimap')"></span></label>
+        <label class="chip"><input type="checkbox" x-model="prefs.keyboard" @change="savePrefs()"><span x-text="t('optKeyboard')"></span></label>
+        <label class="chip"><input type="checkbox" x-model="prefs.show_enemies" @change="savePrefs()"><span x-text="t('optEnemies')"></span></label>
+        <button class="link out" @click="chooseFolder('output')" :title="prefs.output">
+          <svg class="ic"><use href="#i-folder"/></svg><span x-text="t('saveTo') + ' ' + shortPath(prefs.output)"></span>
+        </button>
+      </div>
+      <button class="btn primary big" @click="start()" :disabled="!canStart">
+        <svg class="ic"><use href="#i-video"/></svg>
+        <span x-text="t('record', { name: player?.name || '' })"></span>
+      </button>
+      <p class="why-not" x-show="!canStart" x-text="whyNot"></p>
+    </footer>
+  </section>
+
+  <!-- recording / finished / failed -->
+  <section class="run" x-show="job.state !== 'idle'">
+    <header class="run-head">
+      <h1 x-text="runTitle"></h1>
+      <p x-text="runSub"></p>
+    </header>
+
+    <ol class="stages" x-show="job.state !== 'done'">
+      <template x-for="(s, i) in stages" :key="s">
+        <li :class="stageClass(s)">
+          <span class="st-ic">
+            <svg class="ic" x-show="stageClass(s) === 'done'"><use href="#i-check"/></svg>
+            <svg class="ic spin" x-show="stageClass(s) === 'now'"><use href="#i-loader-circle"/></svg>
+            <span x-show="stageClass(s) === 'todo'" x-text="i + 1"></span>
+            <svg class="ic" x-show="stageClass(s) === 'fail'"><use href="#i-x"/></svg>
+          </span>
+          <span class="st-name" x-text="t('stage_' + s)"></span>
+          <span class="st-step" x-show="stageClass(s) === 'now' && job.step[1]" x-text="job.step[0] + ' / ' + job.step[1]"></span>
+        </li>
+      </template>
+    </ol>
+
+    <div class="strip big" x-show="job.state === 'running'">
+      <template x-for="r in runRounds" :key="r">
+        <span class="rt" :class="{ on: roundDone(r) }"><span class="rn" x-text="r"></span></span>
+      </template>
+    </div>
+
+    <div class="result" x-show="job.state === 'done'">
+      <template x-if="job.result"><img class="thumb" :src="'/api/thumb?path=' + encodeURIComponent(thumbPath)" alt="" x-on:error="$el.remove()"></template>
+      <div class="result-actions">
+        <button class="btn primary" @click="openResult(false)"><svg class="ic"><use href="#i-play"/></svg><span x-text="t('play')"></span></button>
+        <button class="btn" @click="openResult(true)"><svg class="ic"><use href="#i-folder-open"/></svg><span x-text="t('showFolder')"></span></button>
+        <button class="btn ghost" @click="again()"><span x-text="t('another')"></span></button>
+      </div>
+      <p class="path" x-text="job.result"></p>
+    </div>
+
+    <div class="failure" x-show="job.state === 'error' || job.state === 'cancelled'">
+      <p class="err" x-text="job.state === 'cancelled' ? t('cancelled') : job.error"></p>
+      <p class="hint" x-show="job.state === 'error'" x-text="t('retryHint')"></p>
+      <div class="result-actions">
+        <button class="btn primary" @click="retry()"><svg class="ic"><use href="#i-refresh-cw"/></svg><span x-text="t('retry')"></span></button>
+        <button class="btn ghost" @click="again()"><span x-text="t('back')"></span></button>
+      </div>
+    </div>
+
+    <div class="run-foot">
+      <button class="btn danger" x-show="job.state === 'running'" @click="cancel()">
+        <svg class="ic"><use href="#i-square"/></svg><span x-text="t('stop')"></span>
+      </button>
+      <details class="log">
+        <summary x-text="t('details')"></summary>
+        <pre x-ref="log" x-text="job.lines.join('\n')"></pre>
+      </details>
+    </div>
+  </section>
+</main>
+</body>
+</html>

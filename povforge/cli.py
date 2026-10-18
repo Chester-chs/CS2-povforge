@@ -129,6 +129,11 @@ def _cmd_maps(args, cfg) -> None:
     print(f"Cached in {cache_dir()}")
 
 
+def _cmd_gui(args, cfg) -> None:
+    from .gui.server import main as gui_main
+    gui_main(port=args.port, open_browser=not args.no_window)
+
+
 def _cmd_setup(args, cfg) -> None:
     """Download HLAE and FFmpeg if they're missing."""
     from . import hlae, tools
@@ -245,6 +250,11 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("maps", help="download or refresh radar images")
     s.add_argument("names", nargs="+", help="map names, e.g. de_dust2 de_mirage")
     s.set_defaults(func=_cmd_maps)
+
+    s = sub.add_parser("gui", help="open the PovForge app window")
+    s.add_argument("--port", type=int, default=0, help=argparse.SUPPRESS)
+    s.add_argument("--no-window", action="store_true", help="only start the server")
+    s.set_defaults(func=_cmd_gui)
 
     s = sub.add_parser("setup", help="download HLAE and FFmpeg if they're missing")
     s.add_argument("--force", action="store_true", help="download FFmpeg even if one is found")

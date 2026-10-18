@@ -1,0 +1,598 @@
+"""PovForge app: a small local web server plus a page that drives the pipeline.
+
+Run with ``povforge gui`` (or the packaged PovForge.exe). It listens on
+127.0.0.1 only and opens the page in an Edge/Chrome app window (falls back to
+the default browser). Recording runs ``povforge run`` as a child process, so
+the app shows the same steps and messages as the command line.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import threading
+import time
+import webbrowser
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+from .. import __version__
+
+STATIC = Path(__file__).parent / "static"
+DEMO_SUFFIXES = (".dem", ".dem.zst", ".dem.gz", ".dem.bz2")
+CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
+                 ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml",
+                 ".woff2": "font/woff2", ".png": "image/png", ".json": "application/json"}
+
+
+# --- settings for the app ------------------------------------------------------
+
+def app_dir() -> Path:
+    base = os.environ.get("POVFORGE_STATE") or os.environ.get("LOCALAPPDATA") or str(Path.home())
+    return Path(base) / "povforge"
+
+
+def default_output() -> Path:
+    videos = Path.home() / "Videos"
+    return (videos if videos.is_dir() else Path.home()) / "PovForge"
+
+
+def load_prefs() -> dict:
+    f = app_dir() / "app.json"
+    prefs = {"output": str(default_output()), "demo_folders": [str(Path.home() / "Downloads")],
+             "intro": True, "minimap": True, "keyboard": True, "show_enemies": False, "lang": ""}
+    if f.exists():
+        try:
+            prefs.update(json.loads(f.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+    return prefs
+
+
+def save_prefs(prefs: dict) -> None:
+    app_dir().mkdir(parents=True, exist_ok=True)
+    (app_dir() / "app.json").write_text(json.dumps(prefs, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _toml_str(s: str) -> str:
+    return json.dumps(s, ensure_ascii=False)  # a JSON string is a valid TOML basic string
+
+
+def write_job_config(prefs: dict) -> Path:
+    """povforge.toml for one run, from the app's switches."""
+    lines = ["[output]", f"dir = {_toml_str(prefs['output'])}", "",
+             "[overlay]", f"minimap = {str(bool(prefs['minimap'])).lower()}",
+             f"keyboard = {str(bool(prefs['keyboard'])).lower()}",
+             f"show_enemies = {str(bool(prefs['show_enemies'])).lower()}", "",
+             "[intro]", f"enabled = {str(bool(prefs['intro'])).lower()}", ""]
+    f = app_dir() / "last-run.toml"
+    app_dir().mkdir(parents=True, exist_ok=True)
+    f.write_text("\n".join(lines), encoding="utf-8")
+    return f
+
+
+# --- demos ---------------------------------------------------------------------
+
+def is_demo(p: Path) -> bool:
+    return p.is_file() and p.name.lower().endswith(DEMO_SUFFIXES)
+
+
+def find_demos(folders: list[str], limit: int = 40) -> list[dict]:
+    seen, out = set(), []
+    for folder in folders:
+        d = Path(folder).expanduser()
+        if not d.is_dir():
+            continue
+        for p in d.iterdir():
+            if not is_demo(p):
+                continue
+            # a .dem unpacked next to its .dem.zst is the same demo
+            if p.suffix.lower() == ".dem" and any(p.with_name(p.name + s).exists() for s in (".zst", ".gz", ".bz2")):
+                continue
+            key = str(p.resolve()).lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            st = p.stat()
+            out.append({"path": str(p), "name": p.name, "size": st.st_size, "mtime": st.st_mtime,
+                        "faceit": bool(re.search(r"1-[0-9a-f]{8}-", p.name, re.I))})
+    out.sort(key=lambda d: -d["mtime"])
+    return out[:limit]
+
+
+_inspect_cache: dict[str, dict] = {}
+
+
+def inspect_demo(path: str, work_dir: Path) -> dict:
+    from ..demo import load_demo, load_scoreboard, prepare_demo
+    from ..faceit import match_id
+    from ..intro import pretty_map
+
+    src = Path(path)
+    key = f"{src.resolve()}|{src.stat().st_mtime}"
+    if key in _inspect_cache:
+        return _inspect_cache[key]
+    dem = prepare_demo(src, work_dir / "demos")
+    d = load_demo(dem)
+    try:
+        teams = load_scoreboard(dem, len(d.rounds))
+    except Exception:
+        teams = []
+    # per player and round: kills, and whether they died
+    ends = [r.end_tick for r in d.rounds]
+    starts = [0] + ends[:-1]
+
+    def round_of(tick: int) -> int | None:
+        for i, (a, b) in enumerate(zip(starts, ends)):
+            if a < tick <= b:
+                return i
+        return None
+
+    n = len(d.rounds)
+    kills = {p.steamid: [0] * n for p in d.players}
+    died = {p.steamid: [False] * n for p in d.players}
+    for death in d.deaths:
+        i = round_of(death.tick)
+        if i is None:
+            continue
+        if death.victim_steamid in died:
+            died[death.victim_steamid][i] = True
+        a = death.attacker_steamid
+        if a in kills and a != death.victim_steamid:
+            kills[a][i] += 1
+    known = {p.steamid for t in teams for p in t.players}
+    loose = [p for p in d.players if p.steamid not in known]
+    out_teams = [{"name": t.name, "score": t.score,
+                  "players": [{"steamid": p.steamid, "name": p.name, "k": p.kills, "d": p.deaths,
+                               "a": p.assists, "adr": round(p.adr), "hs": round(p.hs_pct),
+                               "rounds_k": kills.get(p.steamid, []), "rounds_died": died.get(p.steamid, [])}
+                              for p in t.players]} for t in teams]
+    if loose:
+        out_teams.append({"name": "", "score": None,
+                          "players": [{"steamid": p.steamid, "name": p.name, "k": None, "d": None, "a": None,
+                                       "adr": None, "hs": None, "rounds_k": kills.get(p.steamid, []),
+                                       "rounds_died": died.get(p.steamid, [])} for p in loose]})
+    info = {"path": str(src), "name": src.name, "map": d.map_name, "map_pretty": pretty_map(d.map_name),
+            "rounds": n, "minutes": round(d.last_tick / d.tickrate / 60, 1), "faceit_match": match_id(src.name),
+            "date": time.strftime("%Y-%m-%d %H:%M", time.localtime(src.stat().st_mtime)), "teams": out_teams}
+    _inspect_cache[key] = info
+    return info
+
+
+# --- recording job -----------------------------------------------------------------
+
+def cli_command(*args: str) -> list[str]:
+    if getattr(sys, "frozen", False):          # packaged PovForge.exe
+        return [sys.executable, *args]
+    return [sys.executable, "-m", "povforge.cli", *args]
+
+
+def rounds_spec(rounds: list[int]) -> str:
+    """[1,2,3,7,9,10] -> '1-3,7,9-10'."""
+    rs = sorted(set(rounds))
+    parts, i = [], 0
+    while i < len(rs):
+        j = i
+        while j + 1 < len(rs) and rs[j + 1] == rs[j] + 1:
+            j += 1
+        parts.append(str(rs[i]) if i == j else f"{rs[i]}-{rs[j]}")
+        i = j + 1
+    return ",".join(parts)
+
+
+class Job:
+    """One `povforge run` child process and what it has reported so far."""
+
+    STAGES = ["read", "record", "overlays", "intro", "compose", "done"]
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.reset()
+
+    def reset(self) -> None:
+        self.proc: subprocess.Popen | None = None
+        self.state = "idle"          # idle | running | done | error | cancelled
+        self.stage = ""
+        self.lines: list[str] = []
+        self.recorded: list[int] = []
+        self.planned: list[int] = []
+        self.step = (0, 0)           # (done, total) within the current stage
+        self.result = ""
+        self.error = ""
+        self.player = ""
+        self.demo = ""
+        self.started = 0.0
+
+    def snapshot(self) -> dict:
+        with self.lock:
+            return {"state": self.state, "stage": self.stage, "lines": self.lines[-200:],
+                    "recorded": self.recorded, "planned": self.planned, "step": list(self.step),
+                    "result": self.result, "error": self.error, "player": self.player,
+                    "demo": self.demo, "elapsed": time.time() - self.started if self.started else 0}
+
+    def start(self, demo: str, steamid: str, name: str, rounds: list[int], prefs: dict) -> None:
+        with self.lock:
+            if self.state == "running":
+                raise RuntimeError("A recording is already running.")
+            self.reset()
+            self.state, self.stage, self.started = "running", "read", time.time()
+            self.player, self.demo, self.planned = name, demo, sorted(rounds)
+        cfg = write_job_config(prefs)
+        args = ["--config", str(cfg), "run", demo, steamid]
+        if os.environ.get("POVFORGE_PLACEHOLDER"):  # testing without CS2
+            args.append("--placeholder")
+        if rounds:
+            args += ["--rounds", rounds_spec(rounds)]
+        flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
+        self.proc = subprocess.Popen(cli_command(*args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                     text=True, encoding="utf-8", errors="replace", env=env,
+                                     creationflags=flags)
+        threading.Thread(target=self._read, daemon=True).start()
+
+    def _read(self) -> None:
+        assert self.proc and self.proc.stdout
+        for raw in self.proc.stdout:
+            line = raw.rstrip()
+            if line:
+                self._take(line)
+        code = self.proc.wait()
+        with self.lock:
+            if self.state == "running":
+                if code == 0 and self.result:
+                    self.state, self.stage = "done", "done"
+                else:
+                    self.state = "error"
+                    self.error = self.error or (self.lines[-1] if self.lines else f"Exit code {code}")
+
+    def _take(self, line: str) -> None:
+        with self.lock:
+            self.lines.append(line)
+            if m := re.match(r"Starting CS2 .* record (\d+) clips", line):
+                self.stage, self.step = "record", (0, int(m.group(1)))
+            elif m := re.match(r"Recorded r(\d+) \((\d+)/(\d+)\)", line):
+                self.stage = "record"
+                self.recorded.append(int(m.group(1)))
+                self.step = (int(m.group(2)), int(m.group(3)))
+            elif m := re.match(r"Overlays (\d+)/(\d+)", line):
+                self.stage, self.step = "overlays", (int(m.group(1)), int(m.group(2)))
+            elif line.startswith(("Taking a screenshot", "Making intro")):
+                self.stage, self.step = "intro", (0, 0)
+            elif m := re.match(r"Composing (\d+)/(\d+)", line):
+                self.stage, self.step = "compose", (int(m.group(1)), int(m.group(2)))
+            elif line.startswith("Joining parts"):
+                self.stage, self.step = "compose", (1, 1)
+            elif line.startswith("Done: "):
+                self.result = line[6:].strip()
+            elif line.startswith("Error: "):
+                self.error = line[7:].strip()
+
+    def cancel(self) -> None:
+        from .. import hlae, settings_guard
+        with self.lock:
+            if self.state != "running" or not self.proc:
+                return
+            self.state = "cancelled"
+        if sys.platform == "win32":
+            # close the recording CS2 first, without letting it save settings
+            subprocess.run(["taskkill", "/im", "cs2.exe", "/f"], capture_output=True)
+            subprocess.run(["taskkill", "/pid", str(self.proc.pid), "/t", "/f"], capture_output=True)
+        else:
+            self.proc.terminate()
+        for _ in range(20):
+            if "cs2.exe" not in hlae.running_processes():
+                break
+            time.sleep(0.5)
+        try:
+            settings_guard.restore()
+        except Exception:
+            pass
+
+
+# --- setup (HLAE, FFmpeg, CS2) ------------------------------------------------------
+
+class Setup:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.installing = ""
+        self.message = ""
+        self.fraction = -1.0
+        self.error = ""
+
+    def status(self) -> dict:
+        from .. import hlae, settings_guard, tools
+        from ..config import Config
+        cfg = Config()
+        out = {"windows": sys.platform == "win32" or bool(os.environ.get("POVFORGE_PLACEHOLDER")),
+               "placeholder": bool(os.environ.get("POVFORGE_PLACEHOLDER"))}
+        try:
+            out["hlae"] = str(hlae.find_hlae(cfg.record))
+        except RuntimeError:
+            out["hlae"] = ""
+        out["ffmpeg"] = tools.find_ffmpeg() or ""
+        try:
+            out["cs2"] = str(hlae.find_cs2(cfg.record)) if sys.platform == "win32" else ""
+        except RuntimeError:
+            out["cs2"] = ""
+        procs = hlae.running_processes()
+        out["anticheat"] = sorted({n for exe, n in hlae.ANTI_CHEAT.items() if exe in procs})
+        out["cs2_running"] = "cs2.exe" in procs
+        out["steam_running"] = "steam.exe" in procs if sys.platform == "win32" else True
+        out["settings_pending"] = settings_guard.pending()
+        with self.lock:
+            out["installing"], out["message"] = self.installing, self.message
+            out["fraction"], out["install_error"] = self.fraction, self.error
+        return out
+
+    def install(self, what: str) -> None:
+        from .. import tools
+        with self.lock:
+            if self.installing:
+                return
+            self.installing, self.message, self.fraction, self.error = what, "", -1.0, ""
+
+        def progress(msg: str, frac: float) -> None:
+            with self.lock:
+                self.message, self.fraction = msg, frac
+
+        def work() -> None:
+            try:
+                for w in (["hlae", "ffmpeg"] if what == "all" else [what]):
+                    if w == "hlae" and not self.status()["hlae"]:
+                        tools.install_hlae(progress)
+                    if w == "ffmpeg" and not tools.find_ffmpeg():
+                        tools.install_ffmpeg(progress)
+            except Exception as e:
+                with self.lock:
+                    self.error = str(e)
+            finally:
+                with self.lock:
+                    self.installing = ""
+
+        threading.Thread(target=work, daemon=True).start()
+
+
+# --- desktop helpers -------------------------------------------------------------------
+
+def open_path(path: str, select: bool = False) -> None:
+    p = Path(path)
+    if sys.platform == "win32":
+        if select:
+            subprocess.Popen(["explorer", "/select,", str(p)])
+        else:
+            os.startfile(str(p))  # noqa: S606 - opens with the user's default app
+    else:
+        subprocess.Popen(["xdg-open", str(p.parent if select else p)])
+
+
+def pick_file(initial: str) -> str | None:
+    """Native file dialog (tkinter); runs on its own thread so the server keeps going."""
+    result: list[str | None] = [None]
+
+    def ask() -> None:
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            result[0] = filedialog.askopenfilename(
+                title="CS2 demo", initialdir=initial,
+                filetypes=[("CS2 demo", "*.dem *.zst *.gz *.bz2"), ("All files", "*.*")]) or None
+            root.destroy()
+        except Exception:
+            result[0] = None
+
+    t = threading.Thread(target=ask)
+    t.start()
+    t.join()
+    return result[0]
+
+
+def pick_folder(initial: str) -> str | None:
+    result: list[str | None] = [None]
+
+    def ask() -> None:
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            result[0] = filedialog.askdirectory(initialdir=initial) or None
+            root.destroy()
+        except Exception:
+            result[0] = None
+
+    t = threading.Thread(target=ask)
+    t.start()
+    t.join()
+    return result[0]
+
+
+# --- HTTP ------------------------------------------------------------------------------
+
+class App:
+    def __init__(self):
+        self.prefs = load_prefs()
+        self.job = Job()
+        self.setup = Setup()
+        self.last_seen = time.time()   # the page asks for state every second or two
+
+
+def make_handler(app: App):
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *a):  # quiet
+            pass
+
+        def _send(self, code: int, body: bytes, ctype: str) -> None:
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _json(self, data, code: int = 200) -> None:
+            self._send(code, json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json")
+
+        def _body(self) -> dict:
+            n = int(self.headers.get("Content-Length") or 0)
+            return json.loads(self.rfile.read(n) or b"{}") if n else {}
+
+        def _same_origin(self) -> bool:
+            # only the app page may call the API (blocks other sites in the browser)
+            origin = self.headers.get("Origin")
+            host = self.headers.get("Host", "")
+            return origin is None or origin == f"http://{host}"
+
+        def do_GET(self) -> None:
+            url = urlparse(self.path)
+            q = parse_qs(url.query)
+            try:
+                if url.path == "/":
+                    return self._file(STATIC / "index.html")
+                if url.path.startswith("/static/"):
+                    f = (STATIC / url.path[len("/static/"):]).resolve()
+                    if STATIC.resolve() in f.parents and f.is_file():
+                        return self._file(f)
+                    return self._send(404, b"not found", "text/plain")
+                if url.path.startswith("/api/"):
+                    app.last_seen = time.time()
+                if url.path == "/api/state":
+                    return self._json({"version": __version__, "prefs": app.prefs,
+                                       "setup": app.setup.status(), "job": app.job.snapshot()})
+                if url.path == "/api/job":
+                    return self._json(app.job.snapshot())
+                if url.path == "/api/setup":
+                    return self._json(app.setup.status())
+                if url.path == "/api/demos":
+                    return self._json(find_demos(app.prefs["demo_folders"]))
+                if url.path == "/api/radar":
+                    from ..maps import get_map
+                    name = re.sub(r"[^a-z0-9_]", "", (q.get("map") or [""])[0].lower())
+                    return self._file(get_map(name).radar)
+                if url.path == "/api/thumb":
+                    p = Path((q.get("path") or [""])[0])
+                    if p.suffix.lower() == ".png" and p.is_file() and Path(app.prefs["output"]) in p.parents:
+                        return self._file(p)
+                    return self._send(404, b"not found", "text/plain")
+                self._send(404, b"not found", "text/plain")
+            except Exception as e:
+                self._json({"error": str(e)}, 500)
+
+        def do_POST(self) -> None:
+            if not self._same_origin():
+                return self._send(403, b"forbidden", "text/plain")
+            url = urlparse(self.path)
+            try:
+                b = self._body()
+                if url.path == "/api/inspect":
+                    path = b.get("path", "")
+                    if not is_demo(Path(path)):
+                        return self._json({"error": "not_a_demo"}, 400)
+                    return self._json(inspect_demo(path, Path(app.prefs["output"])))
+                if url.path == "/api/browse":
+                    folder = (app.prefs["demo_folders"] or [str(Path.home())])[0]
+                    return self._json({"path": pick_file(folder)})
+                if url.path == "/api/folder":
+                    which = b.get("which")
+                    initial = app.prefs["output"] if which == "output" else app.prefs["demo_folders"][0]
+                    chosen = pick_folder(initial)
+                    if chosen:
+                        if which == "output":
+                            app.prefs["output"] = chosen
+                        else:
+                            app.prefs["demo_folders"] = [chosen] + [f for f in app.prefs["demo_folders"]
+                                                                      if f != chosen][:4]
+                        save_prefs(app.prefs)
+                    return self._json(app.prefs)
+                if url.path == "/api/prefs":
+                    for k in ("intro", "minimap", "keyboard", "show_enemies", "lang"):
+                        if k in b:
+                            app.prefs[k] = b[k]
+                    save_prefs(app.prefs)
+                    return self._json(app.prefs)
+                if url.path == "/api/run":
+                    app.job.start(b["path"], b["steamid"], b.get("name", ""),
+                                  [int(r) for r in b.get("rounds") or []], app.prefs)
+                    return self._json(app.job.snapshot())
+                if url.path == "/api/cancel":
+                    app.job.cancel()
+                    return self._json(app.job.snapshot())
+                if url.path == "/api/reset":
+                    if app.job.state != "running":
+                        app.job.reset()
+                    return self._json(app.job.snapshot())
+                if url.path == "/api/install":
+                    app.setup.install(b.get("what", "all"))
+                    return self._json(app.setup.status())
+                if url.path == "/api/restore-settings":
+                    from .. import settings_guard
+                    settings_guard.restore()
+                    return self._json(app.setup.status())
+                if url.path == "/api/open":
+                    p = b.get("path", "")
+                    if not p or not Path(p).exists():
+                        return self._json({"error": "missing"}, 404)
+                    open_path(p, bool(b.get("select")))
+                    return self._json({"ok": True})
+                self._send(404, b"not found", "text/plain")
+            except Exception as e:
+                self._json({"error": str(e)}, 500)
+
+        def _file(self, f: Path) -> None:
+            self._send(200, Path(f).read_bytes(), CONTENT_TYPES.get(Path(f).suffix.lower(), "application/octet-stream"))
+
+    return Handler
+
+
+def open_window(url: str) -> None:
+    """An app-style window (no tabs or address bar) in Edge or Chrome, else the default browser."""
+    if sys.platform == "win32":
+        candidates = [
+            Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Microsoft/Edge/Application/msedge.exe",
+            Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Microsoft/Edge/Application/msedge.exe",
+            Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Google/Chrome/Application/chrome.exe",
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Google/Chrome/Application/chrome.exe",
+        ]
+        for c in candidates:
+            if c.is_file():
+                profile = app_dir() / "window"
+                subprocess.Popen([str(c), f"--app={url}", "--window-size=1280,820",
+                                  f"--user-data-dir={profile}", "--no-first-run"])
+                return
+    for name in ("microsoft-edge", "google-chrome", "chromium"):
+        exe = shutil.which(name)
+        if exe:
+            subprocess.Popen([exe, f"--app={url}", "--window-size=1280,820"])
+            return
+    webbrowser.open(url)
+
+
+def main(port: int = 0, open_browser: bool = True) -> None:
+    app = App()
+    server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(app))
+    url = f"http://127.0.0.1:{server.server_address[1]}/"
+    print(f"PovForge is running at {url} (close this window to quit)", flush=True)
+    if open_browser:
+        open_window(url)
+    def watch() -> None:
+        # quit once the window has been closed for a while (and nothing is recording)
+        while True:
+            time.sleep(5)
+            if time.time() - app.last_seen > 30 and app.job.state != "running" and not app.setup.installing:
+                server.shutdown()
+                return
+
+    threading.Thread(target=watch, daemon=True).start()
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass

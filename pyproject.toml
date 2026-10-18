@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cs2-povforge"
-version = "0.6.5"
+version = "0.7.0"
 description = "Turn CS2 demos into full-match POV videos of any player, with dead time skipped and minimap/keyboard overlays."
 readme = "README.md"
 license = { text = "MIT" }
@@ -21,8 +21,11 @@ dependencies = [
 [project.scripts]
 povforge = "povforge.cli:main"
 
+[project.gui-scripts]
+povforge-app = "povforge.app:main"
+
 [tool.setuptools.packages.find]
 include = ["povforge*"]
 
 [tool.setuptools.package-data]
-povforge = ["director.js"]
+povforge = ["director.js", "gui/static/*", "gui/static/vendor/*", "gui/static/vendor/fonts/*"]
