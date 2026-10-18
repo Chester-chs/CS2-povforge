@@ -4,6 +4,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish as a release with this tag (e.g. v0.7.0); leave empty to only build"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -57,8 +62,9 @@ jobs:
           path: PovForge-windows.zip
 
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release || github.ref_name }}
         shell: pwsh
-        run: gh release create "${{ github.ref_name }}" PovForge-windows.zip --title "PovForge ${{ github.ref_name }}" --notes-file packaging/RELEASE_NOTES.md
+        run: gh release create "$env:TAG" PovForge-windows.zip --target "${{ github.sha }}" --title "PovForge $env:TAG" --notes-file packaging/RELEASE_NOTES.md
