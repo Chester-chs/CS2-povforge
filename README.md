@@ -9,9 +9,10 @@ A personal, non-commercial tool that turns Counter-Strike 2 demos into full-matc
 - Takes a CS2 demo (HLTV pro match, FACEIT match, or Valve matchmaking) and a player to follow
 - Records every round from that player's point of view
 - Skips dead time: each round starts 3 seconds before freeze time ends (no timeouts, no halftime) and stops shortly after the player dies
-- Player-style HUD instead of CS2's spectator HUD: health, armor, money, ammo, crosshair and sniper scope, drawn from the demo
-- Synced 2D minimap with the player's location name, and a keyboard/mouse display (Shift, Ctrl, W A S D, Space, mouse buttons)
-- Intro card: "<player> POV" title over the final scoreboard (score, K/D/A, ADR, HS%)
+- Keeps CS2's own HUD; the demo playback bar and game radar are hidden
+- Synced 2D minimap: teammates, the player's location, grenade flight paths, smokes and molotovs with countdowns
+- Keyboard/mouse display (Shift, Ctrl, W A S D, Space, mouse buttons) just above the HUD
+- Intro: "<player> POV" written over a screenshot of the match room (`--intro-image`), or over the final scoreboard
 - Writes chapter markers per round (embedded in the video and as a YouTube-ready `chapters.txt`)
 
 A 28-minute FACEIT demo becomes a ~16-minute POV video.
@@ -54,6 +55,7 @@ povforge doctor                                # check the setup
 povforge inspect match.dem.zst                 # map, rounds, player names
 povforge run match.dem.zst donk --rounds 1-2 --placeholder   # quick test, no CS2 needed
 povforge run match.dem.zst donk                # the real thing
+povforge run match.dem.zst donk --intro-image latest   # intro from your newest screenshot
 ```
 
 - Demos can be `.dem`, or FACEIT's `.dem.zst` / `.dem.gz` as downloaded. HLTV demos come as `.rar`: extract the `.dem` first.

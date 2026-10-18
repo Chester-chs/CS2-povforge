@@ -42,7 +42,7 @@ class RecordSettings:
     video_options: str = "-c:v libx264 -pix_fmt yuv420p -preset veryfast -crf 16"
     preroll_seconds: float = 2.0  # time spent at the clip start before recording
     spec_mode: str = ""           # optional spec_mode value, if a CS2 update needs it
-    game_hud: str = "killfeed"    # killfeed = game draws only the kill feed (we draw the rest); full = spectator HUD
+    game_hud: str = "full"        # full = keep CS2's own HUD; killfeed = only the kill feed, povforge draws a HUD
     extra_setup: str = ""         # extra console commands, separated by ;
     timeout_factor: float = 3.0   # give up after this many times the video length (+10 min)
 

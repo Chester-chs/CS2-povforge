@@ -87,9 +87,43 @@ def render_card(info: IntroInfo, size: tuple[int, int], background: Image.Image 
     return im
 
 
+def render_screenshot_card(info: IntroInfo, size: tuple[int, int], shot: Image.Image) -> Image.Image:
+    """A screenshot (e.g. the FACEIT match room) with the title written over it."""
+    W, H = size
+    k = H / 1080
+    shot = shot.convert("RGB")
+    # blurred, cropped copy fills the frame; the full screenshot sits on top
+    sc = max(W / shot.width, H / shot.height)
+    cover = shot.resize((int(shot.width * sc) + 1, int(shot.height * sc) + 1))
+    cover = cover.crop(((cover.width - W) // 2, (cover.height - H) // 2,
+                        (cover.width - W) // 2 + W, (cover.height - H) // 2 + H))
+    im = Image.blend(cover.filter(ImageFilter.GaussianBlur(24 * k)), Image.new("RGB", (W, H)), 0.55)
+    fit = min(W / shot.width, H / shot.height)
+    front = shot.resize((int(shot.width * fit), int(shot.height * fit)), Image.LANCZOS)
+    im.paste(front, ((W - front.width) // 2, (H - front.height) // 2))
+    im = Image.blend(im, Image.new("RGB", (W, H)), 0.30).convert("RGBA")
+
+    d = ImageDraw.Draw(im)
+    lines = [(info.title, 120)] + [(p.strip(), 62) for p in info.subtitle.split("·") if p.strip()]
+    total = sum(sz for _, sz in lines) * k * 1.15
+    y = H / 2 - total / 2
+    for text, sz in lines:
+        f = font(sz * k, cjk=True)
+        y += sz * k * 0.575
+        d.text((W / 2, y), text, font=f, fill=WHITE, anchor="mm",
+               stroke_width=max(2, int(sz * k * 0.07)), stroke_fill=(0, 0, 0, 255))
+        y += sz * k * 0.575
+    return im
+
+
 def make_intro(info: IntroInfo, out: Path, size: tuple[int, int], fps: float, seconds: float,
-               s: ComposeSettings, background_clip: Path | None = None) -> Path:
+               s: ComposeSettings, background_clip: Path | None = None,
+               screenshot: Path | None = None) -> Path:
     bg = None
+    if screenshot is not None:
+        card = out.with_name("intro.png")
+        render_screenshot_card(info, size, Image.open(screenshot)).convert("RGB").save(card)
+        return _encode_card(card, out, fps, seconds, s)
     if background_clip is not None and background_clip.exists():
         frame = out.with_name("intro_bg.png")
         subprocess.run([s.ffmpeg, "-y", "-loglevel", "error", "-ss", "3", "-i", str(background_clip),
@@ -98,6 +132,10 @@ def make_intro(info: IntroInfo, out: Path, size: tuple[int, int], fps: float, se
             bg = Image.open(frame)
     card = out.with_name("intro.png")
     render_card(info, size, bg).convert("RGB").save(card)
+    return _encode_card(card, out, fps, seconds, s)
+
+
+def _encode_card(card: Path, out: Path, fps: float, seconds: float, s: ComposeSettings) -> Path:
     fade = min(0.5, seconds / 4)
     subprocess.run([
         s.ffmpeg, "-y", "-loglevel", "error",

@@ -44,17 +44,27 @@ class MinimapRenderer:
         show_enemies: bool = False,
         opacity: float = 0.92,
         place_label: bool = True,
+        show_utility: bool = True,
     ):
+        self.show_utility = show_utility
         self.info = info
         self.size = size
+        # Radar images have wide empty borders: crop to the map itself so it fills the box.
+        boxes = [Image.open(p).getchannel("A").getbbox() for p in (radar, radar_lower) if p is not None]
+        boxes = [b for b in boxes if b] or [(0, 0, RADAR_SIZE, RADAR_SIZE)]
+        x0, y0 = min(b[0] for b in boxes), min(b[1] for b in boxes)
+        x1, y1 = max(b[2] for b in boxes), max(b[3] for b in boxes)
+        side = max(x1 - x0, y1 - y0) * 1.06
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        self.crop = (cx - side / 2, cy - side / 2, cx + side / 2, cy + side / 2)
         self.label_h = int(size * 0.13) if place_label else 0
         self.layer_size = (size, size + self.label_h)
         self._label_cache: dict[str, Image.Image] = {}
         self.show_enemies = show_enemies
+        self.k = size / side
         self._bases = {False: self._base(radar, opacity)}
         if radar_lower is not None:
             self._bases[True] = self._base(radar_lower, opacity)
-        self.k = size / RADAR_SIZE
 
     def _base(self, path: Path, opacity: float) -> Image.Image:
         s = self.size
@@ -62,7 +72,7 @@ class MinimapRenderer:
         ImageDraw.Draw(bg).rounded_rectangle(
             (0, 0, s - 1, s - 1), radius=max(6, s // 24), fill=(12, 14, 18, 170)
         )
-        radar = Image.open(path).convert("RGBA").resize((s, s), Image.LANCZOS)
+        radar = Image.open(path).convert("RGBA").resize((s, s), Image.LANCZOS, box=self.crop)
         if opacity < 1:
             a = radar.getchannel("A").point(lambda v: int(v * opacity))
             radar.putalpha(a)
@@ -70,16 +80,53 @@ class MinimapRenderer:
         return bg
 
     def _px(self, st: PlayerState) -> tuple[float, float]:
-        rx, ry = self.info.to_radar(st.x, st.y)
-        return rx * self.k * SS, ry * self.k * SS
+        return self._xy(st.x, st.y)
 
-    def render_image(self, me: PlayerState | None, others: list[PlayerState]) -> Image.Image:
+    def _xy(self, x: float, y: float) -> tuple[float, float]:
+        rx, ry = self.info.to_radar(x, y)
+        return (rx - self.crop[0]) * self.k * SS, (ry - self.crop[1]) * self.k * SS
+
+    def _units(self, u: float) -> float:
+        """World units -> supersampled minimap pixels."""
+        return u / self.info.scale * self.k * SS
+
+    def _draw_utility(self, d: ImageDraw.ImageDraw, util, teams: dict[str, int]) -> None:
+        trails, areas, bursts = util
+        for area, left in areas:
+            x, y = self._xy(area.x, area.y)
+            if area.kind == "smoke":
+                R, fill, ring = self._units(144), (205, 210, 218, 150), (255, 255, 255, 230)
+            else:
+                R, fill, ring = self._units(150), (255, 110, 30, 120), (255, 190, 80, 240)
+            d.ellipse((x - R, y - R, x + R, y + R), fill=fill)
+            w = max(2, int(R * 0.14))
+            d.arc((x - R, y - R, x + R, y + R), -90, -90 + 360 * max(0.0, left), fill=ring, width=w)
+            secs = math.ceil(left * (area.end - area.start) / 64)
+            d.text((x, y), str(secs), font=font(max(R * 0.8, 11 * SS)), fill=(20, 22, 28, 230) if area.kind == "smoke"
+                   else (255, 255, 255, 240), anchor="mm")
+        for tr, xs, ys, alpha in trails:
+            col = TEAM_COLORS.get(teams.get(tr.steamid, 0), (230, 230, 230))
+            pts = [self._xy(x, y) for x, y in zip(xs[::2], ys[::2])] + [self._xy(xs[-1], ys[-1])]
+            if len(pts) >= 2:
+                d.line(pts, fill=col + (int(220 * alpha),), width=max(2, int(SS * 1.5)), joint="curve")
+                hx, hy = pts[-1]
+                q = SS * 2.2
+                d.ellipse((hx - q, hy - q, hx + q, hy + q), fill=(255, 255, 255, int(255 * alpha)))
+        for x, y, kind, left in bursts:
+            px, py = self._xy(x, y)
+            R = self._units(180 if kind == "he" else 220) * (1.2 - left)
+            col = (255, 255, 255) if kind == "flash" else (255, 90, 40)
+            d.ellipse((px - R, py - R, px + R, py + R), outline=col + (int(255 * left),), width=max(2, SS * 2))
+
+    def render_image(self, me: PlayerState | None, others: list[PlayerState], util=None) -> Image.Image:
         lower = bool(me and self.info.is_lower(me.z) and True in self._bases)
         frame = self._bases[lower].copy()
         layer = Image.new("RGBA", (self.size * SS, self.size * SS), (0, 0, 0, 0))
         d = ImageDraw.Draw(layer)
         r = max(3.0, self.size * 0.017) * SS
         lim = self.size * SS
+        if util is not None:
+            self._draw_utility(d, util, {p.steamid: p.team for p in others})
 
         def visible(x, y):
             return -r <= x <= lim + r and -r <= y <= lim + r
@@ -144,8 +191,8 @@ class MinimapRenderer:
             self._label_cache[place] = im
         return im
 
-    def render(self, me: PlayerState | None, others: list[PlayerState], place: str = "") -> bytes:
-        radar = self.render_image(me, others)
+    def render(self, me: PlayerState | None, others: list[PlayerState], place: str = "", util=None) -> bytes:
+        radar = self.render_image(me, others, util)
         if not self.label_h:
             return radar.tobytes()
         out = Image.new("RGBA", self.layer_size, (0, 0, 0, 0))

@@ -132,7 +132,7 @@ class Misc(unittest.TestCase):
                               Path("o.mp4"), ComposeSettings())
         graph = cmd[cmd.index("-filter_complex") + 1]
         self.assertIn("[0:v][1:v]overlay=x=24:y=24", graph)                 # minimap, top left
-        self.assertIn("[v1][2:v]overlay=x=(W-w)/2:y=H-h-140", graph)       # keyboard above the HUD
+        self.assertIn("[v1][2:v]overlay=x=(W-w)/2:y=H-h-185", graph)       # keyboard above the game HUD
         self.assertIn("48000", cmd)                                         # same audio for every part
 
     def test_overlay_command_static_layers(self):
@@ -188,6 +188,31 @@ class Misc(unittest.TestCase):
         self.assertEqual(tr.hud(15).ammo, -1)            # grenade: no magazine
         st = tr.hud(25)
         self.assertEqual((st.health, st.ammo, st.reserve, st.helmet, st.place), (40, 25, 90, True, "BombsiteB"))
+
+    def test_utility(self):
+        from povforge.timeline import Utility
+        ticks = list(range(100, 140))
+        paths = pd.DataFrame({"entity": [7] * 40 + [7] * 5, "kind": ["smoke"] * 45,
+                              "tick": ticks + list(range(900, 905)),
+                              "x": [float(t) for t in range(0, 30)] + [30.0] * 10 + [0.0] * 5,
+                              "y": [0.0] * 45, "steamid": ["1"] * 45})
+        smokes = pd.DataFrame([{"start": 140, "end": 99999, "x": 30.0, "y": 0.0, "steamid": "1"}])
+        u = Utility({"paths": paths, "smokes": smokes, "fires": pd.DataFrame(),
+                     "bursts": pd.DataFrame(columns=["tick", "x", "y", "kind"])})
+        self.assertEqual(len(u.trails), 2)                       # reused entity id split in two
+        self.assertEqual(u.trails[0].landed, 130)                # reached its final spot at tick 130
+        self.assertEqual(len(u.trails_at(120)), 1)
+        self.assertEqual(len(u.trails_at(400)), 0)               # faded out after landing
+        area, left = u.areas_at(140 + 725)[0]
+        self.assertAlmostEqual(left, 0.5, places=2)              # missing expiry capped at ~22 s
+
+    def test_screenshot_intro(self):
+        from PIL import Image
+        from povforge.intro import IntroInfo, render_screenshot_card
+        shot = Image.new("RGB", (1430, 892), (40, 40, 40))
+        im = render_screenshot_card(IntroInfo("donk666 POV", "Cache · 2026-10-18 · 1920x1080", "1", []),
+                                    (1920, 1080), shot)
+        self.assertEqual(im.size, (1920, 1080))
 
     def test_intro_card(self):
         from povforge.demo import PlayerStats, TeamStats

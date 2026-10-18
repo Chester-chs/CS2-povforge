@@ -244,6 +244,64 @@ def load_hud(path: str | Path, target_steamid: str) -> pd.DataFrame:
     return df[keep].sort_values("tick").reset_index(drop=True)
 
 
+# Thrown grenades, for the minimap.
+PROJECTILE_KIND = {
+    "CSmokeGrenadeProjectile": "smoke", "CFlashbangProjectile": "flash",
+    "CHEGrenadeProjectile": "he", "CMolotovProjectile": "fire",
+    "CIncendiaryGrenadeProjectile": "fire", "CDecoyProjectile": "decoy",
+}
+
+
+def load_utility(path: str | Path) -> dict[str, pd.DataFrame]:
+    """Grenade flight paths and what they leave behind (smokes, fires, bursts).
+
+    Returns DataFrames: 'paths' (entity, kind, tick, x, y, steamid),
+    'smokes' / 'fires' (start, end, x, y, steamid), 'bursts' (tick, x, y, kind).
+    """
+    parser = _parser(Path(path))
+    out: dict[str, pd.DataFrame] = {}
+    try:
+        g = parser.parse_grenades()
+        g = g[g["grenade_type"].isin(PROJECTILE_KIND)].dropna(subset=["x", "y"])
+        out["paths"] = pd.DataFrame({
+            "entity": g["grenade_entity_id"].astype(int), "kind": g["grenade_type"].map(PROJECTILE_KIND),
+            "tick": g["tick"].astype(int), "x": g["x"].astype(float), "y": g["y"].astype(float),
+            "steamid": g["steamid"].map(_sid),
+        }).sort_values(["entity", "tick"]).reset_index(drop=True)
+    except Exception:
+        out["paths"] = pd.DataFrame(columns=["entity", "kind", "tick", "x", "y", "steamid"])
+
+    def events(name: str) -> pd.DataFrame:
+        try:
+            d = parser.parse_event(name)
+        except Exception:
+            return pd.DataFrame(columns=["entityid", "tick", "x", "y", "user_steamid"])
+        return d if isinstance(d, pd.DataFrame) and len(d) else \
+            pd.DataFrame(columns=["entityid", "tick", "x", "y", "user_steamid"])
+
+    def spans(start_ev: str, end_ev: str, default_len: int) -> pd.DataFrame:
+        a, b = events(start_ev), events(end_ev)
+        ends = {}
+        for _, r in b.sort_values("tick").iterrows():
+            ends.setdefault(int(r["entityid"]), []).append(int(r["tick"]))
+        rows = []
+        for _, r in a.sort_values("tick").iterrows():
+            t0 = int(r["tick"])
+            later = [t for t in ends.get(int(r["entityid"]), []) if t > t0]
+            rows.append({"start": t0, "end": later[0] if later else t0 + default_len,
+                         "x": float(r["x"]), "y": float(r["y"]), "steamid": _sid(r.get("user_steamid"))})
+        return pd.DataFrame(rows, columns=["start", "end", "x", "y", "steamid"])
+
+    out["smokes"] = spans("smokegrenade_detonate", "smokegrenade_expired", 20 * 64)
+    out["fires"] = spans("inferno_startburn", "inferno_expire", 7 * 64)
+    bursts = []
+    for ev, kind in (("flashbang_detonate", "flash"), ("hegrenade_detonate", "he")):
+        for _, r in events(ev).iterrows():
+            bursts.append({"tick": int(r["tick"]), "x": float(r["x"]), "y": float(r["y"]), "kind": kind})
+    out["bursts"] = pd.DataFrame(bursts, columns=["tick", "x", "y", "kind"])
+    return out
+
+
 @dataclass
 class PlayerStats:
     steamid: str

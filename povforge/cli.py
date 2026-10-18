@@ -47,6 +47,8 @@ def _cmd_record(args, cfg) -> None:
 def _cmd_compose(args, cfg) -> None:
     from .pipeline import make_recording, make_video
 
+    if args.intro_image:
+        cfg.intro.image = args.intro_image
     job = Path(args.job)
     clips = make_recording(cfg, job, placeholder=args.placeholder)
     print(make_video(cfg, job, clips))
@@ -55,6 +57,8 @@ def _cmd_compose(args, cfg) -> None:
 def _cmd_run(args, cfg) -> None:
     from .pipeline import parse_rounds, run
 
+    if args.intro_image:
+        cfg.intro.image = args.intro_image
     run(cfg, args.demo, args.player, placeholder=args.placeholder, rounds=parse_rounds(args.rounds))
 
 
@@ -147,6 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
         s.add_argument("job", help="job folder created by 'plan'")
         s.add_argument("--placeholder", action="store_true",
                        help="use grey test clips instead of recording (no CS2 needed)")
+        s.add_argument("--intro-image", help="screenshot for the intro, or 'latest' (compose only)")
         s.set_defaults(func=func)
 
     s = sub.add_parser("run", help="plan, render overlays, record and compose in one go")
@@ -155,6 +160,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--placeholder", action="store_true",
                    help="use grey test clips instead of recording (no CS2 needed)")
     s.add_argument("--rounds", help="only these rounds, e.g. 1-3,7 (handy for a quick test)")
+    s.add_argument("--intro-image", help="screenshot for the intro (e.g. the FACEIT match room), "
+                                         "or 'latest' for your newest screenshot")
     s.set_defaults(func=_cmd_run)
 
     s = sub.add_parser("doctor", help="check that everything needed is installed")

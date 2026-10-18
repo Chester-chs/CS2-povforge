@@ -86,7 +86,8 @@ def render_segment(
             if minimap is not None:
                 players = track.players(tick)
                 me = next((p for p in players if p.steamid == me_id), None)
-                sinks["minimap"].write(minimap.render(me, players, st.place if st.alive else ""))
+                util = track.utility_at(tick) if minimap.show_utility else None
+                sinks["minimap"].write(minimap.render(me, players, st.place if st.alive else "", util))
             if keyboard is not None:
                 sinks["keyboard"].write(keyboard.render(track.keys(tick)))
             if hud is not None:

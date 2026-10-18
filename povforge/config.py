@@ -20,6 +20,8 @@ class OverlaySettings:
     keyboard_scale: float = 1.0      # 1.0 = sized for 1080p
     sync_offset_frames: float = 0.0  # shift overlays if a recording shows drift
     place_label: bool = True         # location name under the minimap
+    utility: bool = True             # grenade paths, smokes and fires (with timers) on the minimap
+    # Only used with [record] game_hud = "killfeed" (game HUD hidden):
     hud: bool = True                 # health / armor / money / ammo
     crosshair: bool = True
     scope: bool = True               # sniper scope while scoped in
@@ -32,6 +34,8 @@ class IntroSettings:
     title: str = "{player} POV"      # {player} {map} placeholders
     subtitle: str = "{map}  ·  {date}  ·  {width}x{height}"
     date: str = ""                   # empty = date of the demo file
+    image: str = ""                  # screenshot for the background (e.g. FACEIT match room);
+                                     # "latest" = newest file in Pictures\\Screenshots
 
 
 @dataclass

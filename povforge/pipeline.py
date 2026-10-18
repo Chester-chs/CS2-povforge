@@ -18,7 +18,10 @@ from . import hlae
 import datetime
 from dataclasses import asdict
 
-from .demo import TeamStats, PlayerStats, find_player, load_demo, load_hud, load_scoreboard, load_ticks, prepare_demo
+import pickle
+
+from .demo import (PlayerStats, TeamStats, find_player, load_demo, load_hud, load_scoreboard,
+                   load_ticks, load_utility, prepare_demo)
 from .intro import IntroInfo, make_intro, pretty_map
 from .overlay.hud import HudRenderer, crosshair_png, scope_png
 from .maps import get_map
@@ -71,6 +74,8 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     pos.to_pickle(job / "positions.pkl")
     keys.to_pickle(job / "keys.pkl")
     load_hud(demo_path, player.steamid).to_pickle(job / "hud.pkl")
+    with open(job / "utility.pkl", "wb") as f:
+        pickle.dump(load_utility(demo_path), f)
     track = Track(pos, keys)
     try:
         teams = load_scoreboard(demo_path, len(demo.rounds))
@@ -111,7 +116,11 @@ def load_plan(job: Path) -> Plan:
 
 def load_track(job: Path) -> Track:
     hud = pd.read_pickle(job / "hud.pkl") if (job / "hud.pkl").exists() else None
-    return Track(pd.read_pickle(job / "positions.pkl"), pd.read_pickle(job / "keys.pkl"), hud)
+    utility = None
+    if (job / "utility.pkl").exists():
+        with open(job / "utility.pkl", "rb") as f:
+            utility = pickle.load(f)
+    return Track(pd.read_pickle(job / "positions.pkl"), pd.read_pickle(job / "keys.pkl"), hud, utility)
 
 
 def load_meta(job: Path) -> dict:
@@ -130,12 +139,12 @@ def _renderers(cfg: Config, plan: Plan):
             assets = get_map(plan.map_name)
             minimap = MinimapRenderer(assets.info, assets.radar, assets.radar_lower,
                                       size=int(o.minimap_size * scale), show_enemies=o.show_enemies,
-                                      place_label=o.place_label)
+                                      place_label=o.place_label, show_utility=o.utility)
         except RuntimeError as e:
             _log(f"Minimap disabled: {e}")
     if o.keyboard:
         keyboard = KeyboardRenderer(scale=o.keyboard_scale * scale)
-    if o.hud:
+    if o.hud and cfg.record.game_hud == "killfeed":
         hud = HudRenderer(cfg.record.width, scale)
     return minimap, keyboard, hud
 
@@ -146,6 +155,8 @@ def static_images(cfg: Config, job: Path) -> dict[str, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     scale = cfg.record.height / 1080
     imgs = {}
+    if cfg.record.game_hud != "killfeed":
+        return imgs  # the game draws its own crosshair and scope
     if cfg.overlay.crosshair:
         imgs["crosshair"] = crosshair_png(out_dir / "crosshair.png", scale)
     if cfg.overlay.scope:
@@ -222,9 +233,30 @@ def make_intro_clip(cfg: Config, job: Path, clips: list[Path]) -> Path | None:
     info = IntroInfo(c.title.format(**fields), c.subtitle.format(**fields), plan.player.steamid, teams)
     out = job / "parts" / "intro.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
-    _log("Making intro ...")
+    image = resolve_intro_image(c.image)
+    _log("Making intro" + (f" from {image.name}" if image else "") + " ...")
     return make_intro(info, out, (cfg.record.width, cfg.record.height), cfg.record.fps, c.seconds,
-                      cfg.compose, clips[0] if clips else None)
+                      cfg.compose, clips[0] if clips else None, screenshot=image)
+
+
+IMAGE_TYPES = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
+
+
+def resolve_intro_image(spec: str) -> Path | None:
+    """'' = none; 'latest' = newest image in Pictures\\Screenshots; otherwise a file path."""
+    if not spec:
+        return None
+    if spec.lower() == "latest":
+        folders = [Path.home() / "Pictures" / "Screenshots", Path.home() / "OneDrive" / "Pictures" / "Screenshots",
+                   Path.home() / "Pictures" / "屏幕截图"]
+        found = [f for d in folders if d.is_dir() for f in d.iterdir() if f.suffix.lower() in IMAGE_TYPES]
+        if not found:
+            raise RuntimeError("No screenshot found in Pictures\\Screenshots. Give the image path instead.")
+        return max(found, key=lambda f: f.stat().st_mtime)
+    p = Path(spec).expanduser()
+    if not p.is_file():
+        raise RuntimeError(f"Intro image not found: {p}")
+    return p
 
 
 def make_video(cfg: Config, job: Path, clips: list[Path]) -> Path:

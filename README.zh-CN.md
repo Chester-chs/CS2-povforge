@@ -9,9 +9,10 @@
 - 输入一个 CS2 demo（HLTV 职业比赛、FACEIT 比赛或官方匹配）和要跟随的选手
 - 以该选手的第一人称视角录制每一个回合
 - 自动跳过无效时间：每回合从冻结时间结束前 3 秒开始录，不录暂停和半场换边；选手阵亡后片刻即切到下一回合
-- 玩家视角 HUD 代替 CS2 的观战界面：血量、护甲、金钱、子弹、准星、狙击镜，全部来自 demo 数据
-- 同步的 2D 小地图（下方显示所在位置）和键鼠显示（Shift、Ctrl、W A S D、空格、鼠标左右键）
-- 片头战绩卡："选手名 POV" 标题 + 全场比分和双方 K/D/A、ADR、爆头率
+- 保留 CS2 原本的 HUD，只隐藏 demo 播放控制栏和游戏雷达
+- 同步的 2D 小地图：队友位置、所在区域名、道具飞行轨迹、烟雾和燃烧瓶（带倒计时）
+- 键鼠显示（Shift、Ctrl、W A S D、空格、鼠标左右键），位于 HUD 正上方
+- 片头：在比赛房间截图（`--intro-image`）上写 "选手名 POV"，没有截图时使用全场战绩卡
 - 按回合生成章节标记（嵌入视频，并输出可直接粘贴到 YouTube/B 站的 `chapters.txt`）
 
 一场 28 分钟的 FACEIT demo 会生成约 16 分钟的 POV 视频。
@@ -54,6 +55,7 @@ povforge doctor                                # 检查环境
 povforge inspect match.dem.zst                 # 查看地图、回合数、选手名
 povforge run match.dem.zst donk --rounds 1-2 --placeholder   # 快速测试，不需要 CS2
 povforge run match.dem.zst donk                # 正式录制
+povforge run match.dem.zst donk --intro-image latest   # 用你最新的一张截图做片头
 ```
 
 - 支持 `.dem`，以及 FACEIT 直接下载的 `.dem.zst` / `.dem.gz`。HLTV 的 demo 是 `.rar`，需先解压出 `.dem`。
