@@ -77,7 +77,7 @@ class HudRenderer:
 
             rx = w - 48 * k
             if st.ammo >= 0:
-                reserve = f" / {st.reserve}"
+                reserve = f" / {st.reserve}" if st.reserve >= 0 else ""
                 shadow_text(d, (rx, cy), reserve, small, DIM, anchor="rm")
                 rw = d.textlength(reserve, font=small)
                 shadow_text(d, (rx - rw, cy), str(st.ammo),

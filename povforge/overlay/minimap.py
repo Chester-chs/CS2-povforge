@@ -50,7 +50,9 @@ class MinimapRenderer:
         self.info = info
         self.size = size
         # Radar images have wide empty borders: crop to the map itself so it fills the box.
-        boxes = [Image.open(p).getchannel("A").getbbox() for p in (radar, radar_lower) if p is not None]
+        # (faint, nearly transparent edge pixels are ignored, so the map fills the box)
+        boxes = [Image.open(p).getchannel("A").point(lambda v: 255 if v > 60 else 0).getbbox()
+                 for p in (radar, radar_lower) if p is not None]
         boxes = [b for b in boxes if b] or [(0, 0, RADAR_SIZE, RADAR_SIZE)]
         x0, y0 = min(b[0] for b in boxes), min(b[1] for b in boxes)
         x1, y1 = max(b[2] for b in boxes), max(b[3] for b in boxes)

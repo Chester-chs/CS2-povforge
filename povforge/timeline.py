@@ -76,7 +76,7 @@ class HudState:
     money: int = 0
     weapon: str = ""
     ammo: int = -1          # -1 = weapon without a magazine (knife, grenade)
-    reserve: int = 0
+    reserve: int = -1       # -1 = unknown (CS2 demos don't carry reliable reserve ammo)
     scoped: bool = False
     place: str = ""
 
@@ -162,7 +162,7 @@ class Track:
         return HudState(
             alive=bool(r.get("is_alive")), health=num("health"), armor=num("armor_value"),
             helmet=bool(r.get("has_helmet")), money=num("balance"), weapon=weapon,
-            ammo=num("active_weapon_ammo") if has_mag else -1, reserve=num("total_ammo_left"),
+            ammo=num("active_weapon_ammo") if has_mag else -1, reserve=-1,
             scoped=bool(r.get("is_scoped")), place=place,
         )
 

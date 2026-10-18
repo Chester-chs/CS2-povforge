@@ -32,8 +32,10 @@ show_enemies = false             # true = enemies on the minimap too
 keyboard = true
 keyboard_scale = 1.0
 sync_offset_frames = 0.0         # nudge overlays if they lead/lag the video
-place_label = true               # location name under the minimap
+place_label = false              # location name under the minimap
 utility = true                   # grenade paths, smokes and fires with countdowns on the minimap
+player_bar = true                # with game_hud = "full": cover the spectator panel at the bottom with a
+                                 # player-style bar (health, armor, team, ammo, a skull per kill this round)
 # hud / crosshair / scope are only drawn with game_hud = "killfeed":
 hud = true                       # health, armor, money, ammo
 crosshair = true
@@ -53,7 +55,9 @@ enabled = true
 seconds = 4.0
 title = "{player} POV"           # placeholders: {player} {map} {date} {width} {height}
 subtitle = "{map}  ·  {date}  ·  {width}x{height}"
-date = ""                        # empty = date of the demo file
+date = ""                        # empty = FACEIT match start time (else the demo file date)
+date_format = "%Y年%m月%d日 %H:%M"   # e.g. "%Y-%m-%d %H:%M"
+timezone = ""                    # e.g. "Asia/Shanghai"; empty = this PC's time zone
 image = "auto"                   # "auto": FACEIT demos get a screenshot of the match room, taken
                                  # automatically (needs Edge or Chrome); other demos get the
                                  # scoreboard card. "" = always the scoreboard card;

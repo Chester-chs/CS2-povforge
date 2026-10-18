@@ -10,9 +10,10 @@ A personal, non-commercial tool that turns Counter-Strike 2 demos into full-matc
 - Records every round from that player's point of view
 - Skips dead time: each round starts 3 seconds before freeze time ends (no timeouts, no halftime) and stops shortly after the player dies
 - Keeps CS2's own HUD; the demo playback bar and game radar are hidden
+- The spectator panel at the bottom is replaced by a player-style bar: health, armor, team badge, ammo, and a skull for every kill this round (red dot = headshot)
 - Synced 2D minimap: teammates, the player's location, grenade flight paths, smokes and molotovs with countdowns
 - Keyboard/mouse display (Shift, Ctrl, W A S D, Space, mouse buttons) just above the HUD
-- Intro: "<player> POV" written over the FACEIT match room. The screenshot is taken automatically from the demo's match id (headless Edge/Chrome, no login, cookie banner hidden, nothing accepted). Other demos get the final scoreboard
+- Intro: "<player> POV" written over the FACEIT match room. The screenshot is taken automatically from the demo's match id (headless Edge/Chrome, no login, cookie banner hidden, nothing accepted). The intro also shows the match start time in your time zone. Other demos get the final scoreboard
 - Writes chapter markers per round (embedded in the video and as a YouTube-ready `chapters.txt`)
 
 A 28-minute FACEIT demo becomes a ~16-minute POV video.

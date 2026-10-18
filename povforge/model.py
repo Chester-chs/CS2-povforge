@@ -28,6 +28,7 @@ class Death:
     victim_steamid: str
     attacker_steamid: str | None
     weapon: str | None
+    headshot: bool = False
 
 
 @dataclass(frozen=True)

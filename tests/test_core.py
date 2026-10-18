@@ -187,7 +187,7 @@ class Misc(unittest.TestCase):
                    None, hud)
         self.assertEqual(tr.hud(15).ammo, -1)            # grenade: no magazine
         st = tr.hud(25)
-        self.assertEqual((st.health, st.ammo, st.reserve, st.helmet, st.place), (40, 25, 90, True, "BombsiteB"))
+        self.assertEqual((st.health, st.ammo, st.reserve, st.helmet, st.place), (40, 25, -1, True, "BombsiteB"))
 
     def test_utility(self):
         from povforge.timeline import Utility

@@ -9,6 +9,8 @@ the page is saved as an image.
 
 from __future__ import annotations
 
+import datetime
+import json
 import re
 import time
 from pathlib import Path
@@ -62,6 +64,30 @@ _TABLES_JS = """() => {
 }"""
 
 
+# Match details from the JSON the match room page itself loads (no login needed).
+_MATCH_JS = """async (mid) => {
+  try {
+    const r = await fetch('/api/match/v2/match/' + mid, {credentials: 'omit'});
+    const p = (await r.json()).payload || {};
+    return {startedAt: p.startedAt || null, finishedAt: p.finishedAt || null, createdAt: p.createdAt || null};
+  } catch (e) { return null; }
+}"""
+
+
+def match_time(info: dict, tz: str = "") -> "datetime.datetime | None":
+    """Match start as a local time (``tz`` = IANA name, empty = this PC's zone)."""
+    raw = info.get("startedAt") or info.get("createdAt")
+    if not raw:
+        return None
+    t = datetime.datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=datetime.timezone.utc)
+    if tz:
+        from zoneinfo import ZoneInfo
+        return t.astimezone(ZoneInfo(tz))
+    return t.astimezone()
+
+
 def match_id(name: str | Path) -> str | None:
     """The FACEIT match id in a demo file name, or None."""
     m = MATCH_ID.search(Path(name).name)
@@ -88,8 +114,11 @@ def _launch(pw, headless: bool):
 
 def screenshot_room(mid: str, out: Path, size: tuple[int, int] = (1920, 1080),
                     timeout: float = 45.0, headless: bool = True, url: str | None = None,
-                    zoom: float = 1.2) -> Path:
+                    zoom: float = 1.2, info_out: Path | None = None) -> Path:
     """Save a screenshot of the match room to ``out``; raises on failure.
+
+    With ``info_out``, the match times (``startedAt``, ``finishedAt``, UTC)
+    are saved there as JSON, read from the same public data the page uses.
 
     The page is laid out at ``size / zoom`` and rendered at ``zoom``x, so the
     image is ``size`` pixels with slightly larger, sharp text.
@@ -134,6 +163,10 @@ def screenshot_room(mid: str, out: Path, size: tuple[int, int] = (1920, 1080),
             time.sleep(1.5)
             page.evaluate(_HIDE_JS, CONSENT_SELECTORS)
             out.parent.mkdir(parents=True, exist_ok=True)
+            if info_out is not None:
+                info = page.evaluate(_MATCH_JS, mid)
+                if info:
+                    info_out.write_text(json.dumps(info, indent=2), encoding="utf-8")
             try:  # the stats tables load a moment after the header
                 page.wait_for_function(_TABLES_JS, timeout=15_000)
                 time.sleep(1.0)  # avatars

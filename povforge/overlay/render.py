@@ -17,6 +17,7 @@ from ..timeline import Track, frame_count, frame_to_tick
 from .hud import HudRenderer, intervals
 from .keyboard import KeyboardRenderer
 from .minimap import MinimapRenderer
+from .playerbar import PlayerBarRenderer
 
 
 class _Sink:
@@ -53,13 +54,15 @@ def render_segment(
     ffmpeg: str = "ffmpeg",
     start_tick: float | None = None,
     frames: int | None = None,
-    hud: HudRenderer | None = None,
+    hud: HudRenderer | PlayerBarRenderer | None = None,
+    kills: list[tuple[int, bool]] | None = None,
 ) -> dict[str, Path]:
     """Render overlay layers for one clip; returns {layer name: file}.
 
     ``start_tick`` is the demo tick of the clip's first frame (the recorder
     reports the exact value); ``frames`` is the clip's real frame count.
-    Both default to the planned values. Visibility of the fixed crosshair and
+    Both default to the planned values. ``kills`` are the player's kills as
+    (tick, headshot), for the skulls on the player bar. Visibility of the fixed crosshair and
     scope images is saved to ``<round>_static.json``.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -77,20 +80,26 @@ def render_segment(
         sinks["hud"] = _Sink(out_dir / f"{stem}_hud.mov", hud.size, fps, ffmpeg)
 
     crosshair, scope = [], []
+    my_kills = sorted(kills or [])
+    start_round = seg.start_tick  # the clip starts in freeze time, so no kill comes before
     try:
         for i in range(n):
             tick = frame_to_tick(i, start, plan.tickrate, fps, offset_frames)
             st = track.hud(tick)
             crosshair.append(st.alive and not st.scoped)
             scope.append(st.alive and st.scoped)
-            if minimap is not None:
+            if minimap is not None or isinstance(hud, PlayerBarRenderer):
                 players = track.players(tick)
                 me = next((p for p in players if p.steamid == me_id), None)
+            if minimap is not None:
                 util = track.utility_at(tick) if minimap.show_utility else None
                 sinks["minimap"].write(minimap.render(me, players, st.place if st.alive else "", util))
             if keyboard is not None:
                 sinks["keyboard"].write(keyboard.render(track.keys(tick)))
-            if hud is not None:
+            if isinstance(hud, PlayerBarRenderer):
+                round_kills = tuple(hs for t, hs in my_kills if start_round <= t <= tick)
+                sinks["hud"].write(hud.render(st, me.team if me else 0, round_kills))
+            elif hud is not None:
                 sinks["hud"].write(hud.render(st))
     finally:
         for s in sinks.values():

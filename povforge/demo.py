@@ -163,6 +163,7 @@ def load_demo(path: str | Path, tickrate: float = DEFAULT_TICKRATE) -> DemoData:
                     victim_steamid=victim,
                     attacker_steamid=_sid(row.get("attacker_steamid")),
                     weapon=row.get("weapon"),
+                    headshot=bool(row.get("headshot") or False),
                 ))
 
     return DemoData(path, map_name, tickrate, last_tick, players, rounds, deaths)

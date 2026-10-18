@@ -29,6 +29,7 @@ from .media import probe
 from .model import Plan
 from .overlay.keyboard import KeyboardRenderer
 from .overlay.minimap import MinimapRenderer
+from .overlay.playerbar import PlayerBarRenderer
 from .overlay.render import render_segment
 from .planner import plan_segments
 from .timeline import Track, frame_count
@@ -77,6 +78,9 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     with open(job / "utility.pkl", "wb") as f:
         pickle.dump(load_utility(demo_path), f)
     track = Track(pos, keys)
+    kills = [[d.tick, d.headshot] for d in demo.deaths
+             if d.attacker_steamid == player.steamid and d.victim_steamid != player.steamid]
+    (job / "kills.json").write_text(json.dumps(kills), encoding="utf-8")
     try:
         teams = load_scoreboard(demo_path, len(demo.rounds))
     except Exception as e:  # scoreboard is only for the intro card
@@ -147,6 +151,8 @@ def _renderers(cfg: Config, plan: Plan):
         keyboard = KeyboardRenderer(scale=o.keyboard_scale * scale)
     if o.hud and cfg.record.game_hud == "killfeed":
         hud = HudRenderer(cfg.record.width, scale)
+    elif o.player_bar and cfg.record.game_hud == "full":
+        hud = PlayerBarRenderer(scale)
     return minimap, keyboard, hud
 
 
@@ -170,6 +176,8 @@ def make_overlays(cfg: Config, job: Path, clips: list[Path] | None = None) -> li
     start tick and length when a recording exists."""
     plan, track = load_plan(job), load_track(job)
     minimap, keyboard, hud = _renderers(cfg, plan)
+    kf = job / "kills.json"
+    kills = [(int(t), bool(hs)) for t, hs in json.loads(kf.read_text())] if kf.exists() else []
     starts = hlae.actual_starts(job)
     out_dir = job / "overlays"
     results = []
@@ -181,7 +189,7 @@ def make_overlays(cfg: Config, job: Path, clips: list[Path] | None = None) -> li
             frames = probe(clips[i], cfg.compose.ffmpeg).frames
         done = out_dir / f"{cid}.done"
         stem = out_dir / cid
-        stamp = f"{start}+{frames}@{cfg.record.fps}/{cfg.record.height} {cfg.overlay}"
+        stamp = f"{start}+{frames}@{cfg.record.fps}/{cfg.record.height} {cfg.overlay} {cfg.record.game_hud} v3"
         if done.exists() and done.read_text() == stamp:
             layers = {k: Path(f"{stem}_{k}.mov") for k in ("minimap", "keyboard", "hud")
                       if Path(f"{stem}_{k}.mov").exists()}
@@ -190,7 +198,7 @@ def make_overlays(cfg: Config, job: Path, clips: list[Path] | None = None) -> li
             _log(f"Overlays {i + 1}/{len(plan.segments)} (round {seg.round_number})")
             layers = render_segment(plan, seg, track, out_dir, cfg.record.fps, minimap, keyboard,
                                     cfg.overlay.sync_offset_frames, cfg.compose.ffmpeg,
-                                    start_tick=start, frames=frames, hud=hud)
+                                    start_tick=start, frames=frames, hud=hud, kills=kills)
             done.write_text(stamp)
         results.append(layers)
     return results
@@ -231,29 +239,43 @@ def make_intro_clip(cfg: Config, job: Path, clips: list[Path]) -> Path | None:
     fields = {"player": plan.player.name, "map": pretty_map(plan.map_name),
               "date": c.date or meta.get("date", ""), "width": cfg.record.width,
               "height": cfg.record.height}
-    info = IntroInfo(c.title.format(**fields), c.subtitle.format(**fields), plan.player.steamid, teams)
     out = job / "parts" / "intro.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
     if c.image.strip().lower() == "auto":
         image = faceit_screenshot(cfg, job, meta.get("faceit_match") or faceit.match_id(plan.demo_path))
     else:
         image = resolve_intro_image(c.image)
+    fields["date"] = c.date or intro_date(cfg, job, meta)
+    info = IntroInfo(c.title.format(**fields), c.subtitle.format(**fields), plan.player.steamid, teams)
     _log("Making intro" + (f" from {image.name}" if image else "") + " ...")
     return make_intro(info, out, (cfg.record.width, cfg.record.height), cfg.record.fps, c.seconds,
                       cfg.compose, clips[0] if clips else None, screenshot=image)
+
+
+def intro_date(cfg: Config, job: Path, meta: dict) -> str:
+    """FACEIT match start in local time if known, else the demo file's date."""
+    f = job / "faceit_match.json"
+    if f.exists():
+        try:
+            t = faceit.match_time(json.loads(f.read_text(encoding="utf-8")), cfg.intro.timezone)
+            if t is not None:
+                return t.strftime(cfg.intro.date_format)
+        except Exception as e:
+            _log(f"Note: could not read the match time ({e})")
+    return meta.get("date", "")
 
 
 def faceit_screenshot(cfg: Config, job: Path, mid: str | None) -> Path | None:
     """Screenshot of the FACEIT match room (kept for later runs); None if not possible."""
     if not mid:
         return None
-    shot = job / "faceit_room.png"
-    if shot.exists():
+    shot, info = job / "faceit_room.png", job / "faceit_match.json"
+    if shot.exists() and info.exists():
         return shot
     _log(f"Taking a screenshot of the FACEIT match room {mid} ...")
     try:
         return faceit.screenshot_room(mid, shot, (cfg.record.width, cfg.record.height),
-                                      headless=not cfg.intro.show_browser)
+                                      headless=not cfg.intro.show_browser, info_out=info)
     except Exception as e:
         _log(f"Note: FACEIT screenshot failed, using the scoreboard card instead ({e})")
         return None
