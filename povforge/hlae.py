@@ -45,6 +45,7 @@ class RecordSettings:
     game_hud: str = "full"        # full = keep CS2's own HUD; killfeed = only the kill feed, povforge draws a HUD
     extra_setup: str = ""         # extra console commands, separated by ;
     timeout_factor: float = 3.0   # give up after this many times the video length (+10 min)
+    player_hud: bool = True       # CS2's own player HUD at the bottom instead of the spectator card
 
 
 # --- finding things -------------------------------------------------------------
@@ -149,6 +150,11 @@ def setup_commands(s: RecordSettings) -> list[str]:
         "cl_demo_predict 1",
         "r_show_build_info 0",
         "cl_trueview_show_status 0",
+        # Demo playback normally shows a spectator card at the bottom (name, avatar,
+        # weapon skin). Turning it off makes CS2 show its own player HUD instead:
+        # health, armor, team badge with kills this round, ammo.
+        f"cl_spec_stats {0 if s.player_hud else 1}",
+        "cl_spec_show_bindings 0",
         "cl_hud_telemetry_frametime_show 0",
         "cl_hud_telemetry_net_misdelivery_show 0",
         "cl_hud_telemetry_ping_show 0",
@@ -266,6 +272,35 @@ def _log(msg: str) -> None:
     print(msg, flush=True)
 
 
+def user_config_files() -> list[Path]:
+    """CS2's saved settings (Steam/userdata/<id>/730/local/cfg/*.vcfg)."""
+    steam = _steam_dir()
+    if steam is None:
+        return []
+    return sorted((steam / "userdata").glob("*/730/local/cfg/*.vcfg"))
+
+
+def backup_user_config(dest: Path) -> list[tuple[Path, Path]]:
+    """Copy CS2's settings files away; console settings used for recording would
+    otherwise stay in the player's own config after CS2 saves on exit."""
+    pairs = []
+    for f in user_config_files():
+        b = dest / f.parent.parent.parent.parent.name / f.name   # <accountid>/<file>
+        b.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(f, b)
+        pairs.append((f, b))
+    return pairs
+
+
+def restore_user_config(pairs: list[tuple[Path, Path]]) -> int:
+    changed = 0
+    for orig, b in pairs:
+        if not orig.exists() or orig.read_bytes() != b.read_bytes():
+            shutil.copy2(b, orig)
+            changed += 1
+    return changed
+
+
 def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg") -> list[Path]:
     """Record every planned clip that isn't recorded yet; return clip paths."""
     clips_dir = job_dir / "clips"
@@ -308,6 +343,7 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg")
     if console_log.exists():
         console_log.unlink()
 
+    backups = backup_user_config(job_dir / "cs2_config_backup")
     seconds = sum(sg.duration_seconds(plan.tickrate) for sg in todo)
     limit = seconds * s.timeout_factor + 600
     _log(f"Starting CS2 through HLAE to record {len(todo)} clips (~{seconds / 60:.1f} min of video). "
@@ -334,6 +370,13 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg")
     finally:
         if cfg.exists():
             cfg.unlink()
+        if backups:
+            for _ in range(15):  # CS2 writes its settings while closing
+                if "cs2.exe" not in running_processes():
+                    break
+                time.sleep(2)
+            if restore_user_config(backups):
+                _log("Your CS2 settings were restored to how they were before recording.")
         if console_log.exists():
             shutil.copy(console_log, job_dir / "cs2_console.log")
 

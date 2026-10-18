@@ -22,6 +22,8 @@ preroll_seconds = 2.0            # wait this long at each clip start before reco
 spec_mode = ""                   # only if a CS2 update needs it
 game_hud = "full"                # full: keep CS2's own HUD (demo bar and game radar are hidden)
                                  # killfeed: game shows only the kill feed, povforge draws a HUD
+player_hud = true                # CS2's own player HUD at the bottom (health, armor, team badge,
+                                 # kills this round, ammo) instead of the spectator card
 extra_setup = ""                 # extra console commands, e.g. "cl_hud_color 3; safezonex 0.9"
 timeout_factor = 3.0
 
@@ -34,8 +36,7 @@ keyboard_scale = 1.0
 sync_offset_frames = 0.0         # nudge overlays if they lead/lag the video
 place_label = false              # location name under the minimap
 utility = true                   # grenade paths, smokes and fires with countdowns on the minimap
-player_bar = true                # with game_hud = "full": cover the spectator panel at the bottom with a
-                                 # player-style bar (health, armor, team, ammo, a skull per kill this round)
+player_bar = false               # fallback only: cover the spectator panel with a drawn player-style bar
 # hud / crosshair / scope are only drawn with game_hud = "killfeed":
 hud = true                       # health, armor, money, ammo
 crosshair = true

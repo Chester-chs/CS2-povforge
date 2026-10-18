@@ -21,8 +21,8 @@ class OverlaySettings:
     sync_offset_frames: float = 0.0  # shift overlays if a recording shows drift
     place_label: bool = False        # location name under the minimap
     utility: bool = True             # grenade paths, smokes and fires (with timers) on the minimap
-    player_bar: bool = True          # with the game HUD: replace the spectator panel at the bottom
-                                     # with a player-style bar (health, team, ammo, kills this round)
+    player_bar: bool = False         # fallback if [record] player_hud doesn't work: cover the spectator panel
+                                     # with a drawn player-style bar (health, team, ammo, kills this round)
     # Only used with [record] game_hud = "killfeed" (game HUD hidden):
     hud: bool = True                 # health / armor / money / ammo
     crosshair: bool = True

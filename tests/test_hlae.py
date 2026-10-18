@@ -97,3 +97,24 @@ class DirectorSimulation(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_user_config_backup_and_restore(tmp_path, monkeypatch):
+    from povforge import hlae
+    cfg = tmp_path / "steam" / "userdata" / "123" / "730" / "local" / "cfg"
+    cfg.mkdir(parents=True)
+    f = cfg / "cs2_user_convars_0_slot0.vcfg"
+    f.write_text('"cl_spec_stats" "1"')
+    monkeypatch.setattr(hlae, "_steam_dir", lambda: tmp_path / "steam")
+    pairs = hlae.backup_user_config(tmp_path / "backup")
+    assert len(pairs) == 1 and (tmp_path / "backup" / "123" / f.name).exists()
+    f.write_text('"cl_spec_stats" "0"')          # what CS2 saves on exit
+    assert hlae.restore_user_config(pairs) == 1
+    assert f.read_text() == '"cl_spec_stats" "1"'
+    assert hlae.restore_user_config(pairs) == 0
+
+
+def test_player_hud_setting():
+    from povforge import hlae
+    assert "cl_spec_stats 0" in hlae.setup_commands(hlae.RecordSettings())
+    assert "cl_spec_stats 1" in hlae.setup_commands(hlae.RecordSettings(player_hud=False))
