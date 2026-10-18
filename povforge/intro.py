@@ -97,22 +97,20 @@ def render_screenshot_card(info: IntroInfo, size: tuple[int, int], shot: Image.I
     cover = shot.resize((int(shot.width * sc) + 1, int(shot.height * sc) + 1))
     cover = cover.crop(((cover.width - W) // 2, (cover.height - H) // 2,
                         (cover.width - W) // 2 + W, (cover.height - H) // 2 + H))
-    im = Image.blend(cover.filter(ImageFilter.GaussianBlur(24 * k)), Image.new("RGB", (W, H)), 0.55)
-    fit = min(W / shot.width, H / shot.height)
+    im = Image.blend(cover.filter(ImageFilter.GaussianBlur(30 * k)), Image.new("RGB", (W, H)), 0.78)
+
+    # title band on top, the screenshot (e.g. both teams' scoreboard) below it, fully visible
+    top, pad = int(175 * k), int(30 * k)
+    fit = min((W - 2 * pad) / shot.width, (H - top - pad) / shot.height)
     front = shot.resize((int(shot.width * fit), int(shot.height * fit)), Image.LANCZOS)
-    im.paste(front, ((W - front.width) // 2, (H - front.height) // 2))
-    im = Image.blend(im, Image.new("RGB", (W, H)), 0.30).convert("RGBA")
+    im.paste(front, ((W - front.width) // 2, top + (H - top - pad - front.height) // 2))
+    im = im.convert("RGBA")
 
     d = ImageDraw.Draw(im)
-    lines = [(info.title, 120)] + [(p.strip(), 62) for p in info.subtitle.split("·") if p.strip()]
-    total = sum(sz for _, sz in lines) * k * 1.15
-    y = H / 2 - total / 2
-    for text, sz in lines:
-        f = font(sz * k, cjk=True)
-        y += sz * k * 0.575
-        d.text((W / 2, y), text, font=f, fill=WHITE, anchor="mm",
-               stroke_width=max(2, int(sz * k * 0.07)), stroke_fill=(0, 0, 0, 255))
-        y += sz * k * 0.575
+    sub = "  ·  ".join(p.strip() for p in info.subtitle.split("·") if p.strip())
+    d.text((W / 2, 72 * k), info.title, font=font(76 * k, cjk=True), fill=WHITE, anchor="mm",
+           stroke_width=max(2, int(4 * k)), stroke_fill=(0, 0, 0, 255))
+    d.text((W / 2, 138 * k), sub, font=font(34 * k, cjk=True), fill=DIM, anchor="mm")
     return im
 
 

@@ -41,6 +41,26 @@ _READY_JS = """() => {
   return /Matchroom/i.test(t) && /\\b(WINNER|SUMMARY|SCOREBOARD)\\b/i.test(t);
 }"""
 
+# The scoreboard: the smallest element holding both teams' tables ("Team avg"
+# appears once per team). Class names on the page are generated, so we go by text.
+# Fixed/sticky bars (the "Matchroom" header) would cover it, so they are hidden.
+_TABLES_JS = """() => {
+  const els = [...document.querySelectorAll('body *')].filter(e => {
+    const t = e.innerText || '';
+    return (t.match(/Team avg/g) || []).length >= 2 && /MVPs/.test(t);
+  });
+  if (!els.length) return false;
+  els.sort((a, b) => a.innerText.length - b.innerText.length);
+  const target = els[0];
+  document.querySelectorAll('[data-povforge-shot]').forEach(e => e.removeAttribute('data-povforge-shot'));
+  target.setAttribute('data-povforge-shot', '1');
+  for (const e of document.querySelectorAll('body *')) {
+    const pos = getComputedStyle(e).position;
+    if ((pos === 'fixed' || pos === 'sticky') && !e.contains(target)) e.style.visibility = 'hidden';
+  }
+  return true;
+}"""
+
 
 def match_id(name: str | Path) -> str | None:
     """The FACEIT match id in a demo file name, or None."""
@@ -113,9 +133,14 @@ def screenshot_room(mid: str, out: Path, size: tuple[int, int] = (1920, 1080),
                 pass
             time.sleep(1.5)
             page.evaluate(_HIDE_JS, CONSENT_SELECTORS)
-            page.evaluate("window.scrollTo(0, 0)")
             out.parent.mkdir(parents=True, exist_ok=True)
-            page.screenshot(path=str(out))
+            try:  # the stats tables load a moment after the header
+                page.wait_for_function(_TABLES_JS, timeout=15_000)
+                time.sleep(1.0)  # avatars
+                page.locator("[data-povforge-shot]").screenshot(path=str(out))
+            except Exception:  # no tables (e.g. match without stats): the top of the page
+                page.evaluate("window.scrollTo(0, 0)")
+                page.screenshot(path=str(out))
         finally:
             browser.close()
     return out
