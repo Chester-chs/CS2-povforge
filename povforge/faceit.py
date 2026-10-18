@@ -58,7 +58,8 @@ _TABLES_JS = """() => {
   target.setAttribute('data-povforge-shot', '1');
   for (const e of document.querySelectorAll('body *')) {
     const pos = getComputedStyle(e).position;
-    if ((pos === 'fixed' || pos === 'sticky') && !e.contains(target)) e.style.visibility = 'hidden';
+    // only bars outside the tables; the tables' own sticky columns (player names) must stay
+    if ((pos === 'fixed' || pos === 'sticky') && !e.contains(target) && !target.contains(e)) e.style.visibility = 'hidden';
   }
   return true;
 }"""
