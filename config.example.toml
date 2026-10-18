@@ -45,7 +45,7 @@ scope = true                     # sniper scope while scoped in
 minimap_anchor = "top-left"      # top-left, top-center, top-right, left-center, right-center,
 minimap_margin = 24              # bottom-left, bottom-center, bottom-right, center
 keyboard_anchor = "bottom-center"
-keyboard_margin = 185            # distance from the bottom, in pixels at 1080p (above the game HUD)
+keyboard_margin = 135            # distance from the bottom, in pixels at 1080p (above the game HUD)
 crf = 18                         # x264 quality: lower = better and bigger
 preset = "veryfast"              # x264 speed; slower presets = smaller files
 ffmpeg = "ffmpeg"

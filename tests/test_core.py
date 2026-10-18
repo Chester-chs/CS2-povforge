@@ -132,7 +132,7 @@ class Misc(unittest.TestCase):
                               Path("o.mp4"), ComposeSettings())
         graph = cmd[cmd.index("-filter_complex") + 1]
         self.assertIn("[0:v][1:v]overlay=x=24:y=24", graph)                 # minimap, top left
-        self.assertIn("[v1][2:v]overlay=x=(W-w)/2:y=H-h-185", graph)       # keyboard above the game HUD
+        self.assertIn("[v1][2:v]overlay=x=(W-w)/2:y=H-h-135", graph)       # keyboard above the game HUD
         self.assertIn("48000", cmd)                                         # same audio for every part
 
     def test_overlay_command_static_layers(self):

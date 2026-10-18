@@ -32,7 +32,7 @@ class ComposeSettings:
     minimap_anchor: str = "top-left"
     minimap_margin: int = 24        # pixels at 1080p
     keyboard_anchor: str = "bottom-center"
-    keyboard_margin: int = 185      # sits just above the game's HUD
+    keyboard_margin: int = 135      # just above the kill icons of the bottom HUD
     crf: int = 18
     preset: str = "veryfast"
     ffmpeg: str = "ffmpeg"
