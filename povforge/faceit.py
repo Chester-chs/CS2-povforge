@@ -34,8 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {{
 }});
 """
 
-# Text that shows the match header has loaded.
-_READY_JS = "() => /\\bvs\\b/i.test(document.body ? document.body.innerText : '')"
+# The match header has loaded once the page text has "Matchroom" plus the
+# result ("WINNER") or the stats tabs ("SUMMARY"). ("VS" is an image, not text.)
+_READY_JS = """() => {
+  const t = document.body ? document.body.innerText : '';
+  return /Matchroom/i.test(t) && /\\b(WINNER|SUMMARY|SCOREBOARD)\\b/i.test(t);
+}"""
 
 
 def match_id(name: str | Path) -> str | None:
@@ -92,7 +96,17 @@ def screenshot_room(mid: str, out: Path, size: tuple[int, int] = (1920, 1080),
             try:
                 page.wait_for_function(_READY_JS, timeout=timeout * 1000)
             except Exception as e:
-                raise RuntimeError("the match room did not load (blocked, or the match is not public)") from e
+                # keep what the browser saw, to find out why
+                failed = out.with_name(out.stem + "_failed.png")
+                text = ""
+                try:
+                    page.evaluate(_HIDE_JS, CONSENT_SELECTORS)
+                    page.screenshot(path=str(failed))
+                    text = " ".join(page.evaluate("document.body ? document.body.innerText : ''").split())[:160]
+                except Exception:
+                    pass
+                raise RuntimeError(f"the match room did not load; what the browser saw: {failed} "
+                                   f"(page title '{page.title()}', text '{text}')") from e
             try:  # let pictures and avatars finish
                 page.wait_for_load_state("networkidle", timeout=10_000)
             except Exception:

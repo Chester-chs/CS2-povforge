@@ -125,6 +125,21 @@ def _cmd_maps(args, cfg) -> None:
     print(f"Cached in {cache_dir()}")
 
 
+def _cmd_faceit(args, cfg) -> None:
+    from pathlib import Path
+
+    from . import faceit
+
+    mid = faceit.match_id(args.demo)
+    if not mid:
+        raise RuntimeError(f"No FACEIT match id (1-xxxxxxxx-...) in '{args.demo}'")
+    out = Path(args.out or f"faceit_{mid}.png").resolve()
+    print(f"Opening {faceit.room_url(mid)} ...", flush=True)
+    faceit.screenshot_room(mid, out, (cfg.record.width, cfg.record.height),
+                           headless=not (args.show or cfg.intro.show_browser))
+    print(f"Saved {out}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="povforge",
@@ -177,6 +192,12 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("maps", help="download or refresh radar images")
     s.add_argument("names", nargs="+", help="map names, e.g. de_dust2 de_mirage")
     s.set_defaults(func=_cmd_maps)
+
+    s = sub.add_parser("faceit", help="screenshot a FACEIT match room (what the intro uses)")
+    s.add_argument("demo", help="FACEIT demo file name, or the match id")
+    s.add_argument("--out", help="image file (default: faceit_<match id>.png here)")
+    s.add_argument("--show", action="store_true", help="show the browser window")
+    s.set_defaults(func=_cmd_faceit)
     return p
 
 

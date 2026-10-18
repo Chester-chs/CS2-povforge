@@ -56,6 +56,7 @@ povforge inspect match.dem.zst                 # map, rounds, player names
 povforge run match.dem.zst donk --rounds 1-2 --placeholder   # quick test, no CS2 needed
 povforge run match.dem.zst donk                # the real thing
 povforge run match.dem.zst donk --intro-image latest   # intro from your own screenshot instead
+povforge faceit match.dem.zst --show       # test the FACEIT intro screenshot on its own
 ```
 
 - Demos can be `.dem`, or FACEIT's `.dem.zst` / `.dem.gz` as downloaded. HLTV demos come as `.rar`: extract the `.dem` first.

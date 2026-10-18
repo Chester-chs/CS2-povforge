@@ -56,6 +56,7 @@ povforge inspect match.dem.zst                 # 查看地图、回合数、选�
 povforge run match.dem.zst donk --rounds 1-2 --placeholder   # 快速测试，不需要 CS2
 povforge run match.dem.zst donk                # 正式录制
 povforge run match.dem.zst donk --intro-image latest   # 改用你自己最新的一张截图做片头
+povforge faceit match.dem.zst --show       # 单独测试 FACEIT 片头截图
 ```
 
 - 支持 `.dem`，以及 FACEIT 直接下载的 `.dem.zst` / `.dem.gz`。HLTV 的 demo 是 `.rar`，需先解压出 `.dem`。
