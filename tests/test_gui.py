@@ -39,3 +39,50 @@ def test_job_config_is_valid_toml(tmp_path, monkeypatch):
     data = tomllib.loads(server.write_job_config(prefs).read_text(encoding="utf-8"))
     assert data["output"]["dir"] == prefs["output"]
     assert data["overlay"]["keyboard"] is False and data["intro"]["enabled"] is True
+
+
+class FakeJob:
+    def __init__(self):
+        self.state, self.item, self.started = "idle", 0, []
+        self.on_finish = None
+
+    def start(self, path, steamid, name, rounds, prefs, item):
+        self.state, self.item = "running", item
+        self.started.append(name)
+
+    def finish(self, state="done"):
+        self.state = state
+        self.on_finish()
+
+    def snapshot(self):
+        return {"state": self.state, "item": self.item, "result": "v.mp4" if self.state == "done" else "",
+                "highlights": "", "cover": "", "description": "", "title": "t", "error": ""}
+
+
+def test_queue_runs_one_after_another():
+    job = FakeJob()
+    q = server.Queue(job, {})
+    q.add("a.dem", "1", "donk", [], "Cache")
+    q.add("a.dem", "2", "Br4tkO", [1], "Cache")
+    assert job.started == ["donk"]
+    assert [i["state"] for i in q.snapshot()["items"]] == ["running", "queued"]
+    job.finish()
+    assert job.started == ["donk", "Br4tkO"]
+    assert q.snapshot()["items"][0]["result"] == "v.mp4"
+
+
+def test_stopping_pauses_the_queue_until_resumed():
+    job = FakeJob()
+    q = server.Queue(job, {})
+    q.add("a.dem", "1", "a", [], "")
+    q.add("a.dem", "2", "b", [], "")
+    job.finish("cancelled")
+    assert job.started == ["a"] and q.snapshot()["paused"]
+    q.resume()
+    assert job.started == ["a", "b"]
+    q.retry(1)                     # the stopped one goes back into the queue
+    assert q.snapshot()["items"][0]["state"] == "queued"
+
+
+def test_version_compare():
+    assert server._version_tuple("v0.10.0") > server._version_tuple("0.9.3")

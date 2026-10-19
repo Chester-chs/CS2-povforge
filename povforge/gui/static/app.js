@@ -2,6 +2,12 @@
 
 const TEXT = {
   zh: {
+    queueTitle: "录制队列", clearDone: "清除已完成", resume: "继续队列", remove: "移除",
+    queueIt: "把 {name} 加入队列", addQueue: "加入队列，接着选", queuedNote: "{name} 已加入队列。", nRounds: "{n} 个回合", wholeMatch: "整场",
+    st_queued: "排队中", st_running: "录制中", st_done: "完成", st_error: "失败", st_cancelled: "已停止",
+    optHighlights: "精华版", optUpload: "封面和简介", stage_extras: "生成精华版、封面和简介",
+    playHighlights: "播放精华版", titleLabel: "投稿标题", copy: "复制", copied: "已复制", openDesc: "打开简介和章节",
+    updateAvail: "有新版本 v{v}", download: "下载",
     setupTitle: "先准备一下录制环境", setupBody: "第一次用需要这几步，之后打开就能直接录。",
     ckCs2: "安装 Steam 和 CS2", ckCs2Help: "在 Steam 里安装 Counter-Strike 2，装好后这里会自动变绿。",
     ckTools: "安装录制工具 HLAE 和 FFmpeg", ckToolsHelp: "点下面的按钮，从官方 GitHub 自动下载，大约 150 MB。", ckToolsDone: "已就绪。",
@@ -34,6 +40,12 @@ const TEXT = {
     keep: "CS2 会在录完后自己关闭，期间别用电脑玩游戏。",
   },
   en: {
+    queueTitle: "Queue", clearDone: "Clear finished", resume: "Resume queue", remove: "Remove",
+    queueIt: "Add {name} to the queue", addQueue: "Queue and pick another", queuedNote: "{name} added to the queue.", nRounds: "{n} rounds", wholeMatch: "Whole match",
+    st_queued: "Waiting", st_running: "Recording", st_done: "Done", st_error: "Failed", st_cancelled: "Stopped",
+    optHighlights: "Highlights cut", optUpload: "Cover and description", stage_extras: "Make highlights, cover and description",
+    playHighlights: "Play highlights", titleLabel: "Upload title", copy: "Copy", copied: "Copied", openDesc: "Open description and chapters",
+    updateAvail: "Version v{v} is out", download: "Download",
     setupTitle: "Set up recording first", setupBody: "These steps are needed once; after that you can record straight away.",
     ckCs2: "Install Steam and CS2", ckCs2Help: "Install Counter-Strike 2 in Steam; this turns green once it's found.",
     ckTools: "Install the recording tools HLAE and FFmpeg", ckToolsHelp: "Downloads both from their official GitHub pages, about 150 MB.", ckToolsDone: "Ready.",
@@ -72,17 +84,19 @@ document.addEventListener("alpine:init", () => {
     version: "", lang: "zh", prefs: {}, setup: {}, job: { state: "idle", lines: [], recorded: [], planned: [], step: [0, 0] },
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
     player: null, chosenRounds: [], lastRun: null,
-    stages: ["read", "record", "overlays", "intro", "compose"],
+    stages: ["read", "record", "overlays", "intro", "compose", "extras"],
+    queue: { items: [], paused: false }, update: null, showRun: false, viewId: null, note: "", copied: false,
 
     async boot() {
       fetch("/static/vendor/icons.svg").then(r => r.text()).then(s => { document.getElementById("icons").innerHTML = s; });
       await this.refresh();
+      this.showRun = this.job.state === "running";
       this.lang = this.prefs.lang || (navigator.language.startsWith("zh") ? "zh" : "en");
       document.documentElement.lang = this.lang === "zh" ? "zh-CN" : "en";
       this.loadDemos();
       const tick = async () => {
         try {
-          if (this.job.state === "running") this.job = await this.get("/api/job");
+          if (this.job.state === "running") { const j = await this.get("/api/job"); this.queue = j.queue; this.job = j; }
           else await this.refresh();
           this.failures = 0; this.offline = false;
         } catch (e) {
@@ -112,10 +126,12 @@ document.addEventListener("alpine:init", () => {
       const s = await this.get("/api/state");
       if (s.error) throw new Error(s.error);
       this.version = s.version; this.prefs = s.prefs; this.setup = s.setup; this.job = s.job;
+      this.queue = s.queue; this.update = s.update;
     },
     async loadDemos() { this.demos = await this.get("/api/demos"); this.demosLoaded = true; },
 
     async pickDemo(path) {
+      this.showRun = false;
       this.inspecting = true; this.inspectError = ""; this.demo = null; this.player = null;
       try {
         this.demo = await this.post("/api/inspect", { path });
@@ -161,32 +177,75 @@ document.addEventListener("alpine:init", () => {
     },
     get canStart() { return !!this.player && !this.whyNot; },
 
-    async start() {
+    async start(watch) {
       const all = this.chosenRounds.length === this.demo.rounds;
-      this.lastRun = { path: this.demo.path, steamid: this.player.steamid, name: this.player.name,
-                       rounds: all ? [] : this.chosenRounds.slice().sort((a, b) => a - b) };
-      this.job = await this.post("/api/run", this.lastRun);
+      const wasRunning = this.job.state === "running";
+      const body = { path: this.demo.path, steamid: this.player.steamid, name: this.player.name,
+                     rounds: all ? [] : this.chosenRounds.slice().sort((a, b) => a - b), map: this.demo.map_pretty };
+      const j = await this.post("/api/queue/add", body);
+      this.queue = j.queue; this.job = j;
+      if (watch && !wasRunning) { this.viewId = null; this.showRun = true; }
+      else { this.note = this.t("queuedNote", { name: body.name }); setTimeout(() => { this.note = ""; }, 4000); }
     },
-    async retry() { if (this.lastRun) this.job = await this.post("/api/run", this.lastRun); },
-    async cancel() { this.job = await this.post("/api/cancel"); },
-    async again() { this.job = await this.post("/api/reset"); },
+    async retry() {
+      const id = this.viewId || this.job.item;
+      if (id) { this.queue = await this.post("/api/queue/retry", { id }); this.viewId = null; this.showRun = true; }
+    },
+    async retryItem(id) { this.queue = await this.post("/api/queue/retry", { id }); },
+    async removeItem(id) { this.queue = await this.post("/api/queue/remove", { id }); if (this.viewId === id) { this.viewId = null; this.showRun = false; } },
+    async clearQueue() { this.queue = await this.post("/api/queue/clear"); },
+    async resumeQueue() { this.queue = await this.post("/api/queue/resume"); },
+    openItem(it) {
+      this.viewId = it.state === "running" ? null : it.id;
+      this.showRun = true;
+    },
+    async cancel() { const j = await this.post("/api/cancel"); this.queue = j.queue || this.queue; this.job = j; },
+    async again() {
+      this.viewId = null; this.showRun = false;
+      if (this.job.state !== "running") this.job = await this.post("/api/reset");
+    },
+    openPath(path, select = false) { if (path) this.post("/api/open", { path, select }); },
+    openUrl(url) { this.post("/api/open-url", { url }); },
+    async copy(text) {
+      try { await navigator.clipboard.writeText(text); }
+      catch (e) {
+        const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta);
+        ta.select(); document.execCommand("copy"); ta.remove();
+      }
+      this.copied = true; setTimeout(() => { this.copied = false; }, 1600);
+    },
+    get viewingItem() { return this.viewId !== null && this.viewId !== this.job.item; },
+    get runVisible() { return this.showRun && (this.viewingItem || this.job.state !== "idle"); },
+    get res() {
+      if (this.viewingItem) {
+        const it = this.queue.items.find(i => i.id === this.viewId);
+        if (it) return { ...it, player: it.name };
+      }
+      return this.job;
+    },
+    thumbOf(r) {
+      if (r.cover) return r.cover;
+      const p = r.result || ""; const i = Math.max(p.lastIndexOf("\\"), p.lastIndexOf("/"));
+      return p.slice(0, i + 1) + "parts" + p[i] + "intro.png";
+    },
     async install() { this.setup = await this.post("/api/install", { what: "all" }); },
     async restoreSettings() { this.setup = await this.post("/api/restore-settings"); },
-    openResult(select) { this.post("/api/open", { path: this.job.result, select }); },
 
     roundDone(r) {
       return this.job.recorded.includes(r) || this.stages.indexOf(this.job.stage) > this.stages.indexOf("record");
     },
     get recordTotal() { return this.job.stage === "record" ? this.job.step[1] : 0; },
     get runRounds() { return this.job.planned.length ? this.job.planned : this.roundList; },
-    get thumbPath() { const p = this.job.result || ""; const i = Math.max(p.lastIndexOf("\\"), p.lastIndexOf("/")); return p.slice(0, i + 1) + "parts" + p[i] + "intro.png"; },
     get runTitle() {
-      const n = this.job.player || this.player?.name || "";
-      return { running: this.t("recording", { name: n }), done: this.t("recorded"), error: this.t("failed"), cancelled: this.t("stopped") }[this.job.state] || "";
+      const r = this.res, n = r.player || "";
+      return { running: this.t("recording", { name: n }), done: this.t("recorded"), error: this.t("failed"), cancelled: this.t("stopped") }[r.state] || "";
     },
     get runSub() {
-      if (this.job.state === "running") return (this.demo?.map_pretty ? this.demo.map_pretty + " · " : "") + this.t("keep");
-      return this.job.player ? this.job.player + (this.demo?.map_pretty ? " · " + this.demo.map_pretty : "") : "";
+      const r = this.res;
+      const item = this.queue.items.find(i => i.id === (this.viewingItem ? this.viewId : this.job.item));
+      const map = item?.map || "";
+      if (r.state === "running") return (map ? map + " · " : "") + this.t("keep");
+      return [r.player, map].filter(Boolean).join(" · ");
     },
     stageClass(s) {
       const order = this.stages, cur = order.indexOf(this.job.stage);

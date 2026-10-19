@@ -14,7 +14,9 @@ A personal, non-commercial tool that turns Counter-Strike 2 demos into full-matc
 - Synced 2D minimap: teammates, grenade flight paths, smokes and molotovs with countdowns
 - Keyboard/mouse display (Shift, Ctrl, W A S D, Space, mouse buttons) just above the HUD's kill icons
 - Intro: "<player> POV" written over the FACEIT match room. The screenshot is taken automatically from the demo's match id (headless Edge/Chrome, no login, cookie banner hidden, nothing accepted). The intro also shows the match start time in your time zone. Other demos get the final scoreboard
-- Writes chapter markers per round (embedded in the video and as a YouTube-ready `chapters.txt`)
+- Writes chapter markers per round (embedded in the video and as a YouTube-ready `chapters.txt`), named after what happened: "Round 18 · ACE", "Round 7 · 3K · 1v2 clutch"
+- A highlights cut next to the full video: every kill (4 s before, 1.5 s after), taken from the finished rounds, no extra recording
+- Upload kit: `cover.jpg` (the best moment, name, map, score, K/D/A) and `description.txt` (a title, match info and the chapters)
 
 A 28-minute FACEIT demo becomes a ~16-minute POV video.
 
@@ -24,7 +26,9 @@ Download **PovForge-windows.zip** from [Releases](https://github.com/Chester-chs
 
 1. pick a demo (demos in your Downloads folder are listed; any file can be chosen),
 2. click a player on the scoreboard and, if you like, the rounds to record (each round shows that player's kills and whether they died),
-3. press **Record** and follow the progress; when it's done, play the video or open its folder.
+3. press **Record** and follow the progress; when it's done, play the video or the highlights, copy the upload title, or open the folder.
+
+While one recording runs you can keep browsing and press **Queue** to add more players or demos; they're recorded one after another. The app tells you when a new version is out.
 
 The first time, click **Install HLAE and FFmpeg** in the setup panel; both are downloaded from their official GitHub releases into `%LOCALAPPDATA%\povforge\tools`. Steam and CS2 must be installed. Videos go to `Videos\PovForge` (changeable).
 

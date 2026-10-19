@@ -46,7 +46,8 @@ def default_output() -> Path:
 def load_prefs() -> dict:
     f = app_dir() / "app.json"
     prefs = {"output": str(default_output()), "demo_folders": [str(Path.home() / "Downloads")],
-             "intro": True, "minimap": True, "keyboard": True, "show_enemies": False, "lang": ""}
+             "intro": True, "minimap": True, "keyboard": True, "show_enemies": False, "lang": "",
+             "highlights": True, "upload": True}
     if f.exists():
         try:
             prefs.update(json.loads(f.read_text(encoding="utf-8")))
@@ -70,7 +71,9 @@ def write_job_config(prefs: dict) -> Path:
              "[overlay]", f"minimap = {str(bool(prefs['minimap'])).lower()}",
              f"keyboard = {str(bool(prefs['keyboard'])).lower()}",
              f"show_enemies = {str(bool(prefs['show_enemies'])).lower()}", "",
-             "[intro]", f"enabled = {str(bool(prefs['intro'])).lower()}", ""]
+             "[intro]", f"enabled = {str(bool(prefs['intro'])).lower()}", "",
+             "[highlights]", f"enabled = {str(bool(prefs.get('highlights', True))).lower()}", "",
+             "[upload]", f"enabled = {str(bool(prefs.get('upload', True))).lower()}", ""]
     f = app_dir() / "last-run.toml"
     app_dir().mkdir(parents=True, exist_ok=True)
     f.write_text("\n".join(lines), encoding="utf-8")
@@ -212,10 +215,11 @@ def rounds_spec(rounds: list[int]) -> str:
 class Job:
     """One `povforge run` child process and what it has reported so far."""
 
-    STAGES = ["read", "record", "overlays", "intro", "compose", "done"]
+    STAGES = ["read", "record", "overlays", "intro", "compose", "extras", "done"]
 
     def __init__(self):
         self.lock = threading.Lock()
+        self.on_finish = None        # called (outside the lock) when the child process ends
         self.reset()
 
     def reset(self) -> None:
@@ -227,25 +231,32 @@ class Job:
         self.planned: list[int] = []
         self.step = (0, 0)           # (done, total) within the current stage
         self.result = ""
+        self.highlights = ""
+        self.cover = ""
+        self.description = ""
+        self.title = ""
         self.error = ""
         self.player = ""
         self.demo = ""
+        self.item = 0                # queue item being recorded
         self.started = 0.0
 
     def snapshot(self) -> dict:
         with self.lock:
             return {"state": self.state, "stage": self.stage, "lines": self.lines[-200:],
                     "recorded": self.recorded, "planned": self.planned, "step": list(self.step),
-                    "result": self.result, "error": self.error, "player": self.player,
-                    "demo": self.demo, "elapsed": time.time() - self.started if self.started else 0}
+                    "result": self.result, "highlights": self.highlights, "cover": self.cover,
+                    "description": self.description, "title": self.title, "error": self.error,
+                    "player": self.player, "demo": self.demo, "item": self.item,
+                    "elapsed": time.time() - self.started if self.started else 0}
 
-    def start(self, demo: str, steamid: str, name: str, rounds: list[int], prefs: dict) -> None:
+    def start(self, demo: str, steamid: str, name: str, rounds: list[int], prefs: dict, item: int = 0) -> None:
         with self.lock:
             if self.state == "running":
                 raise RuntimeError("A recording is already running.")
             self.reset()
             self.state, self.stage, self.started = "running", "read", time.time()
-            self.player, self.demo, self.planned = name, demo, sorted(rounds)
+            self.player, self.demo, self.planned, self.item = name, demo, sorted(rounds), item
         cfg = write_job_config(prefs)
         args = ["--config", str(cfg), "run", demo, steamid]
         if os.environ.get("POVFORGE_PLACEHOLDER"):  # testing without CS2
@@ -273,6 +284,8 @@ class Job:
                 else:
                     self.state = "error"
                     self.error = self.error or (self.lines[-1] if self.lines else f"Exit code {code}")
+        if self.on_finish:
+            self.on_finish()
 
     def _take(self, line: str) -> None:
         with self.lock:
@@ -291,6 +304,18 @@ class Job:
                 self.stage, self.step = "compose", (int(m.group(1)), int(m.group(2)))
             elif line.startswith("Joining parts"):
                 self.stage, self.step = "compose", (1, 1)
+            elif line.startswith(("Cutting the highlights", "Making the cover")):
+                self.stage, self.step = "extras", (0, 0)
+            elif line.startswith("Highlights: "):
+                self.highlights = line[12:].strip()
+            elif line.startswith("Cover: "):
+                self.cover = line[7:].strip()
+            elif line.startswith("Description: "):
+                self.description = line[13:].strip()
+                try:
+                    self.title = Path(self.description).read_text(encoding="utf-8").splitlines()[0]
+                except Exception:
+                    self.title = ""
             elif line.startswith("Done: "):
                 self.result = line[6:].strip()
             elif line.startswith("Error: "):
@@ -316,6 +341,112 @@ class Job:
             settings_guard.restore()
         except Exception:
             pass
+
+
+class Queue:
+    """Recordings waiting their turn; runs them one after another through Job."""
+
+    def __init__(self, job: Job, prefs: dict):
+        self.job, self.prefs = job, prefs
+        self.lock = threading.Lock()
+        self.items: list[dict] = []
+        self.next_id = 1
+        self.paused = False
+        job.on_finish = self._finished
+
+    def snapshot(self) -> dict:
+        with self.lock:
+            return {"items": [dict(i) for i in self.items], "paused": self.paused}
+
+    def add(self, path: str, steamid: str, name: str, rounds: list[int], map_pretty: str) -> dict:
+        with self.lock:
+            item = {"id": self.next_id, "path": path, "steamid": steamid, "name": name, "rounds": rounds,
+                    "map": map_pretty, "state": "queued", "result": "", "highlights": "", "cover": "",
+                    "description": "", "title": "", "error": ""}
+            self.next_id += 1
+            self.items.append(item)
+            self.paused = False
+        self._start_next()
+        return item
+
+    def _start_next(self) -> None:
+        with self.lock:
+            if self.paused or self.job.state == "running":
+                return
+            item = next((i for i in self.items if i["state"] == "queued"), None)
+            if item is None:
+                return
+            item["state"] = "running"
+        try:
+            self.job.start(item["path"], item["steamid"], item["name"], item["rounds"], self.prefs, item["id"])
+        except Exception as e:
+            with self.lock:
+                item["state"], item["error"] = "error", str(e)
+
+    def _finished(self) -> None:
+        snap = self.job.snapshot()
+        with self.lock:
+            item = next((i for i in self.items if i["id"] == snap["item"]), None)
+            if item is not None:
+                item["state"] = snap["state"]
+                for k in ("result", "highlights", "cover", "description", "title", "error"):
+                    item[k] = snap[k]
+            if snap["state"] == "cancelled":
+                self.paused = True       # stopping one recording pauses the rest
+        self._start_next()
+
+    def resume(self) -> None:
+        with self.lock:
+            self.paused = False
+        self._start_next()
+
+    def retry(self, item_id: int) -> None:
+        with self.lock:
+            for i in self.items:
+                if i["id"] == item_id and i["state"] in ("error", "cancelled"):
+                    i["state"], i["error"] = "queued", ""
+            self.paused = False
+        self._start_next()
+
+    def remove(self, item_id: int) -> None:
+        with self.lock:
+            self.items = [i for i in self.items if i["id"] != item_id or i["state"] == "running"]
+
+    def clear_finished(self) -> None:
+        with self.lock:
+            self.items = [i for i in self.items if i["state"] in ("queued", "running")]
+
+
+# --- updates -----------------------------------------------------------------------------
+
+RELEASES_API = "https://api.github.com/repos/Chester-chs/CS2-povforge/releases/latest"
+RELEASES_PAGE = "https://github.com/Chester-chs/CS2-povforge/releases/latest"
+
+
+def _version_tuple(v: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
+
+
+def check_update(current: str) -> dict | None:
+    """Newest release on GitHub if it's newer than this one (quietly None on any problem)."""
+    import urllib.request
+    try:
+        req = urllib.request.Request(RELEASES_API, headers={"User-Agent": "PovForge",
+                                                           "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.load(r)
+        tag, url = data.get("tag_name", ""), data.get("html_url", RELEASES_PAGE)
+    except Exception:
+        try:
+            req = urllib.request.Request(RELEASES_PAGE, headers={"User-Agent": "PovForge"})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                url = r.geturl()
+            tag = url.rstrip("/").rsplit("/", 1)[-1]
+        except Exception:
+            return None
+    if tag and _version_tuple(tag) > _version_tuple(current):
+        return {"version": tag.lstrip("v"), "url": url}
+    return None
 
 
 # --- setup (HLAE, FFmpeg, CS2) ------------------------------------------------------
@@ -449,7 +580,13 @@ class App:
     def __init__(self):
         self.prefs = load_prefs()
         self.job = Job()
+        self.queue = Queue(self.job, self.prefs)
         self.setup = Setup()
+        self.update: dict | None = None
+        threading.Thread(target=self._check_update, daemon=True).start()
+
+    def _check_update(self) -> None:
+        self.update = check_update(__version__)
         self.last_seen = time.time()   # the page asks for state every second or two
 
 
@@ -493,10 +630,11 @@ def make_handler(app: App):
                 if url.path.startswith("/api/"):
                     app.last_seen = time.time()
                 if url.path == "/api/state":
-                    return self._json({"version": __version__, "prefs": app.prefs,
-                                       "setup": app.setup.status(), "job": app.job.snapshot()})
+                    return self._json({"version": __version__, "prefs": app.prefs, "update": app.update,
+                                       "setup": app.setup.status(), "job": app.job.snapshot(),
+                                       "queue": app.queue.snapshot()})
                 if url.path == "/api/job":
-                    return self._json(app.job.snapshot())
+                    return self._json({**app.job.snapshot(), "queue": app.queue.snapshot()})
                 if url.path == "/api/setup":
                     return self._json(app.setup.status())
                 if url.path == "/api/demos":
@@ -507,7 +645,7 @@ def make_handler(app: App):
                     return self._file(get_map(name).radar)
                 if url.path == "/api/thumb":
                     p = Path((q.get("path") or [""])[0])
-                    if p.suffix.lower() == ".png" and p.is_file() and Path(app.prefs["output"]) in p.parents:
+                    if p.suffix.lower() in (".png", ".jpg") and p.is_file() and Path(app.prefs["output"]) in p.parents:
                         return self._file(p)
                     return self._send(404, b"not found", "text/plain")
                 self._send(404, b"not found", "text/plain")
@@ -541,15 +679,32 @@ def make_handler(app: App):
                         save_prefs(app.prefs)
                     return self._json(app.prefs)
                 if url.path == "/api/prefs":
-                    for k in ("intro", "minimap", "keyboard", "show_enemies", "lang"):
+                    for k in ("intro", "minimap", "keyboard", "show_enemies", "lang", "highlights", "upload"):
                         if k in b:
                             app.prefs[k] = b[k]
                     save_prefs(app.prefs)
                     return self._json(app.prefs)
-                if url.path == "/api/run":
-                    app.job.start(b["path"], b["steamid"], b.get("name", ""),
-                                  [int(r) for r in b.get("rounds") or []], app.prefs)
-                    return self._json(app.job.snapshot())
+                if url.path in ("/api/run", "/api/queue/add"):
+                    app.queue.add(b["path"], b["steamid"], b.get("name", ""),
+                                  [int(r) for r in b.get("rounds") or []], b.get("map", ""))
+                    return self._json({**app.job.snapshot(), "queue": app.queue.snapshot()})
+                if url.path == "/api/queue/remove":
+                    app.queue.remove(int(b.get("id", 0)))
+                    return self._json(app.queue.snapshot())
+                if url.path == "/api/queue/clear":
+                    app.queue.clear_finished()
+                    return self._json(app.queue.snapshot())
+                if url.path == "/api/queue/resume":
+                    app.queue.resume()
+                    return self._json(app.queue.snapshot())
+                if url.path == "/api/queue/retry":
+                    app.queue.retry(int(b.get("id", 0)))
+                    return self._json(app.queue.snapshot())
+                if url.path == "/api/open-url":
+                    u = b.get("url", "")
+                    if u.startswith("https://github.com/Chester-chs/"):
+                        webbrowser.open(u)
+                    return self._json({"ok": True})
                 if url.path == "/api/cancel":
                     app.job.cancel()
                     return self._json(app.job.snapshot())

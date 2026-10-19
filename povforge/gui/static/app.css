@@ -99,6 +99,24 @@ button { font: inherit; color: inherit; }
 .side-actions { display: grid; gap: 6px; padding: 10px 0 0; }
 .side-actions .btn { justify-content: flex-start; }
 
+.queue { border-top: 1px solid var(--line); padding: 12px 12px 12px; display: grid; gap: 8px; max-height: 34vh; overflow-y: auto; }
+.queue .side-head { padding: 0 8px; }
+.link.small { font-size: 12px; }
+.q-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.q-item { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 6px; padding: 6px 8px; border-radius: var(--r-sm); }
+.q-item.on { background: var(--raise); }
+.q-ic { color: var(--mute); display: inline-flex; }
+.q-ic .ic { width: 16px; height: 16px; }
+.q-item.running .q-ic { color: var(--t); }
+.q-item.done .q-ic { color: var(--ok); }
+.q-item.error .q-ic { color: var(--bad); }
+.q-main { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; min-width: 0; display: grid; }
+.q-main b { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.q-main span { color: var(--mute); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.q-act { display: inline-flex; }
+.q-act .ic { width: 15px; height: 15px; }
+.update { display: flex; align-items: center; gap: 6px; color: var(--t); }
+.update .ic { width: 15px; height: 15px; }
 .env { border-top: 1px solid var(--line); padding: 14px 20px; display: grid; gap: 10px; }
 .env-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
 .env-list li { display: grid; grid-template-columns: 10px auto 1fr; gap: 8px; align-items: center; }
@@ -196,6 +214,14 @@ button { font: inherit; color: inherit; }
 .chip:has(input:checked) { border-color: var(--mute); }
 .link.out { margin-left: 8px; color: var(--mute); font-size: 13px; }
 .why-not { color: var(--bad); font-size: 13px; }
+.go-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+.queued-note { color: var(--ok); font-size: 13px; }
+.upload { display: grid; gap: 8px; width: min(720px, 100%); padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel); }
+.up-label { color: var(--mute); font-size: 12px; }
+.up-title { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.up-title span { font-family: var(--num), var(--cjk); font-size: 15px; }
+.up-title .btn { flex: none; }
+.upload .link { justify-self: start; font-size: 13px; }
 
 /* recording */
 .run { padding: 40px; max-width: 980px; display: flex; flex-direction: column; gap: 28px; }
