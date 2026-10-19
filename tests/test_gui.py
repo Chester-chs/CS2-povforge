@@ -268,3 +268,21 @@ def test_never_quits_while_busy(monkeypatch, tmp_path):
     app = _app(monkeypatch, tmp_path)
     app.inspecting = 1
     assert app.quit_reason(app.last_seen + 10_000) == ""
+
+
+def test_demo_reading_is_saved_for_next_time(tmp_path, monkeypatch):
+    import subprocess
+    monkeypatch.setenv("POVFORGE_STATE", str(tmp_path / "state"))
+    demo = tmp_path / "m.dem"
+    demo.write_bytes(b"x")
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, stdout='{"map": "de_cache", "rounds": 23}\n', stderr="")
+    monkeypatch.setattr(server.subprocess, "run", fake_run)
+    server._inspect_cache.clear()
+    assert server.inspect_isolated(str(demo), tmp_path)["rounds"] == 23
+    server._inspect_cache.clear()                     # as if the app was restarted
+    assert server.inspect_isolated(str(demo), tmp_path)["map"] == "de_cache"
+    assert len(calls) == 1                            # the demo was read only once

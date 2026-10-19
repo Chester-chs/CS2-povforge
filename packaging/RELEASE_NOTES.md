@@ -1,4 +1,9 @@
-**What's new in v0.9.3 / 本次更新**
+**What's new in v0.9.4 / 本次更新**
+
+- Less waiting. A demo is read once: opening it again (even after restarting PovForge) is instant. Recording the same demo and player again skips reading it. A highlight reel of rounds you already recorded for the whole match is cut straight from that recording, without starting CS2; only missing rounds are recorded.
+  少等待：同一个 demo 只解析一次，再打开（重启软件后也一样）立刻出结果；同一场同一个人再录会跳过重新解析；做集锦时，整场录制里已有的回合直接从整场录像里剪，不再开 CS2，缺的回合才补录。
+
+**v0.9.3**
 
 - Fixed: PovForge could close by itself ("PovForge 已经关闭") while you were using it, when its window was hidden behind others or minimised for a while. It now stays open as long as its window is open, and closes a few seconds after you close the window.
   修复：窗口被挡住或最小化一段时间后，PovForge 可能自己关闭（"PovForge 已经关闭"）。现在只要窗口开着就一直运行，关掉窗口几秒后才退出。

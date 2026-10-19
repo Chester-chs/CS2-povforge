@@ -252,3 +252,8 @@ def test_renumber_clips_keeps_recorded_rounds(tmp_path):
     assert not (clips / "clip_001.mp4").exists()            # round 5 still to record
     assert (clips / "clip_002.mp4").read_text() == "round 3"
     assert sorted(f.name for f in clips.iterdir()) == ["clip_000.mp4", "clip_002.mp4"]
+
+
+def test_demo_stem():
+    from povforge.pipeline import demo_stem
+    assert demo_stem("C:/d/1-abc-1.dem.zst") == "1-abc-1" and demo_stem("x.dem") == "x" and demo_stem("y.dem.gz") == "y"

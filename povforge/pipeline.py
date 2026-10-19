@@ -67,6 +67,64 @@ def _log(msg: str) -> None:
 
 # --- plan ---------------------------------------------------------------------
 
+PLAN_VERSION = 1      # bump when make_plan's output changes, so saved plans are made again
+
+
+def demo_stem(path: str | Path) -> str:
+    """'match.dem.zst' -> 'match' (the name the unpacked demo and its jobs use)."""
+    name = Path(path).name
+    for suffix in (".zst", ".gz", ".bz2"):
+        if name.lower().endswith(suffix):
+            name = name[: -len(suffix)]
+    return name[:-4] if name.lower().endswith(".dem") else Path(name).stem
+
+
+def _source_record(cfg: Config, source: Path, player_query: str, rounds, suffix: str, trim) -> dict:
+    st = source.stat()
+    return {"demo": str(source.resolve()), "mtime": st.st_mtime, "size": st.st_size, "player": player_query,
+            "rounds": sorted(rounds) if rounds else None, "suffix": suffix,
+            "trim": list(trim) if trim else None, "plan_options": asdict(cfg.plan), "v": PLAN_VERSION}
+
+
+def job_roots(cfg: Config) -> list[Path]:
+    """Where jobs live: the work folder, and the output folder itself (older versions)."""
+    return [work_root(cfg), cfg.output_dir]
+
+
+def saved_plan(cfg: Config, record: dict) -> Path | None:
+    """A job whose plan was made from exactly this demo, player and choice of rounds."""
+    root = work_root(cfg)
+    if not root.is_dir():
+        return None
+    for f in root.glob("*/source.json"):
+        try:
+            if json.loads(f.read_text(encoding="utf-8")) == record:
+                job = f.parent
+                if all((job / n).exists() for n in ("plan.json", "kills.json", "positions.pkl", "keys.pkl")):
+                    return job
+        except Exception:
+            continue
+    return None
+
+
+def whole_match_job(cfg: Config, demo: str | Path, steamid: str) -> Path | None:
+    """The whole-match job (not a reel) of this demo and player, if one was planned."""
+    stem = demo_stem(demo)
+    for root in job_roots(cfg):
+        if not root.is_dir():
+            continue
+        for f in root.glob("*/plan.json"):
+            if f.parent.name.endswith("__reel"):
+                continue
+            try:
+                plan = load_plan(f.parent)
+            except Exception:
+                continue
+            if plan.player.steamid == steamid and Path(plan.demo_path).stem == stem:
+                return f.parent
+    return None
+
+
 def parse_rounds(spec: str | None) -> set[int] | None:
     """'1,3,5-7' -> {1, 3, 5, 6, 7}"""
     if not spec:
@@ -89,6 +147,12 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     (the highlight reel uses its own); ``trim_to_kills`` = (seconds before the
     first kill, seconds after the last) records only that part of each round."""
     source = Path(demo_path)
+    record = _source_record(cfg, source, player_query, rounds, job_suffix, trim_to_kills)
+    known = saved_plan(cfg, record)
+    if known is not None:                      # read before: skip reading the demo again
+        plan = load_plan(known)
+        _log(f"Using the earlier reading of {source.name} ({len(plan.segments)} clips)")
+        return plan, known
     demo_path = prepare_demo(demo_path, work_root(cfg) / "demos")
     _log(f"Reading {demo_path.name} ...")
     demo = load_demo(demo_path)
@@ -131,6 +195,7 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     if plan_file.exists() and load_plan(job).segments != plan.segments:
         renumber_clips(job, load_plan(job).segments, plan.segments)
     plan_file.write_text(json.dumps(plan.to_dict(), indent=2), encoding="utf-8")
+    (job / "source.json").write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
 
     mins = plan.total_seconds() / 60
     _log(f"{demo.map_name}: {len(demo.rounds)} rounds, {player.name} played {len(segments)}; "

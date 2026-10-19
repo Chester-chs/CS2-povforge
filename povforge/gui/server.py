@@ -242,13 +242,26 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
     return info
 
 
+INSPECT_VERSION = 2       # bump when inspect_demo's output changes: saved readings are made again
+
+
 def inspect_isolated(path: str, work_dir: Path) -> dict:
     """inspect_demo in a child process: reading a big demo then can't stall the
     app, and a crash in the demo parser can't take the app down with it."""
     src = Path(path)
-    key = f"{src.resolve()}|{src.stat().st_mtime}"
+    st = src.stat()
+    key = f"{src.resolve()}|{st.st_mtime}|{st.st_size}|v{INSPECT_VERSION}"
     if key in _inspect_cache:
         return _inspect_cache[key]
+    import hashlib
+    saved = app_dir() / "demo-info" / (hashlib.sha1(key.encode("utf-8")).hexdigest() + ".json")
+    if saved.exists():                        # read before, even in an earlier session
+        try:
+            info = json.loads(saved.read_text(encoding="utf-8"))
+            _inspect_cache[key] = info
+            return info
+        except Exception:
+            pass
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
     r = subprocess.run(cli_command("inspect", str(src), "--json", "--work", str(work_dir)),
@@ -260,6 +273,11 @@ def inspect_isolated(path: str, work_dir: Path) -> dict:
         raise RuntimeError(tail[-1] if tail else f"Reading the demo failed (exit code {r.returncode}).")
     info = json.loads(out[-1])
     _inspect_cache[key] = info
+    try:
+        saved.parent.mkdir(parents=True, exist_ok=True)
+        saved.write_text(json.dumps(info, ensure_ascii=False), encoding="utf-8")
+    except OSError:
+        pass
     return info
 
 
