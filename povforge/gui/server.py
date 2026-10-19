@@ -242,6 +242,27 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
     return info
 
 
+def inspect_isolated(path: str, work_dir: Path) -> dict:
+    """inspect_demo in a child process: reading a big demo then can't stall the
+    app, and a crash in the demo parser can't take the app down with it."""
+    src = Path(path)
+    key = f"{src.resolve()}|{src.stat().st_mtime}"
+    if key in _inspect_cache:
+        return _inspect_cache[key]
+    flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    r = subprocess.run(cli_command("inspect", str(src), "--json", "--work", str(work_dir)),
+                       capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       timeout=900, env=env, creationflags=flags)
+    out = [l for l in r.stdout.splitlines() if l.startswith("{")]
+    if r.returncode != 0 or not out:
+        tail = (r.stderr or r.stdout).strip().splitlines()
+        raise RuntimeError(tail[-1] if tail else f"Reading the demo failed (exit code {r.returncode}).")
+    info = json.loads(out[-1])
+    _inspect_cache[key] = info
+    return info
+
+
 # --- recording job -----------------------------------------------------------------
 
 def cli_command(*args: str) -> list[str]:
@@ -802,11 +823,32 @@ class App:
         self.quit = lambda: None            # set by main() once the server exists
         self.updater = Updater(__version__, busy=lambda: self.job.state == "running",
                                quit_app=lambda: self.quit())
+        self.last_seen = time.time()   # the page asks for state every second or two
+        self.bye_at = 0.0              # the page said it was closing (pagehide)
+        self.window = None             # the Edge/Chrome process showing our window, when we can tell
+        self.inspecting = 0
         threading.Thread(target=self._check_update, daemon=True).start()
 
     def _check_update(self) -> None:
         self.update = check_update(__version__)
-        self.last_seen = time.time()   # the page asks for state every second or two
+
+    def busy(self) -> bool:
+        return (self.job.state == "running" or bool(self.setup.installing) or self.inspecting > 0
+                or self.updater.status()["state"] in ("downloading", "installing"))
+
+    def quit_reason(self, now: float) -> str:
+        """Why the app should close now ('' = keep running). The window is what
+        counts: while it's open the app stays, however rarely a hidden or
+        minimised page gets to check in (browsers slow those pages down)."""
+        if self.busy():
+            return ""
+        if self.bye_at and self.last_seen <= self.bye_at and now - self.bye_at > 8:
+            return "window closed"
+        if self.window is not None:
+            if self.window.poll() is None:
+                return ""
+            return "window closed" if now - self.last_seen > 10 else ""
+        return "no window for 3 minutes" if now - self.last_seen > 180 else ""
 
 
 def make_handler(app: App):
@@ -882,11 +924,19 @@ def make_handler(app: App):
             url = urlparse(self.path)
             try:
                 b = self._body()
+                if url.path == "/api/bye":
+                    app.bye_at = time.time()
+                    return self._json({"ok": True})
                 if url.path == "/api/inspect":
                     path = b.get("path", "")
                     if not is_demo(Path(path)):
                         return self._json({"error": "not_a_demo"}, 400)
-                    return self._json(inspect_demo(path, Path(app.prefs["output"])))
+                    app.inspecting += 1
+                    try:
+                        return self._json(inspect_isolated(path, Path(app.prefs["output"])))
+                    finally:
+                        app.inspecting -= 1
+                        app.last_seen = time.time()
                 if url.path == "/api/browse":
                     folder = (app.prefs["demo_folders"] or [str(Path.home())])[0]
                     return self._json({"path": pick_file(folder)})
@@ -981,7 +1031,7 @@ def make_handler(app: App):
     return Handler
 
 
-def open_window(url: str) -> None:
+def open_window(url: str) -> subprocess.Popen | None:
     """An app-style window (no tabs or address bar) in Edge or Chrome, else the default browser."""
     if sys.platform == "win32":
         candidates = [
@@ -993,15 +1043,19 @@ def open_window(url: str) -> None:
         for c in candidates:
             if c.is_file():
                 profile = app_dir() / "window"
-                subprocess.Popen([str(c), f"--app={url}", "--window-size=1280,820",
-                                  f"--user-data-dir={profile}", "--no-first-run"])
-                return
+                # keep the page running normally when the window is hidden or behind others
+                return subprocess.Popen([str(c), f"--app={url}", "--window-size=1280,820",
+                                         f"--user-data-dir={profile}", "--no-first-run", *NO_THROTTLE])
     for name in ("microsoft-edge", "google-chrome", "chromium"):
         exe = shutil.which(name)
         if exe:
-            subprocess.Popen([exe, f"--app={url}", "--window-size=1280,820"])
-            return
+            return subprocess.Popen([exe, f"--app={url}", "--window-size=1280,820", *NO_THROTTLE])
     webbrowser.open(url)
+    return None
+
+
+NO_THROTTLE = ["--disable-background-timer-throttling", "--disable-renderer-backgrounding",
+               "--disable-backgrounding-occluded-windows"]
 
 
 def main(port: int = 0, open_browser: bool = True) -> None:
@@ -1010,14 +1064,20 @@ def main(port: int = 0, open_browser: bool = True) -> None:
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(f"PovForge is running at {url} (close this window to quit)", flush=True)
     if open_browser:
-        open_window(url)
+        app.window = open_window(url)
     app.quit = lambda: threading.Thread(target=server.shutdown, daemon=True).start()
 
     def watch() -> None:
-        # quit once the window has been closed for a while (and nothing is recording)
+        # a browser already running with our window profile takes the window over and
+        # this process ends at once: then we can't watch the window, only the page
+        time.sleep(6)
+        if app.window is not None and app.window.poll() is not None:
+            app.window = None
         while True:
-            time.sleep(5)
-            if time.time() - app.last_seen > 30 and app.job.state != "running" and not app.setup.installing:
+            time.sleep(3)
+            reason = app.quit_reason(time.time())
+            if reason:
+                print(f"Quitting: {reason}", flush=True)
                 server.shutdown()
                 return
 

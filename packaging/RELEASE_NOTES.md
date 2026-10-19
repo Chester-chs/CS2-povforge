@@ -1,4 +1,13 @@
-**What's new in v0.9.2 / 本次更新**
+**What's new in v0.9.3 / 本次更新**
+
+- Fixed: PovForge could close by itself ("PovForge 已经关闭") while you were using it, when its window was hidden behind others or minimised for a while. It now stays open as long as its window is open, and closes a few seconds after you close the window.
+  修复：窗口被挡住或最小化一段时间后，PovForge 可能自己关闭（"PovForge 已经关闭"）。现在只要窗口开着就一直运行，关掉窗口几秒后才退出。
+- Demos are read in a separate process, so a large or broken demo can't stall or crash the app.
+  读 demo 改在单独的进程里进行，大文件或损坏的 demo 不会卡住或弄崩软件。
+- The app keeps a log at %LOCALAPPDATA%\povforge\app.log for troubleshooting.
+  软件会把运行记录写到 %LOCALAPPDATA%\povforge\app.log，方便排查问题。
+
+**v0.9.2**
 
 - First run asks where your demos are and where finished videos should go (both can be changed later on the setup page or in Settings).
   第一次打开时先选择 demo 所在的文件夹和成片保存的位置（之后可在准备页或设置里更改）。

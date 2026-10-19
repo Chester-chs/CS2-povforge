@@ -225,3 +225,46 @@ def test_first_run_asks_for_folders_but_old_installs_keep_theirs(tmp_path, monke
     (server.app_dir() / "app.json").write_text(json.dumps({"output": "D:/v"}), encoding="utf-8")
     p = server.load_prefs()
     assert p["folders_set"] is True and p["output"] == "D:/v"     # set up by an older version
+
+
+class _Proc:
+    def __init__(self, alive=True):
+        self.alive = alive
+
+    def poll(self):
+        return None if self.alive else 0
+
+
+def _app(monkeypatch, tmp_path):
+    monkeypatch.setenv("POVFORGE_STATE", str(tmp_path))
+    monkeypatch.setattr(server, "check_update", lambda v: None)
+    return server.App()
+
+
+def test_app_stays_while_its_window_is_open_even_without_pings(monkeypatch, tmp_path):
+    app = _app(monkeypatch, tmp_path)
+    app.window = _Proc(alive=True)
+    assert app.quit_reason(app.last_seen + 3600) == ""          # hidden window, page throttled for an hour
+    app.window.alive = False
+    assert app.quit_reason(app.last_seen + 20) == "window closed"
+
+
+def test_app_without_a_watched_window_waits_minutes_not_seconds(monkeypatch, tmp_path):
+    app = _app(monkeypatch, tmp_path)
+    assert app.quit_reason(app.last_seen + 60) == ""
+    assert app.quit_reason(app.last_seen + 200) != ""
+
+
+def test_closing_the_page_quits_soon_but_a_reload_does_not(monkeypatch, tmp_path):
+    app = _app(monkeypatch, tmp_path)
+    app.window = _Proc(alive=True)                              # e.g. the browser keeps running
+    app.bye_at = app.last_seen + 1
+    assert app.quit_reason(app.bye_at + 10) == "window closed"
+    app.last_seen = app.bye_at + 2                              # the reloaded page checked in
+    assert app.quit_reason(app.bye_at + 10) == ""
+
+
+def test_never_quits_while_busy(monkeypatch, tmp_path):
+    app = _app(monkeypatch, tmp_path)
+    app.inspecting = 1
+    assert app.quit_reason(app.last_seen + 10_000) == ""

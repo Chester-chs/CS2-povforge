@@ -155,6 +155,8 @@ document.addEventListener("alpine:init", () => {
     queue: { items: [], paused: false }, update: null, showRun: false, viewId: null, toasts: [], toastSeq: 0,
 
     async boot() {
+      // closing the window: tell the app at once (a reload checks in again straight away)
+      window.addEventListener("pagehide", () => { try { navigator.sendBeacon("/api/bye", "{}"); } catch (_) {} });
       fetch("/static/vendor/icons.svg").then(r => r.text()).then(s => { document.getElementById("icons").innerHTML = s; });
       await this.refresh();
       this.applyTheme();

@@ -11,6 +11,11 @@ from .config import load_config
 
 
 def _cmd_inspect(args, cfg) -> None:
+    if args.json:                       # what the app reads (it runs this in a child process)
+        import json
+        from .gui.server import inspect_demo
+        print(json.dumps(inspect_demo(args.demo, Path(args.work or cfg.output_dir)), ensure_ascii=False), flush=True)
+        return
     from .demo import load_demo, prepare_demo
 
     from .pipeline import work_root
@@ -220,6 +225,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("inspect", help="show map, rounds and players of a demo")
     s.add_argument("demo")
+    s.add_argument("--json", action="store_true", help="everything the app shows, as one JSON line")
+    s.add_argument("--work", help="output folder (with --json)")
     s.set_defaults(func=_cmd_inspect)
 
     s = sub.add_parser("plan", help="work out which parts of each round to record")
@@ -291,7 +298,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        if args.func is not _cmd_restore_settings:
+        # Only before recording: a read-only command (the app reading a demo, say)
+        # may run while a recording has just backed the settings up and is starting
+        # CS2, and must not put them back under it.
+        if args.func in (_cmd_run, _cmd_record, _cmd_reel):
             _restore_leftover_settings()
         cfg = load_config(args.config)
         from . import tools
