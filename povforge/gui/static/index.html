@@ -93,7 +93,7 @@
     <ul class="env-list">
       <li :class="setup.cs2 ? 'ok' : 'bad'" :title="setup.cs2"><i></i><span>CS2</span><em x-text="setup.cs2 ? t('found') : t('cs2Missing')"></em></li>
       <li :class="setup.hlae ? 'ok' : 'bad'" :title="setup.hlae"><i></i><span>HLAE</span><em x-text="setup.hlae ? t('found') : t('notInstalled')"></em></li>
-      <li :class="setup.ffmpeg ? 'ok' : 'bad'" :title="setup.ffmpeg"><i></i><span>FFmpeg</span><em x-text="setup.ffmpeg ? t('found') : t('notInstalled')"></em></li>
+      <li x-show="!setup.ffmpeg_bundled" :class="setup.ffmpeg ? 'ok' : 'bad'" :title="setup.ffmpeg"><i></i><span>FFmpeg</span><em x-text="setup.ffmpeg ? t('found') : t('notInstalled')"></em></li>
       <li :class="setup.anticheat?.length ? 'bad' : 'ok'"><i></i><span x-text="t('antiCheat')"></span><em x-text="setup.anticheat?.length ? setup.anticheat.join(', ') + ' ' + t('running') : t('closed')"></em></li>
     </ul>
     <button class="btn" data-variant="secondary" data-size="sm" x-show="(!setup.hlae || !setup.ffmpeg) && !setup.installing" @click="install()">
@@ -141,7 +141,7 @@
         <span class="step-ic"><svg x-show="setup.hlae && setup.ffmpeg"><use href="#i-check"/></svg><b x-show="!(setup.hlae && setup.ffmpeg)">2</b></span>
         <div>
           <h3 x-text="t('ckTools')"></h3>
-          <p x-text="setup.hlae && setup.ffmpeg ? t('ckToolsDone') : t('ckToolsHelp')"></p>
+          <p x-text="setup.hlae && setup.ffmpeg ? t('ckToolsDone') : toolsHelp"></p>
           <button class="btn" x-show="!(setup.hlae && setup.ffmpeg) && !setup.installing" @click="install()">
             <svg><use href="#i-hard-drive-download"/></svg><span x-text="t('installTools')"></span>
           </button>

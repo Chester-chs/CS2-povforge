@@ -15,14 +15,14 @@ const TEXT = {
     updateAvail: "有新版本 v{v}", download: "下载",
     setupTitle: "先准备一下录制环境", setupBody: "第一次用需要这几步，之后打开就能直接录。",
     ckCs2: "安装 Steam 和 CS2", ckCs2Help: "在 Steam 里安装 Counter-Strike 2，装好后这里会自动变绿。",
-    ckTools: "安装录制工具 HLAE 和 FFmpeg", ckToolsHelp: "点下面的按钮，从官方 GitHub 自动下载，大约 150 MB。", ckToolsDone: "已就绪。",
+    ckTools: "下载录制组件", ckToolsHelp: "点下面的按钮，自动从官方 GitHub 下载 {list}（{size}），不用自己找。", ckToolsDone: "已就绪。",
     ckAc: "退出反作弊客户端", ckAcDone: "FACEIT、5E、完美世界都没有在运行。",
     ckDemo: "准备一个 demo", ckDemoHelp: "从 FACEIT 比赛房间或 HLTV 下载 demo，放进下载文件夹即可。", ckDemoDone: "下载文件夹里有 {n} 个 demo，在左边选一个。",
     offlineTitle: "PovForge 已经关闭", offlineBody: "后台程序已退出。重新打开 PovForge 即可继续。",
     demos: "Demo", refresh: "刷新", lookingIn: "正在看：", noDemos: "这个文件夹里还没有 demo。下载一个 FACEIT 或 HLTV demo，或者手动选择文件。",
     openFile: "选择 demo 文件…", demoFolder: "更换 demo 文件夹…",
     setup: "录制环境", found: "已就绪", cs2Missing: "没找到，请先在 Steam 安装", notInstalled: "未安装",
-    antiCheat: "反作弊", running: "正在运行", closed: "已关闭", installTools: "一键安装 HLAE 和 FFmpeg",
+    antiCheat: "反作弊", running: "正在运行", closed: "已关闭", installTools: "一键下载录制组件",
     preparing: "准备中…", settingsPending: "上次录制被打断，你的 CS2 设置还没还原。", restoreNow: "立即还原",
     safeNote: "录制不会改动你的 CS2 设置。",
     blankTitle: "选一个 demo 开始", blankBody: "左边列出了下载文件夹里的 demo。选好比赛和选手，就能得到这个人的完整第一人称视频。",
@@ -33,7 +33,7 @@ const TEXT = {
     legendKill: "这回合的击杀", legendDied: "这回合阵亡",
     optIntro: "片头", optMinimap: "小地图", optKeyboard: "键鼠显示", optEnemies: "小地图显示敌人",
     saveTo: "保存到", record: "录制 {name} 的 POV",
-    needRounds: "至少选一个回合。", needTools: "先安装 HLAE 和 FFmpeg（左下角）。", needCs2: "没找到 CS2。",
+    needRounds: "至少选一个回合。", needTools: "先下载录制组件（左下角一键下载）。", needCs2: "没找到 CS2。",
     needAntiCheat: "请先彻底退出 {list}（托盘图标 → 退出），它会阻止录制。", needWindows: "录制需要在 Windows 上运行。",
     recording: "正在录制 {name}", recorded: "录好了", failed: "没能完成", stopped: "已停止",
     stage_read: "读取 demo", stage_record: "在 CS2 里录制回合", stage_overlays: "生成小地图和键鼠画面",
@@ -58,14 +58,14 @@ const TEXT = {
     updateAvail: "Version v{v} is out", download: "Download",
     setupTitle: "Set up recording first", setupBody: "These steps are needed once; after that you can record straight away.",
     ckCs2: "Install Steam and CS2", ckCs2Help: "Install Counter-Strike 2 in Steam; this turns green once it's found.",
-    ckTools: "Install the recording tools HLAE and FFmpeg", ckToolsHelp: "Downloads both from their official GitHub pages, about 150 MB.", ckToolsDone: "Ready.",
+    ckTools: "Download the recording add-on", ckToolsHelp: "Click the button and {list} is downloaded from its official GitHub page ({size}).", ckToolsDone: "Ready.",
     ckAc: "Quit anti-cheat clients", ckAcDone: "FACEIT, 5E and Perfect World aren't running.",
     ckDemo: "Get a demo", ckDemoHelp: "Download a demo from a FACEIT match room or HLTV into your Downloads folder.", ckDemoDone: "{n} demos in your Downloads folder; pick one on the left.",
     offlineTitle: "PovForge has closed", offlineBody: "The background program stopped. Open PovForge again to carry on.",
     demos: "Demos", refresh: "Refresh", lookingIn: "Looking in", noDemos: "No demos in this folder yet. Download a FACEIT or HLTV demo, or choose a file.",
     openFile: "Choose a demo file…", demoFolder: "Change demo folder…",
     setup: "Recording setup", found: "Ready", cs2Missing: "Not found, install it in Steam", notInstalled: "Not installed",
-    antiCheat: "Anti-cheat", running: "running", closed: "Closed", installTools: "Install HLAE and FFmpeg",
+    antiCheat: "Anti-cheat", running: "running", closed: "Closed", installTools: "Download the recording add-on",
     preparing: "Preparing…", settingsPending: "A recording was interrupted and your CS2 settings aren't restored yet.", restoreNow: "Restore now",
     safeNote: "Recording never changes your CS2 settings.",
     blankTitle: "Pick a demo to start", blankBody: "Demos from your Downloads folder are listed on the left. Choose a match and a player to get their full first-person video.",
@@ -76,7 +76,7 @@ const TEXT = {
     legendKill: "kill this round", legendDied: "died this round",
     optIntro: "Intro", optMinimap: "Minimap", optKeyboard: "Keys and mouse", optEnemies: "Enemies on minimap",
     saveTo: "Save to", record: "Record {name}'s POV",
-    needRounds: "Choose at least one round.", needTools: "Install HLAE and FFmpeg first (bottom left).", needCs2: "CS2 wasn't found.",
+    needRounds: "Choose at least one round.", needTools: "Download the recording add-on first (bottom left).", needCs2: "CS2 wasn't found.",
     needAntiCheat: "Quit {list} completely first (tray icon → Exit); it blocks recording.", needWindows: "Recording needs Windows.",
     recording: "Recording {name}", recorded: "Done", failed: "Didn't finish", stopped: "Stopped",
     stage_read: "Read the demo", stage_record: "Record rounds in CS2", stage_overlays: "Draw minimap and keys",
@@ -175,6 +175,11 @@ document.addEventListener("alpine:init", () => {
       return this.t("roundTip", { r, k, d: this.player?.rounds_died?.[r - 1] ? this.t("roundTipDied") : "" });
     },
 
+    get missingTools() { return [!this.setup.hlae && "HLAE", !this.setup.ffmpeg && "FFmpeg"].filter(Boolean); },
+    get toolsHelp() {
+      const m = this.missingTools;
+      return this.t("ckToolsHelp", { list: m.join(this.lang === "zh" ? " 和 " : " and "), size: m.includes("FFmpeg") ? "~100 MB" : "~10 MB" });
+    },
     get ready() { return !!(this.setup.cs2 && this.setup.hlae && this.setup.ffmpeg && !this.setup.anticheat?.length); },
     get whyNot() {
       if (this.setup.placeholder) return this.chosenRounds.length ? "" : this.t("needRounds");

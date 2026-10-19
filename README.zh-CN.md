@@ -30,7 +30,7 @@
 
 录制过程中可以继续选别的 demo 或选手，点 **加入队列**，会按顺序一个个录完。有新版本时软件会提示。
 
-第一次使用时，点左下角 **一键安装 HLAE 和 FFmpeg**，两者都从官方 GitHub 发布页下载到 `%LOCALAPPDATA%\povforge\tools`。需要已安装 Steam 和 CS2。视频默认保存到 `视频\PovForge`（可以更改）。
+FFmpeg（视频编码工具）已经内置在软件里。第一次使用时点 **一键下载录制组件**，会从官方 GitHub 发布页下载 HLAE（约 10 MB）到 `%LOCALAPPDATA%\povforge\tools`；HLAE 要跟着 CS2 更新，所以不打包进安装包。需要已安装 Steam 和 CS2。视频默认保存到 `视频\PovForge`（可以更改）。
 
 新版本直接覆盖安装，设置会保留；卸载在 Windows 设置 → 应用里。另有免安装的 `PovForge-windows.zip`。命令行里运行 `povforge gui` 也能打开同一个窗口。
 
@@ -53,7 +53,7 @@ demo ──► 规划 ──► 录制（HLAE 驱动 CS2）──► 叠加层 �
 
 - 装有 Counter-Strike 2 的 Windows 10/11（录制需要）
 - 使用命令行时需要 Python 3.11+（软件版不需要）
-- HLAE 和 FFmpeg：运行 `povforge setup`（或软件里的安装按钮）自动下载。如果 PATH 里已有 FFmpeg、或 `C:\Tools\hlae` 里已有 HLAE，会直接使用
+- HLAE 和 FFmpeg：软件内置 FFmpeg，HLAE 一键下载。用源码运行时，`povforge setup` 会自动下载两者。如果 PATH 里已有 FFmpeg、或 `C:\Tools\hlae` 里已有 HLAE，会直接使用
 - 录制时 Steam 要开着；关闭 CS2 和各平台反作弊客户端（FACEIT、5E、完美世界）
 
 运行 `povforge doctor` 可以一次检查全部环境。

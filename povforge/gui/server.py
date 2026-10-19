@@ -476,6 +476,7 @@ class Setup:
 
         check("hlae", lambda: str(hlae.find_hlae(cfg.record)))
         check("ffmpeg", lambda: tools.find_ffmpeg() or "")
+        check("ffmpeg_bundled", lambda: bool(tools.bundled_ffmpeg()), False)
         check("cs2", lambda: str(hlae.find_cs2(cfg.record)) if sys.platform == "win32" else "")
         check("procs", lambda: sorted(hlae.running_processes()), [])
         procs = set(out.pop("procs"))

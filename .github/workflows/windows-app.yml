@@ -35,10 +35,48 @@ jobs:
         working-directory: packaging
         run: pyinstaller --noconfirm povforge.spec
 
+      # FFmpeg ships inside the app (unmodified BtbN GPL shared build, stable branch),
+      # with its licence and a note on where the matching source is.
+      - name: Bundle FFmpeg
+        shell: pwsh
+        run: |
+          $base = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
+          $names = @("ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip", "ffmpeg-master-latest-win64-gpl-shared.zip")
+          $got = $null
+          foreach ($n in $names) {
+            try { Invoke-WebRequest "$base/$n" -OutFile ffmpeg.zip -UseBasicParsing; $got = $n; break } catch { Write-Host "not found: $n" }
+          }
+          if (-not $got) { throw "no FFmpeg build found" }
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-src
+          $top = (Get-ChildItem ffmpeg-src -Directory)[0].FullName
+          $dest = "packaging/dist/PovForge/ffmpeg"
+          New-Item -ItemType Directory -Force $dest | Out-Null
+          Copy-Item "$top/bin/*" $dest -Exclude ffplay.exe
+          Copy-Item "$top/LICENSE.txt" "$dest/LICENSE.txt"
+          $ver = (& "$dest/ffmpeg.exe" -hide_banner -version | Select-Object -First 1)
+          if (-not ($ver -match "ffmpeg version")) { throw "bundled ffmpeg does not run" }
+          $enc = (& "$dest/ffmpeg.exe" -hide_banner -encoders | Select-String libx264)
+          if (-not $enc) { throw "bundled ffmpeg has no libx264" }
+          $hash = if ($ver -match "-g([0-9a-f]{7,})") { $Matches[1] } else { "" }
+          @(
+            "FFmpeg in this folder is an unmodified build from BtbN/FFmpeg-Builds ($got),",
+            "licensed under the GNU GPL version 3 (see LICENSE.txt). PovForge runs it as a separate program.",
+            "",
+            "Version: $ver",
+            "FFmpeg source: https://git.ffmpeg.org/gitweb/ffmpeg.git/commit/$hash  (also https://github.com/FFmpeg/FFmpeg/commit/$hash)",
+            "Build scripts and the sources of the bundled libraries: https://github.com/BtbN/FFmpeg-Builds",
+            "If you cannot get the source from those links, open an issue at https://github.com/Chester-chs/CS2-povforge/issues and we will provide it."
+          ) | Set-Content "$dest/SOURCE.txt" -Encoding utf8
+          Get-Content "$dest/SOURCE.txt"
+          Get-ChildItem $dest | Format-Table Name, Length
+
       - name: Smoke test
         shell: pwsh
         run: |
           $dir = "packaging/dist/PovForge"
+          $doc = (& "$dir/povforge-cli.exe" doctor | Out-String)
+          Write-Host $doc
+          if (-not ($doc -match "PovForge[\\/]ffmpeg[\\/]ffmpeg\.exe")) { throw "the app does not use its bundled FFmpeg" }
           & "$dir/povforge-cli.exe" --help
           if ($LASTEXITCODE -ne 0) { throw "povforge-cli.exe --help failed" }
           & "$dir/povforge-cli.exe" doctor
@@ -77,6 +115,7 @@ jobs:
           $app = "$env:LOCALAPPDATA\Programs\PovForge\PovForge.exe"
           if (-not (Test-Path $app)) { throw "PovForge.exe was not installed" }
           if (-not (Test-Path "$env:LOCALAPPDATA\Programs\PovForge\povforge-cli.exe")) { throw "povforge-cli.exe missing" }
+          if (-not (Test-Path "$env:LOCALAPPDATA\Programs\PovForge\ffmpeg\ffmpeg.exe")) { throw "bundled FFmpeg missing" }
           $desk = [Environment]::GetFolderPath("Desktop")
           if (-not (Test-Path "$desk\PovForge.lnk")) { throw "no desktop shortcut" }
           $menu = [Environment]::GetFolderPath("Programs")

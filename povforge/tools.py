@@ -1,8 +1,10 @@
-"""Download the external programs povforge needs (HLAE, FFmpeg) on first use.
+"""The external programs povforge needs: HLAE and FFmpeg.
 
-Both are fetched from their official GitHub releases into a povforge folder
-under %LOCALAPPDATA% (nothing is installed system-wide, nothing is bundled
-with povforge):
+- FFmpeg ships with the Windows app (an unmodified BtbN GPL build in the
+  ``ffmpeg`` folder next to PovForge.exe, see THIRD_PARTY_NOTICES.md). When
+  running from source it is downloaded on first use instead.
+- HLAE has to keep up with CS2 updates, so it is always downloaded from its
+  official GitHub release into a povforge folder under %LOCALAPPDATA%.
 
 - HLAE: https://github.com/advancedfx/advancedfx/releases (MIT)
 - FFmpeg: https://github.com/BtbN/FFmpeg-Builds/releases (GPL build)
@@ -13,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 import tempfile
 import urllib.request
 import zipfile
@@ -40,15 +43,26 @@ def ffmpeg_exe() -> Path:
     return tools_dir() / "ffmpeg" / "bin" / "ffmpeg.exe"
 
 
+def bundled_ffmpeg() -> Path | None:
+    """The ffmpeg.exe that ships with the packaged app, if this is the packaged app."""
+    if not getattr(sys, "frozen", False):
+        return None
+    exe = Path(sys.executable).resolve().parent / "ffmpeg" / "ffmpeg.exe"
+    return exe if exe.is_file() else None
+
+
 def find_ffmpeg(configured: str = "ffmpeg") -> str | None:
-    """The configured ffmpeg if it can be found, else the downloaded one."""
+    """A configured path wins; then the bundled copy, the downloaded one, PATH, usual places."""
     if configured and configured != "ffmpeg" and Path(configured).is_file():
         return configured
+    bundled = bundled_ffmpeg()
+    if bundled:
+        return str(bundled)
+    if ffmpeg_exe().is_file():
+        return str(ffmpeg_exe())
     on_path = shutil.which(configured or "ffmpeg")
     if on_path:
         return on_path
-    if ffmpeg_exe().is_file():
-        return str(ffmpeg_exe())
     for p in _usual_ffmpeg_places():
         if p.is_file():
             return str(p)

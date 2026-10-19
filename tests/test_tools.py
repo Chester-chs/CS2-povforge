@@ -33,3 +33,16 @@ def test_downloaded_ffmpeg_is_used_when_none_on_path(tmp_path, monkeypatch):
     tools.ffmpeg_exe().parent.mkdir(parents=True)
     tools.ffmpeg_exe().write_text("")
     assert tools.find_ffmpeg() == str(tools.ffmpeg_exe())
+
+
+def test_bundled_ffmpeg_comes_first_in_the_packaged_app(tmp_path, monkeypatch):
+    monkeypatch.setenv("POVFORGE_STATE", str(tmp_path / "state"))
+    monkeypatch.setattr(tools.shutil, "which", lambda name: "/usr/bin/ffmpeg")
+    app = tmp_path / "PovForge"
+    (app / "ffmpeg").mkdir(parents=True)
+    (app / "ffmpeg" / "ffmpeg.exe").write_text("")
+    monkeypatch.setattr(tools.sys, "executable", str(app / "PovForge.exe"))
+    assert tools.find_ffmpeg() == "/usr/bin/ffmpeg"  # running from source: no bundle
+    monkeypatch.setattr(tools.sys, "frozen", True, raising=False)
+    assert tools.find_ffmpeg() == str((app / "ffmpeg" / "ffmpeg.exe").resolve())
+    assert tools.find_ffmpeg("D:/my/ffmpeg.exe") == str((app / "ffmpeg" / "ffmpeg.exe").resolve())  # missing path ignored

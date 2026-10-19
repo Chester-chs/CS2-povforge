@@ -30,7 +30,7 @@ Download **PovForge-Setup.exe** from [Releases](https://github.com/Chester-chs/C
 
 While one recording runs you can keep browsing and press **Queue** to add more players or demos; they're recorded one after another. The app tells you when a new version is out.
 
-The first time, click **Install HLAE and FFmpeg** in the setup panel; both are downloaded from their official GitHub releases into `%LOCALAPPDATA%\povforge\tools`. Steam and CS2 must be installed. Videos go to `Videos\PovForge` (changeable).
+FFmpeg (the video encoder) comes with the app. The first time, click **Download the recording add-on**: it fetches HLAE (about 10 MB) from its official GitHub release into `%LOCALAPPDATA%\povforge\tools`; HLAE isn't bundled because it has to keep up with CS2 updates. Steam and CS2 must be installed. Videos go to `Videos\PovForge` (changeable).
 
 Newer versions install over the old one and keep your settings; uninstall from Windows Settings → Apps. There's also a no-install `PovForge-windows.zip`. From the command line, `povforge gui` opens the same window.
 
@@ -53,7 +53,7 @@ Key input comes from the player's real input commands when the demo has them (FA
 
 - Windows 10/11 with Counter-Strike 2 installed (for recording)
 - For the command line: Python 3.11+ (the app needs nothing else)
-- HLAE and FFmpeg: `povforge setup` (or the app's install button) downloads both. An FFmpeg on PATH or HLAE in `C:\Tools\hlae` is used if present
+- HLAE and FFmpeg: the app bundles FFmpeg and downloads HLAE with one click. From source, `povforge setup` downloads both; an FFmpeg on PATH or HLAE in `C:\Tools\hlae` is used if present
 - Steam running; close CS2 and anti-cheat clients (FACEIT, 5E, Perfect World) before recording
 
 Run `povforge doctor` to check everything.
