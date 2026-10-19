@@ -2,6 +2,11 @@
 
 const TEXT = {
   zh: {
+    playerCol: "选手", readyAll: "就绪", notReady: "未就绪", pickTitle: "选择选手", roundsHelp: "点回合格子可以取消或加回，默认录整场。",
+    legendPicked: "要录", optsTitle: "成片内容", recordShort: "开始录制",
+    optIntroHelp: "FACEIT 计分板截图和比赛时间", optMinimapHelp: "左上角雷达和队友位置",
+    optKeyboardHelp: "画面下方显示按键和鼠标", optEnemiesHelp: "雷达上也画出敌人",
+    optHighlightsHelp: "另存一个只有击杀片段的短视频", optUploadHelp: "生成封面图、投稿标题和章节",
     queueTitle: "录制队列", clearDone: "清除已完成", resume: "继续队列", remove: "移除",
     queueIt: "把 {name} 加入队列", addQueue: "加入队列，接着选", queuedNote: "{name} 已加入队列。", nRounds: "{n} 个回合", wholeMatch: "整场",
     st_queued: "排队中", st_running: "录制中", st_done: "完成", st_error: "失败", st_cancelled: "已停止",
@@ -40,6 +45,11 @@ const TEXT = {
     keep: "CS2 会在录完后自己关闭，期间别用电脑玩游戏。",
   },
   en: {
+    playerCol: "Player", readyAll: "Ready", notReady: "Not ready", pickTitle: "Choose a player", roundsHelp: "Click a round to leave it out or add it back; the whole match is the default.",
+    legendPicked: "to record", optsTitle: "What goes in the video", recordShort: "Start recording",
+    optIntroHelp: "FACEIT scoreboard and match time", optMinimapHelp: "Radar with teammates, top left",
+    optKeyboardHelp: "Keys and mouse along the bottom", optEnemiesHelp: "Draw enemies on the radar too",
+    optHighlightsHelp: "A short extra video of just the kills", optUploadHelp: "Cover image, upload title and chapters",
     queueTitle: "Queue", clearDone: "Clear finished", resume: "Resume queue", remove: "Remove",
     queueIt: "Add {name} to the queue", addQueue: "Queue and pick another", queuedNote: "{name} added to the queue.", nRounds: "{n} rounds", wholeMatch: "Whole match",
     st_queued: "Waiting", st_running: "Recording", st_done: "Done", st_error: "Failed", st_cancelled: "Stopped",
@@ -85,7 +95,7 @@ document.addEventListener("alpine:init", () => {
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
     player: null, chosenRounds: [], lastRun: null,
     stages: ["read", "record", "overlays", "intro", "compose", "extras"],
-    queue: { items: [], paused: false }, update: null, showRun: false, viewId: null, note: "", copied: false,
+    queue: { items: [], paused: false }, update: null, showRun: false, viewId: null, toasts: [], toastSeq: 0,
 
     async boot() {
       fetch("/static/vendor/icons.svg").then(r => r.text()).then(s => { document.getElementById("icons").innerHTML = s; });
@@ -185,7 +195,7 @@ document.addEventListener("alpine:init", () => {
       const j = await this.post("/api/queue/add", body);
       this.queue = j.queue; this.job = j;
       if (watch && !wasRunning) { this.viewId = null; this.showRun = true; }
-      else { this.note = this.t("queuedNote", { name: body.name }); setTimeout(() => { this.note = ""; }, 4000); }
+      else this.toast(this.t("queuedNote", { name: body.name }));
     },
     async retry() {
       const id = this.viewId || this.job.item;
@@ -212,7 +222,25 @@ document.addEventListener("alpine:init", () => {
         const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta);
         ta.select(); document.execCommand("copy"); ta.remove();
       }
-      this.copied = true; setTimeout(() => { this.copied = false; }, 1600);
+      this.toast(this.t("copied"));
+    },
+    toast(text) {
+      const id = ++this.toastSeq;
+      this.toasts.push({ id, text });
+      setTimeout(() => { this.toasts = this.toasts.filter(m => m.id !== id); }, 3500);
+    },
+    get winnerIndex() {
+      const t = this.demo?.teams || [];
+      if (t.length < 2 || t[0].score == null || t[0].score === t[1].score) return -1;
+      return t[0].score > t[1].score ? 0 : 1;
+    },
+    // rough overall progress; recording rounds is most of the time
+    get progressPct() {
+      const j = this.job;
+      if (j.state === "done") return 100;
+      const [a, b] = j.step || [0, 0], f = b ? Math.min(a / b, 1) : 0;
+      const span = { read: [2, 5], record: [5, 70], overlays: [70, 80], intro: [80, 83], compose: [83, 95], extras: [95, 100] }[j.stage] || [0, 0];
+      return Math.round(span[0] + (span[1] - span[0]) * f);
     },
     get viewingItem() { return this.viewId !== null && this.viewId !== this.job.item; },
     get runVisible() { return this.showRun && (this.viewingItem || this.job.state !== "idle"); },

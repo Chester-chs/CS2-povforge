@@ -1,3 +1,8 @@
+**What's new in v0.8.2 / 本次更新**
+
+New look: the app is rebuilt on [Basecoat UI](https://github.com/hunvreus/basecoat) (shadcn/ui style, MIT) with a dark theme and CS2-amber accent: scoreboard tables, round grid, option switches, a sticky record bar, an overall progress bar and pop-up notices.
+界面重做：基于开源的 Basecoat UI（shadcn/ui 风格），深色主题加 CS2 琥珀色点缀；计分板式选手表、回合格子、开关式选项、底部固定的录制栏、总进度条和弹出提示。
+
 **Windows / Windows 程序**
 
 Download **PovForge-Setup.exe**, double-click it and click through. PovForge gets a desktop icon and a Start menu entry; open it from there. Installing a newer version over it keeps your settings. Uninstall from Windows Settings → Apps.
