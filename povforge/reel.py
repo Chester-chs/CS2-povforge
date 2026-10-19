@@ -1,7 +1,8 @@
 """Highlight reel: the kills of chosen rounds, from one or several demos and
 players, joined in the order the user picked.
 
-Only the game picture is used (the game's own HUD stays; no minimap, keys,
+Each chosen round becomes one continuous piece, from a few seconds before
+its first kill to just after its last. Only the game picture is used (the game's own HUD stays; no minimap, keys,
 intro or captions). Each demo/player pair is planned and recorded on its own
 (one CS2 session per demo), only around the kills of the chosen rounds; the
 kill moments are then cut out and joined.
@@ -14,7 +15,9 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .compose import safe_filename
+import shutil
+
+from .compose import free_name, safe_filename
 from .config import Config
 from .extras import _cut, kill_windows
 from .hlae import actual_starts
@@ -41,15 +44,6 @@ def _log(msg: str) -> None:
     print(msg, flush=True)
 
 
-def _free_name(folder: Path, stem: str) -> Path:
-    out = folder / f"{stem}.mp4"
-    n = 2
-    while out.exists():
-        out = folder / f"{stem} ({n}).mp4"
-        n += 1
-    return out
-
-
 def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = False) -> Path:
     h = cfg.highlights
     # one source per demo + player, in the order they first appear
@@ -65,7 +59,9 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
         clips = pipeline.make_recording(cfg, job, placeholder)
         kills = [(int(t), bool(hs)) for t, hs in json.loads((job / "kills.json").read_text())]
         durations = [probe(c, cfg.compose.ffmpeg).duration for c in clips]
-        found = kill_windows(plan, actual_starts(job), kills, durations, h.before, h.after, h.merge_gap)
+        # one continuous piece per round: from just before the first kill to just
+        # after the last, nothing cut out in between
+        found = kill_windows(plan, actual_starts(job), kills, durations, h.before, h.after, float("inf"))
         by_round: dict[int, list] = {}
         for i, a, b in found:
             by_round.setdefault(plan.segments[i].round_number, []).append((clips[i], a, b))
@@ -81,7 +77,7 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
     if not order:
         raise RuntimeError("None of the chosen rounds could be used.")
 
-    out_dir = cfg.output_dir / "reels" / safe_filename(title)
+    out_dir = pipeline.work_root(cfg) / "reel pieces" / safe_filename(title)
     out_dir.mkdir(parents=True, exist_ok=True)
     for f in out_dir.glob("piece_*.mp4"):
         f.unlink()
@@ -93,10 +89,15 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
         pieces.append(piece)
     listing = out_dir / "list.txt"
     listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in pieces), encoding="utf-8")
-    final = _free_name(cfg.output_dir, safe_filename(title))
+    final = free_name(cfg.output_dir, safe_filename(title))
     _log("Joining the reel ...")
     subprocess.run([cfg.compose.ffmpeg, "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
                     "-i", str(listing), "-c", "copy", "-movflags", "+faststart", str(final)], check=True)
+    shutil.rmtree(out_dir, ignore_errors=True)       # the pieces are cut again from the recordings if needed
+    try:
+        out_dir.parent.rmdir()                       # gone too when no other reel is being cut
+    except OSError:
+        pass
     seconds = sum(b - a for _, a, b in order)
     _log(f"Reel: {len(order)} moments, {seconds:.0f} s")
     _log(f"Done: {final.resolve()}")

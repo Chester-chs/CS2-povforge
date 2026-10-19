@@ -199,3 +199,19 @@ def test_job_reads_reel_progress():
     snap = j.snapshot()
     assert snap["stage"] == "cut" and snap["step"] == [4, 7] and snap["result"] == "C:/v/r.mp4"
     assert snap["source"] == [2, 3]
+
+
+def test_clean_work_only_removes_the_work_folder(tmp_path):
+    prefs = {"output": str(tmp_path)}
+    (tmp_path / "donk_POV.mp4").write_text("video")
+    w = server.work_dir(prefs)
+    (w / "job" / "clips").mkdir(parents=True)
+    (w / "job" / "clips" / "clip_000.mp4").write_text("x" * 100)
+    assert server.folder_size(w) == 100
+    assert server.clean_work(prefs) == 100
+    assert not w.exists() and (tmp_path / "donk_POV.mp4").read_text() == "video"
+
+
+def test_config_and_app_agree_on_the_work_folder():
+    from povforge.config import Config
+    assert Config().work_dir_name == server.WORK_DIR_NAME

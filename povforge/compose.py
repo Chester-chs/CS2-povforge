@@ -137,6 +137,14 @@ def write_chapter_files(plan: Plan, chs: list[tuple[float, float, str]], job_dir
     return yt, meta
 
 
+def free_name(folder: Path, stem: str, ext: str = ".mp4") -> Path:
+    """folder/stem.ext, or 'stem (2).ext', ... if that is taken."""
+    out, n = folder / f"{stem}{ext}", 2
+    while out.exists():
+        out, n = folder / f"{stem} ({n}){ext}", n + 1
+    return out
+
+
 def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str, Path]],
             fps: float, s: ComposeSettings, size: tuple[int, int] | None = None,
             intro: Path | None = None, static_images: dict[str, Path] | None = None,

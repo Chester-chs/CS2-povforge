@@ -2,15 +2,18 @@
 
 const TEXT = {
   zh: {
-    reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "挑出最精彩的回合，只剪击杀片段拼在一起。只用游戏画面，不加小地图和片头。",
+    reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "挑出最精彩的回合拼在一起。每个回合从第一个击杀前 4 秒连续到最后一个击杀后 1.5 秒，中间不剪。只用游戏画面，不加小地图和片头。",
     reelName: "名称", reelSources: "素材", reelSourcesHelp: "勾选要用的 demo，可以多选", reelPlayer: "选手",
     reelSame: "同一个人", reelEach: "每场分别选", reelEachHelp: "在上面每场 demo 的右边选这场用哪位选手。", reelPlayerIn: "{name}（{n} 场）", reelNotIn: "这场没有这名选手", reelPick: "选择选手",
     reelItems: "集锦内容", reelItemsHelp: "已自动挑出 3 杀以上和残局获胜的回合，按精彩程度排好，最强的放最后。拖动或用箭头调整顺序。",
     reelEmpty: "还没有回合。先勾选 demo 和选手，或从下面“其他回合”里加。", reelMore: "其他回合（{n}）",
-    reelCount: "{n} 段，约 {s} 秒", roundN: "第 {r} 回合", tagClutch: "1v{n} 残局", tagHs: "{n} 爆头", kills1: "{n} 杀",
+    reelCount: "{n} 段", roundN: "第 {r} 回合", tagClutch: "1v{n} 残局", tagHs: "{n} 爆头", kills1: "{n} 杀",
     reelMake: "开始制作", reelQueue: "加入队列", reelNeedItems: "至少加一个回合。", up: "上移", down: "下移", add: "加入",
     stage_cut: "剪辑集锦", making: "正在制作 {name}", reelDone: "集锦做好了", anotherReel: "再做一个集锦", reelDefault: "{name} 高光集锦", reelDefaultMany: "高光集锦",
     reelSummary: "集锦，{n} 段", reelEmptySources: "下载文件夹里还没有 demo。", reelStageRead: "读取 demo（第 {a} / {b} 场）",
+    workFiles: "工作文件", workUsed: "占用 {size}", workNone: "没有", open: "打开", clean: "清理", cleanSure: "确定删除？", cleaning: "正在清理…",
+    workHelp: "录制时留下的原始画面和中间文件，用来重试、改选项重新出片和再做集锦时直接复用。删掉不影响已经做好的视频，只是以后重做要重新录。",
+    cleaned: "已清理 {size}", workBusy: "队列里还有录制任务，录完再清理。",
     settings: "设置", appearance: "外观", appAuto: "自动", appLight: "浅色", appDark: "深色", accent: "强调色", language: "语言",
     acc_blue: "蓝色", acc_purple: "紫色", acc_pink: "粉色", acc_red: "红色", acc_orange: "橙色", acc_yellow: "黄色", acc_green: "绿色", acc_graphite: "石墨色",
     checkUpdate: "检查更新", upChecking: "正在检查更新…", upCurrent: "已是最新版本", upCurrentBody: "PovForge {v} 是目前最新的版本。",
@@ -64,15 +67,18 @@ const TEXT = {
     keep: "CS2 会在录完后自己关闭，期间别用电脑玩游戏。",
   },
   en: {
-    reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "The best rounds, cut down to the kills and joined together. Game picture only: no minimap, no intro.",
+    reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "The best rounds joined together. Each round runs unbroken from 4 s before its first kill to 1.5 s after its last. Game picture only: no minimap, no intro.",
     reelName: "Name", reelSources: "Demos", reelSourcesHelp: "Tick the demos to use; several are fine", reelPlayer: "Player",
     reelSame: "Same player", reelEach: "Per demo", reelEachHelp: "Choose the player for each demo on its row above.", reelPlayerIn: "{name} ({n} demos)", reelNotIn: "This player isn't in this demo", reelPick: "Choose a player",
     reelItems: "In the reel", reelItemsHelp: "Rounds with 3+ kills and won clutches are picked for you, best last. Drag or use the arrows to change the order.",
     reelEmpty: "No rounds yet. Tick demos and a player, or add some from Other rounds below.", reelMore: "Other rounds ({n})",
-    reelCount: "{n} moments, about {s} s", roundN: "Round {r}", tagClutch: "1v{n} clutch", tagHs: "{n} HS", kills1: "{n} kill",
+    reelCount: "{n} rounds", roundN: "Round {r}", tagClutch: "1v{n} clutch", tagHs: "{n} HS", kills1: "{n} kill",
     reelMake: "Make the reel", reelQueue: "Add to queue", reelNeedItems: "Add at least one round.", up: "Move up", down: "Move down", add: "Add",
     stage_cut: "Cut the reel", making: "Making {name}", reelDone: "Your reel is ready", anotherReel: "Make another reel", reelDefault: "{name} highlights", reelDefaultMany: "Highlights",
-    reelSummary: "Reel, {n} moments", reelEmptySources: "No demos in your Downloads folder yet.", reelStageRead: "Read the demo ({a} of {b})",
+    reelSummary: "Reel, {n} rounds", reelEmptySources: "No demos in your Downloads folder yet.", reelStageRead: "Read the demo ({a} of {b})",
+    workFiles: "Work files", workUsed: "{size} used", workNone: "None", open: "Open", clean: "Clean up", cleanSure: "Delete them?", cleaning: "Cleaning…",
+    workHelp: "Recordings and in-between files, reused when you retry, re-render with other options or make a reel. Deleting them keeps your finished videos; redoing one just means recording again.",
+    cleaned: "{size} freed", workBusy: "Recordings are still queued; clean up when they're done.",
     settings: "Settings", appearance: "Appearance", appAuto: "Auto", appLight: "Light", appDark: "Dark", accent: "Accent colour", language: "Language",
     acc_blue: "Blue", acc_purple: "Purple", acc_pink: "Pink", acc_red: "Red", acc_orange: "Orange", acc_yellow: "Yellow", acc_green: "Green", acc_graphite: "Graphite",
     checkUpdate: "Check for updates", upChecking: "Checking for updates…", upCurrent: "You're up to date", upCurrentBody: "PovForge {v} is the latest version.",
@@ -133,7 +139,7 @@ document.addEventListener("alpine:init", () => {
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
     updateOpen: false, updatingAway: false, upd: { state: "idle" },
     player: null, chosenRounds: [], lastRun: null, setupOpen: false, customRounds: false, lastPath: "",
-    settingsOpen: false, reelOpen: false, dragFrom: null,
+    settingsOpen: false, reelOpen: false, dragFrom: null, work: { bytes: null, path: "", confirm: false, cleaning: false },
     reel: { title: "", titleEdited: false, mode: "same", steamid: "", sources: [], items: [], reordered: false },
     accents: ["blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"],
     options: [
@@ -205,6 +211,25 @@ document.addEventListener("alpine:init", () => {
       r.dataset.theme = this.prefs.appearance || "auto";
       r.dataset.accent = this.prefs.accent || "blue";
     },
+    async openSettings() {
+      this.settingsOpen = true;
+      this.work = { bytes: null, path: "", confirm: false, cleaning: false };
+      try { const w = await this.get("/api/workfiles"); this.work = { ...this.work, ...w }; } catch (e) { this.work.bytes = 0; }
+    },
+    async cleanWork() {
+      if (!this.work.confirm) { this.work.confirm = true; return; }
+      this.work.cleaning = true;
+      try {
+        const r = await this.post("/api/workfiles/clean");
+        this.toast(this.t("cleaned", { size: this.gb(r.freed) }));
+        this.work = { ...this.work, bytes: 0, confirm: false };
+      } catch (e) {
+        this.toast(e.message === "busy" ? this.t("workBusy") : e.message);
+        this.work.confirm = false;
+      }
+      this.work.cleaning = false;
+    },
+    gb(n) { return n >= 1 << 30 ? (n / (1 << 30)).toFixed(1) + " GB" : Math.max(1, Math.round(n / (1 << 20))) + " MB"; },
     setAppearance(v) { this.prefs.appearance = v; this.applyTheme(); this.savePrefs(); },
     setAccent(v) { this.prefs.accent = v; this.applyTheme(); this.savePrefs(); },
 

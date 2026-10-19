@@ -237,3 +237,18 @@ class Misc(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_renumber_clips_keeps_recorded_rounds(tmp_path):
+    from povforge.model import Segment
+    from povforge.pipeline import renumber_clips
+    clips = tmp_path / "clips"
+    clips.mkdir()
+    a, b, c = Segment(1, 0, 10, "death"), Segment(2, 20, 30, "death"), Segment(3, 40, 50, "death")
+    for i, seg in enumerate([a, b, c]):
+        (clips / f"clip_{i:03d}.mp4").write_text(f"round {seg.round_number}")
+    renumber_clips(tmp_path, [a, b, c], [b, Segment(5, 60, 70, "death"), c])
+    assert (clips / "clip_000.mp4").read_text() == "round 2"
+    assert not (clips / "clip_001.mp4").exists()            # round 5 still to record
+    assert (clips / "clip_002.mp4").read_text() == "round 3"
+    assert sorted(f.name for f in clips.iterdir()) == ["clip_000.mp4", "clip_002.mp4"]

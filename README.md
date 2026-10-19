@@ -15,7 +15,7 @@ A personal, non-commercial tool that turns Counter-Strike 2 demos into full-matc
 - Keyboard/mouse display (Shift, Ctrl, W A S D, Space, mouse buttons) just above the HUD's kill icons
 - Intro: "<player> POV" written over the FACEIT match room. The screenshot is taken automatically from the demo's match id (headless Edge/Chrome, no login, cookie banner hidden, nothing accepted). The intro also shows the match start time in your time zone. Other demos get the final scoreboard
 - Writes chapter markers per round (embedded in the video and as a YouTube-ready `chapters.txt`), named after what happened: "Round 18 · ACE", "Round 7 · 3K · 1v2 clutch"
-- Highlight reel (its own entry in the app): the best rounds of one or more demos and players (3+ kills or a won clutch, picked for you and editable), cut down to the kills (4 s before, 1.5 s after) and joined in the order you choose, best last by default. Game picture and HUD only, no overlays or intro. Only the needed seconds are recorded
+- Highlight reel (its own entry in the app): the best rounds of one or more demos and players (3+ kills or a won clutch, picked for you and editable), each round kept unbroken from 4 s before its first kill to 1.5 s after its last and joined in the order you choose, best last by default. Game picture and HUD only, no overlays or intro. Only the needed seconds are recorded
 - Upload kit: `cover.jpg` (the best moment, name, map, score, K/D/A) and `description.txt` (a title, match info and the chapters)
 
 A 28-minute FACEIT demo becomes a ~16-minute POV video.

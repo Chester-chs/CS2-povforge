@@ -1,7 +1,16 @@
-**What's new in v0.9.0 / 本次更新**
+**What's new in v0.9.1 / 本次更新**
 
-- Highlight reel, a new entry: pick one or more demos and players; rounds with 3+ kills or a won clutch are chosen for you (add or remove any), ordered best last (drag to change), cut down to the kills and joined. Game picture and HUD only. The old "highlights cut" switch is gone.
-  高光集锦（新入口）：选一场或多场 demo、一位或多位选手，自动挑出 3 杀以上和残局获胜的回合（可增可减），默认最强的放最后（可拖动调整），只剪击杀片段拼在一起，只用游戏画面和 HUD。原来的"精华版"开关去掉了。
+- Highlight reels keep each round unbroken, from 4 s before its first kill to 1.5 s after its last; nothing in between is cut.
+  高光集锦每个回合完整保留：从第一个击杀前 4 秒连续到最后一个击杀后 1.5 秒，中间不剪。
+- Tidier output folder: finished videos (and their cover .jpg and description .txt) sit at the top; recordings and other in-between files go into a "工作文件" subfolder. Settings show how much space it takes and can clean it up.
+  保存文件夹更整洁：外面只放成片（以及同名的封面 .jpg 和简介 .txt），录制留下的中间文件放进"工作文件"子文件夹；设置里能看到占用多大，可一键清理。
+- About half the disk space per match: raw recordings are removed once their clips are made. Recorded rounds are still reused when you pick other rounds.
+  每场少占约一半空间：原始录像整理成片段后自动删除；改选回合时已录好的回合仍会复用。
+
+**v0.9.0**
+
+- Highlight reel, a new entry: pick one or more demos and players; rounds with 3+ kills or a won clutch are chosen for you (add or remove any), ordered best last (drag to change), kept unbroken from just before the first kill to just after the last, and joined. Game picture and HUD only. The old "highlights cut" switch is gone.
+  高光集锦（新入口）：选一场或多场 demo、一位或多位选手，自动挑出 3 杀以上和残局获胜的回合（可增可减），默认最强的放最后（可拖动调整），每个回合从第一个击杀前到最后一个击杀后连续保留，再拼在一起，只用游戏画面和 HUD。原来的"精华版"开关去掉了。
 - Settings (gear, bottom left): appearance auto / light / dark, eight accent colours, language.
   设置（左下角齿轮）：外观自动 / 浅色 / 深色、8 种强调色、语言。
 - Earlier: update from inside the app (v0.8.5); demo reading fixed in the installed app, Apple-style look, FFmpeg built in (v0.8.4).

@@ -83,6 +83,36 @@ def write_job_config(prefs: dict) -> Path:
     return f
 
 
+# --- work files ------------------------------------------------------------------
+
+WORK_DIR_NAME = "工作文件"     # same as Config.work_dir_name
+
+
+def work_dir(prefs: dict) -> Path:
+    return Path(prefs["output"]) / WORK_DIR_NAME
+
+
+def folder_size(path: Path) -> int:
+    total = 0
+    for root, _dirs, files in os.walk(path):
+        for f in files:
+            try:
+                total += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                pass
+    return total
+
+
+def clean_work(prefs: dict) -> int:
+    """Delete the work folder (recordings kept for retries). Returns bytes freed."""
+    d = work_dir(prefs)
+    if not d.is_dir() or d.name != WORK_DIR_NAME:
+        return 0
+    size = folder_size(d)
+    shutil.rmtree(d, ignore_errors=True)
+    return size
+
+
 # --- demos ---------------------------------------------------------------------
 
 def is_demo(p: Path) -> bool:
@@ -821,6 +851,9 @@ def make_handler(app: App):
                                        "queue": app.queue.snapshot()})
                 if url.path == "/api/job":
                     return self._json({**app.job.snapshot(), "queue": app.queue.snapshot()})
+                if url.path == "/api/workfiles":
+                    d = work_dir(app.prefs)
+                    return self._json({"path": str(d), "bytes": folder_size(d) if d.is_dir() else 0})
                 if url.path == "/api/update":
                     return self._json(app.updater.status())
                 if url.path == "/api/setup":
@@ -907,6 +940,11 @@ def make_handler(app: App):
                     if app.job.state != "running":
                         app.job.reset()
                     return self._json(app.job.snapshot())
+                if url.path == "/api/workfiles/clean":
+                    if app.job.state == "running" or any(i["state"] in ("queued", "running") for i in app.queue.snapshot()["items"]):
+                        return self._json({"error": "busy"}, 409)
+                    freed = clean_work(app.prefs)
+                    return self._json({"freed": freed, "bytes": 0, "path": str(work_dir(app.prefs))})
                 if url.path == "/api/update/check":
                     st = app.updater.check()
                     app.update = st["info"] if st["state"] == "available" else app.update

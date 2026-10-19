@@ -69,3 +69,14 @@ def test_lost_clutch_is_not_a_clutch():
                     {900: 2}, sides)
     assert t["me"][0].clutch == 0                 # lost after being left alone
     assert t["e1"][0].clutch == 2                 # e1 alone vs two and won
+
+
+def test_reel_keeps_a_round_whole_between_kills():
+    from povforge.extras import kill_windows
+    from povforge.model import Plan, Player, Segment
+    plan = Plan("d.dem", "de_x", 64.0, Player("1", "p"), [Segment(5, 0, 64 * 60, "round_end")])
+    kills = [(64 * 10, False), (64 * 30, True), (64 * 40, False)]       # 20 s gap between kills
+    split = kill_windows(plan, {}, kills, [60.0], 4.0, 1.5, 2.5)
+    whole = kill_windows(plan, {}, kills, [60.0], 4.0, 1.5, float("inf"))
+    assert len(split) == 3                                              # the old way: three separate cuts
+    assert whole == [(0, 6.0, 41.5)]                                     # first kill -4 s to last +1.5 s

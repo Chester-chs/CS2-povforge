@@ -60,6 +60,9 @@ class UploadSettings:
 @dataclass
 class Config:
     output_dir: Path = Path("povforge-output")
+    # recordings and other intermediate files, kept for retries and re-renders;
+    # only finished videos go straight into output_dir
+    work_dir_name: str = "工作文件"
     plan: PlanOptions = field(default_factory=PlanOptions)
     record: RecordSettings = field(default_factory=RecordSettings)
     overlay: OverlaySettings = field(default_factory=OverlaySettings)

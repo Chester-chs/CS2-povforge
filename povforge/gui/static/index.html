@@ -102,7 +102,7 @@
       <button class="update-pill" x-show="update" x-cloak @click="openUpdate(false)" x-text="t('updateAvail', { v: update?.version })"></button>
       <button class="link small" x-show="!update" @click="openUpdate(true)" x-text="t('checkUpdate')"></button>
     </div>
-    <button class="icon-btn" @click="settingsOpen = true" :title="t('settings')" :aria-label="t('settings')"><svg><use href="#i-settings"/></svg></button>
+    <button class="icon-btn" @click="openSettings()" :title="t('settings')" :aria-label="t('settings')"><svg><use href="#i-settings"/></svg></button>
   </footer>
 </nav>
 
@@ -496,6 +496,16 @@
           </template>
         </div>
       </li>
+      <li class="row">
+        <span class="row-main">
+          <b x-text="t('workFiles')"></b>
+          <small x-text="work.bytes === null ? '…' : (work.bytes ? t('workUsed', { size: gb(work.bytes) }) : t('workNone'))"></small>
+        </span>
+        <button class="btn" x-show="work.bytes" @click="openPath(work.path)" x-text="t('open')"></button>
+        <button class="btn" :class="{ destructive: work.confirm }" x-show="work.bytes" :disabled="work.cleaning" @click="cleanWork()"
+                x-text="work.cleaning ? t('cleaning') : (work.confirm ? t('cleanSure') : t('clean'))"></button>
+      </li>
+      <li class="row note-row"><small x-text="t('workHelp')"></small></li>
       <li class="row">
         <span class="row-main"><b x-text="t('language')"></b></span>
         <div class="segmented" role="radiogroup" :aria-label="t('language')">

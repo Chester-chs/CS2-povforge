@@ -349,6 +349,9 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg")
             take = latest_take(raw_dir, clip_id(seg))
             if take is not None and not out.exists():
                 mux_take(take, out, ffmpeg)
+            if out.exists():
+                # the clip holds the same picture: the raw take is no longer needed
+                shutil.rmtree(raw_dir / clip_id(seg), ignore_errors=True)
 
     collect()
     todo = [seg for seg, out in zip(plan.segments, clips) if not out.exists()]

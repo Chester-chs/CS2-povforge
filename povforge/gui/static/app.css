@@ -430,3 +430,8 @@ svg { width: 16px; height: 16px; flex: none; fill: none; }
 .swatch:focus-visible { outline-offset: 2px; }
 .sw-blue { background: #007aff; } .sw-purple { background: #af52de; } .sw-pink { background: #ff2d55; } .sw-red { background: #ff3b30; }
 .sw-orange { background: #ff9500; } .sw-yellow { background: #ffcc00; } .sw-green { background: #34c759; } .sw-graphite { background: #8e8e93; }
+
+.note-row { min-height: 0; padding-top: 0; }
+.note-row::before { display: none; }
+.note-row small { color: var(--label-2); font-size: 12px; line-height: 1.5; }
+.settings-sheet .row .btn { flex: none; }

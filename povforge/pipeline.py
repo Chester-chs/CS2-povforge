@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .compose import compose, safe_filename
+from .compose import compose, free_name, safe_filename
 from .config import Config
 from . import faceit, highlights, hlae
 import datetime
@@ -35,8 +35,30 @@ from .planner import plan_segments
 from .timeline import Track, frame_count
 
 
+def work_root(cfg: Config) -> Path:
+    """Where recordings and other intermediate files live (a subfolder of the output folder)."""
+    return cfg.output_dir / cfg.work_dir_name
+
+
 def job_dir_for(cfg: Config, demo: Path, player_name: str, suffix: str = "") -> Path:
-    return cfg.output_dir / f"{demo.stem}__{safe_filename(player_name)}{'__' + suffix if suffix else ''}"
+    return work_root(cfg) / f"{demo.stem}__{safe_filename(player_name)}{'__' + suffix if suffix else ''}"
+
+
+def publish(cfg: Config, job: Path, made: Path) -> Path:
+    """Move a finished video out of the job folder into the output folder. A job
+    keeps the same name on later runs; a new job never overwrites another's video."""
+    rec = job / "published.json"
+    name = ""
+    if rec.exists():
+        try:
+            name = json.loads(rec.read_text(encoding="utf-8")).get("video", "")
+        except Exception:
+            name = ""
+    dest = cfg.output_dir / name if name else free_name(cfg.output_dir, made.stem)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    made.replace(dest)
+    rec.write_text(json.dumps({"video": dest.name}, ensure_ascii=False), encoding="utf-8")
+    return dest
 
 
 def _log(msg: str) -> None:
@@ -67,7 +89,7 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     (the highlight reel uses its own); ``trim_to_kills`` = (seconds before the
     first kill, seconds after the last) records only that part of each round."""
     source = Path(demo_path)
-    demo_path = prepare_demo(demo_path, cfg.output_dir / "demos")
+    demo_path = prepare_demo(demo_path, work_root(cfg) / "demos")
     _log(f"Reading {demo_path.name} ...")
     demo = load_demo(demo_path)
     player = find_player(demo.players, player_query)
@@ -107,11 +129,7 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     plan = Plan(str(demo_path.resolve()), demo.map_name, demo.tickrate, player, segments)
     plan_file = job / "plan.json"
     if plan_file.exists() and load_plan(job).segments != plan.segments:
-        # The clip list changed: finished clips are numbered by position, so
-        # they no longer line up. Raw recordings (per round) are kept.
-        for folder in ("clips", "parts"):
-            for f in (job / folder).glob("*.mp4"):
-                f.unlink()
+        renumber_clips(job, load_plan(job).segments, plan.segments)
     plan_file.write_text(json.dumps(plan.to_dict(), indent=2), encoding="utf-8")
 
     mins = plan.total_seconds() / 60
@@ -135,6 +153,30 @@ def trim_segments(segments: list[Segment], kill_ticks: list[int], tickrate: floa
             sg = Segment(sg.round_number, a, b, sg.ends_by)
         out.append(sg)
     return out
+
+
+def renumber_clips(job: Path, old: list[Segment], new: list[Segment]) -> None:
+    """The clip list changed (other rounds chosen). Clips are numbered by
+    position, so move every recorded clip whose round is still wanted, unchanged,
+    to its new number; drop the rest. Composed parts are made again (overlays
+    are kept: they're named by round)."""
+    clips = job / "clips"
+    keep = {}
+    for i, seg in enumerate(old):
+        f = clips / f"clip_{i:03d}.mp4"
+        if f.exists() and seg in new:
+            tmp = clips / f"keep_{seg.round_number:03d}_{i:03d}.mp4"
+            f.replace(tmp)
+            keep[seg] = tmp
+    for f in clips.glob("clip_*.mp4"):
+        f.unlink()
+    for i, seg in enumerate(new):
+        if seg in keep:
+            keep.pop(seg).replace(clips / f"clip_{i:03d}.mp4")
+    for f in keep.values():
+        f.unlink()
+    for f in (job / "parts").glob("*.mp4"):
+        f.unlink()
 
 
 def load_plan(job: Path) -> Plan:
@@ -334,6 +376,7 @@ def make_video(cfg: Config, job: Path, clips: list[Path]) -> Path:
     final = compose(plan, job, clips, layers, cfg.record.fps, cfg.compose,
                     size=(cfg.record.width, cfg.record.height), intro=intro,
                     static_images=static_images(cfg, job), titles=titles)
+    final = publish(cfg, job, final)
     make_extras(cfg, job, plan, clips, final, intro)
     return final
 
@@ -358,6 +401,10 @@ def make_extras(cfg: Config, job: Path, plan: Plan, clips: list[Path], final: Pa
             _log("Making the cover and description ...")
             cover, desc = extras.make_upload_kit(cfg, job, plan, clips, final,
                                                  cfg.intro.date or intro_date(cfg, job, load_meta(job)))
+            # next to the video, with the same name: video.mp4, video.jpg, video.txt
+            import shutil
+            cover = Path(shutil.copyfile(cover, final.with_suffix(".jpg")))
+            desc = Path(shutil.copyfile(desc, final.with_suffix(".txt")))
             _log(f"Cover: {cover.resolve()}")
             _log(f"Description: {desc.resolve()}")
         except Exception as e:

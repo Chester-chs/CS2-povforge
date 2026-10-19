@@ -13,7 +13,8 @@ from .config import load_config
 def _cmd_inspect(args, cfg) -> None:
     from .demo import load_demo, prepare_demo
 
-    d = load_demo(prepare_demo(args.demo, cfg.output_dir / "demos"))
+    from .pipeline import work_root
+    d = load_demo(prepare_demo(args.demo, work_root(cfg) / "demos"))
     print(f"Map: {d.map_name}   Rounds: {len(d.rounds)}   Length: {d.last_tick / d.tickrate / 60:.1f} min")
     print("Players:")
     for p in d.players:
