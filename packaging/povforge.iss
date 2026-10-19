@@ -1,6 +1,6 @@
 ; Inno Setup script for the PovForge installer (https://jrsoftware.org/isinfo.php).
 ; Built by .github/workflows/windows-app.yml:
-;   iscc /DAppVersion=0.9.4 packaging\povforge.iss
+;   iscc /DAppVersion=0.10.0 packaging\povforge.iss
 ; Installs for the current user only (no admin rights), adds a desktop icon and
 ; a Start menu entry, and registers an uninstaller.
 
@@ -49,6 +49,10 @@ Name: "desktopicon"; Description: "{cm:DesktopIcon}"
 
 [Files]
 Source: "dist\PovForge\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[UninstallDelete]
+; files put in by an in-app update aren't in the installer's list: remove the whole folder
+Type: filesandordirs; Name: "{app}"
 
 [InstallDelete]
 ; files from an older version that the new one no longer ships

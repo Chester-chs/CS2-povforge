@@ -75,6 +75,35 @@ def _cmd_reel(args, cfg) -> None:
     reel.run(cfg, args.title or title, items, placeholder=args.placeholder)
 
 
+def _cmd_self_update(args, cfg) -> None:
+    """Bring an install up to date from a release zip (what the app's update does;
+    also used to test it). --manifest only writes the file list of a build."""
+    import json
+    import tempfile
+    from . import selfupdate
+    app = Path(args.app).resolve()
+    if args.manifest:
+        m = selfupdate.make_manifest(app, __version__)
+        (app / selfupdate.MANIFEST).write_text(json.dumps(m, indent=0), encoding="utf-8")
+        print(f"Wrote {app / selfupdate.MANIFEST}: {len(m['files'])} files")
+        return
+    work = Path(tempfile.mkdtemp(prefix="povforge-update-"))
+    plan = selfupdate.prepare(app, args.zip, args.current or __version__, work,
+                              lambda d, t: print(f"  {d >> 20}/{t >> 20} MB", flush=True))
+    print(f"To fetch: {plan['changed']}; to remove: {plan['removed']}", flush=True)
+    code = selfupdate.apply(app, work, plan, Path(args.log or work.parent / "povforge-update.log"),
+                            relaunch=False, wait=True)
+    if code != 0:
+        raise RuntimeError(f"applying the update failed (exit {code})")
+    z, _ = selfupdate.open_zip(args.zip)
+    want = json.loads(z.read("PovForge/" + selfupdate.MANIFEST))["files"]
+    got = selfupdate.make_manifest(app, "")["files"]
+    if got != want:
+        bad = [p for p in set(got) | set(want) if got.get(p) != want.get(p)][:5]
+        raise RuntimeError(f"after the update these files differ from the release: {bad}")
+    print("Update applied; every file matches the release.")
+
+
 def _cmd_doctor(args, cfg) -> None:
     import importlib
     import shutil
@@ -270,6 +299,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--title", help="file name for the reel (default: the title in the spec)")
     s.add_argument("--placeholder", action="store_true", help="grey test clips instead of recording in CS2")
     s.set_defaults(func=_cmd_reel)
+
+    s = sub.add_parser("self-update", help="update an install from a release zip (or write a build's file list)")
+    s.add_argument("--app", required=True, help="the PovForge folder")
+    s.add_argument("--zip", help="PovForge-windows.zip (path or URL)")
+    s.add_argument("--current", help="the installed version (default: this one)")
+    s.add_argument("--log", help="log file")
+    s.add_argument("--manifest", action="store_true", help="only write manifest.json for the folder")
+    s.set_defaults(func=_cmd_self_update)
 
     s = sub.add_parser("doctor", help="check that everything needed is installed")
     s.set_defaults(func=_cmd_doctor)

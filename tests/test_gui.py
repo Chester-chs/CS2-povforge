@@ -286,3 +286,33 @@ def test_demo_reading_is_saved_for_next_time(tmp_path, monkeypatch):
     server._inspect_cache.clear()                     # as if the app was restarted
     assert server.inspect_isolated(str(demo), tmp_path)["map"] == "de_cache"
     assert len(calls) == 1                            # the demo was read only once
+
+
+def test_updater_prefers_the_incremental_update_and_falls_back(monkeypatch):
+    from povforge import selfupdate
+    _release_api(monkeypatch, server.DOWNLOADS + "v9.9.9/PovForge-Setup.exe")
+    ran, applied, quit_ = [], [], []
+    monkeypatch.setattr(server, "can_self_update", lambda: True)
+    monkeypatch.setattr(server, "run_installer", lambda p: ran.append(p))
+    monkeypatch.setattr(server.time, "sleep", lambda s: None)
+    monkeypatch.setattr(selfupdate, "apply", lambda *a, **k: applied.append(a))
+
+    up = server.Updater("0.8.4", busy=lambda: False, quit_app=lambda: quit_.append(1))
+    up.check()
+    up.info["zip"] = server.DOWNLOADS + "v9.9.9/PovForge-windows.zip"
+    monkeypatch.setattr(selfupdate, "prepare", lambda *a, **k: {"version": "9.9.9", "changed": ["PovForge.exe"],
+                                                                "removed": [], "bytes": 5 << 20})
+    up.install()
+    _wait(up, ("installing", "error"), also=lambda: bool(quit_))
+    assert applied and not ran                                   # only the changed files, no installer
+
+    def broken(*a, **k):
+        raise RuntimeError("no partial downloads")
+    monkeypatch.setattr(selfupdate, "prepare", broken)
+    quit_.clear(); applied.clear()
+    up2 = server.Updater("0.8.4", busy=lambda: False, quit_app=lambda: quit_.append(1))
+    up2.check()
+    up2.info["zip"] = server.DOWNLOADS + "v9.9.9/PovForge-windows.zip"
+    up2.install()
+    _wait(up2, ("installing", "error"), also=lambda: bool(quit_))
+    assert ran and not applied                                   # fell back to the full installer

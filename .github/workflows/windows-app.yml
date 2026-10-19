@@ -91,6 +91,14 @@ jobs:
           Write-Host "App server OK, version $($state.version)"
           Stop-Process -Id $server.Id -Force
 
+      # manifest.json: every file's size and SHA-256. The app compares it with a new
+      # release's to download only the files that changed.
+      - name: File list
+        shell: pwsh
+        run: |
+          & packaging/dist/PovForge/povforge-cli.exe self-update --app packaging/dist/PovForge --manifest
+          if ($LASTEXITCODE -ne 0) { throw "manifest failed" }
+
       - name: Zip
         shell: pwsh
         run: Compress-Archive -Path packaging/dist/PovForge -DestinationPath PovForge-windows.zip
@@ -122,6 +130,21 @@ jobs:
           $menu = [Environment]::GetFolderPath("Programs")
           if (-not (Test-Path "$menu\PovForge.lnk")) { throw "no Start menu entry" }
           Write-Host "Installed OK: $app, desktop and Start menu shortcuts"
+          $dir = Split-Path $app
+          if (-not (Test-Path "$dir\manifest.json")) { throw "manifest.json missing" }
+          # incremental update: make the install look older (a changed file, a file the new
+          # version dropped, no file list), then let the update fix it from the release zip
+          $css = Get-ChildItem $dir -Recurse -Filter app.css | Select-Object -First 1
+          Add-Content $css.FullName "/* older version */"
+          Remove-Item "$dir\manifest.json"
+          Set-Content "$dir\left-from-old-version.txt" "x"
+          & packaging/dist/PovForge/povforge-cli.exe self-update --app $dir --zip PovForge-windows.zip --current 0.0.0 --log "$env:TEMP\pf-update.log"
+          $code = $LASTEXITCODE
+          if (Test-Path "$env:TEMP\pf-update.log") { Get-Content "$env:TEMP\pf-update.log" }
+          if ($code -ne 0) { throw "incremental update failed" }
+          if (Test-Path "$dir\left-from-old-version.txt") { throw "incremental update left an old file" }
+          if (-not (Test-Path "$dir\manifest.json")) { throw "incremental update did not write the file list" }
+          Write-Host "Incremental update OK"
           # in-app update path: install over the top quietly, the new app must open by itself
           # (no -Wait: it would also wait for the PovForge the installer opens, which keeps running)
           $p = Start-Process ./PovForge-Setup.exe -ArgumentList "/SILENT","/SUPPRESSMSGBOXES","/NORESTART","/update=1" -PassThru

@@ -552,6 +552,7 @@ def _version_tuple(v: str) -> tuple[int, ...]:
 
 DOWNLOADS = "https://github.com/Chester-chs/CS2-povforge/releases/download/"
 SETUP_ASSET = "PovForge-Setup.exe"
+FILES_ASSET = "PovForge-windows.zip"     # the whole app, file by file: updates fetch only what changed
 
 
 def _plain_notes(md: str, limit: int = 900) -> str:
@@ -576,6 +577,8 @@ def latest_release() -> dict:
         info = {"version": tag.lstrip("v"), "url": data.get("html_url", RELEASES_PAGE),
                 "notes": _plain_notes(data.get("body", "")), "setup": "", "size": 0, "sha256": ""}
         for a in data.get("assets", []):
+            if a.get("name") == FILES_ASSET:
+                info["zip"] = a.get("browser_download_url", "")
             if a.get("name") == SETUP_ASSET:
                 info["setup"] = a.get("browser_download_url", "")
                 info["size"] = int(a.get("size") or 0)
@@ -591,9 +594,12 @@ def latest_release() -> dict:
         if not tag.startswith("v"):
             raise RuntimeError("Couldn't find the latest release.")
         info = {"version": tag.lstrip("v"), "url": url, "notes": "",
-                "setup": f"{DOWNLOADS}{tag}/{SETUP_ASSET}", "size": 0, "sha256": ""}
+                "setup": f"{DOWNLOADS}{tag}/{SETUP_ASSET}", "size": 0, "sha256": "",
+                "zip": f"{DOWNLOADS}{tag}/{FILES_ASSET}"}
     if not info["setup"].startswith(DOWNLOADS):
         info["setup"] = ""        # only ever download our own release assets
+    if not info.get("zip", "").startswith(DOWNLOADS):
+        info["zip"] = ""
     return info
 
 
@@ -622,6 +628,7 @@ class Updater:
         self.current, self.busy, self.quit_app = current, busy, quit_app
         self.lock = threading.Lock()
         self.state, self.info, self.error, self.fraction, self.done_mb = "idle", None, "", -1.0, 0
+        self.total_mb = 0
 
     def status(self) -> dict:
         with self.lock:
@@ -645,7 +652,7 @@ class Updater:
 
     def status_unlocked(self) -> dict:
         return {"state": self.state, "current": self.current, "info": self.info, "error": self.error,
-                "fraction": self.fraction, "done_mb": self.done_mb,
+                "fraction": self.fraction, "done_mb": self.done_mb, "total_mb": self.total_mb,
                 "can_install": can_self_update() or bool(os.environ.get("POVFORGE_PLACEHOLDER"))}
 
     def install(self) -> dict:
@@ -660,10 +667,39 @@ class Updater:
         return self.status()
 
     def _work(self) -> None:
+        info = self.info or {}
+        if info.get("zip") and can_self_update():
+            try:
+                self._delta(info)
+                return
+            except Exception as e:          # fall back to the full installer
+                print(f"Incremental update failed, using the installer: {e}", flush=True)
+                with self.lock:
+                    self.state, self.fraction, self.done_mb, self.total_mb = "downloading", 0.0, 0, 0
+        self._full(info)
+
+    def _delta(self, info: dict) -> None:
+        """Download only the files that changed, swap them in after quitting."""
+        from .. import selfupdate
+
+        def progress(done: int, total: int) -> None:
+            with self.lock:
+                self.done_mb, self.total_mb = done >> 20, max(1, round(total / 1048576))
+                self.fraction = done / total if total else -1.0
+        work = app_dir() / "update"
+        plan = selfupdate.prepare(selfupdate.app_dir(), info["zip"], self.current, work, progress)
+        print(f"Update {self.current} -> {plan['version']}: {len(plan['changed'])} file(s), "
+              f"{plan['bytes'] / 1048576:.1f} MB", flush=True)
+        with self.lock:
+            self.state, self.fraction = "installing", 1.0
+        selfupdate.apply(selfupdate.app_dir(), work, plan, app_dir() / "update.log", wait_pid=os.getpid())
+        time.sleep(1.5)                     # let the page hear "installing" first
+        self.quit_app()
+
+    def _full(self, info: dict) -> None:
         import hashlib
         import tempfile
         import urllib.request
-        info = self.info or {}
         try:
             folder = Path(tempfile.mkdtemp(prefix="povforge-update-"))
             dest = folder / f"PovForge-Setup-{info['version']}.exe"
@@ -839,7 +875,7 @@ class App:
         self.setup = Setup()
         self.update: dict | None = None
         self.quit = lambda: None            # set by main() once the server exists
-        self.updater = Updater(__version__, busy=lambda: self.job.state == "running",
+        self.updater = Updater(__version__, busy=lambda: self.job.state == "running" or self.inspecting > 0,
                                quit_app=lambda: self.quit())
         self.last_seen = time.time()   # the page asks for state every second or two
         self.bye_at = 0.0              # the page said it was closing (pagehide)

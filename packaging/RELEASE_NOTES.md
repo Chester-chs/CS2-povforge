@@ -1,4 +1,11 @@
-**What's new in v0.9.4 / 本次更新**
+**What's new in v0.10.0 / 本次更新**
+
+- Much faster updates from now on: "Check for updates" downloads only the files that changed (usually a few MB instead of the whole 170 MB installer), checks each one, swaps them in after PovForge closes and opens it again. If anything goes wrong the old files are put back; if an incremental update isn't possible, the full installer is used as before. (This version itself still installs the usual way.)
+  以后更新快得多："检查更新"只下载有变化的文件（通常几 MB，而不是整个 170 MB 安装包），逐个校验，PovForge 关闭后替换并自动重新打开；出错会还原旧文件，无法增量更新时照旧用完整安装包。（这一版本身仍按原来的方式安装。）
+- Smaller download: the FACEIT intro screenshot now drives the Edge/Chrome already on your PC directly, without the Playwright package.
+  安装包更小：FACEIT 片头截图改为直接控制电脑自带的 Edge/Chrome，不再需要 Playwright。
+
+**v0.9.4**
 
 - Less waiting. A demo is read once: opening it again (even after restarting PovForge) is instant. Recording the same demo and player again skips reading it. A highlight reel of rounds you already recorded for the whole match is cut straight from that recording, without starting CS2; only missing rounds are recorded.
   少等待：同一个 demo 只解析一次，再打开（重启软件后也一样）立刻出结果；同一场同一个人再录会跳过重新解析；做集锦时，整场录制里已有的回合直接从整场录像里剪，不再开 CS2，缺的回合才补录。

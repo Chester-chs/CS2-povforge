@@ -575,7 +575,7 @@
       <div class="sheet-body wide">
         <h2 x-text="t('upDownloading', { v: upd.info?.version })"></h2>
         <span class="bar big"><span :style="'width:' + (upd.fraction >= 0 ? Math.round(upd.fraction * 100) : 30) + '%'"></span></span>
-        <p class="num" x-text="upd.info?.size ? t('upMb', { a: upd.done_mb, b: Math.round(upd.info.size / 1048576) }) : upd.done_mb + ' MB'"></p>
+        <p class="num" x-text="upd.total_mb ? t('upMb', { a: upd.done_mb, b: upd.total_mb }) : (upd.info?.size ? t('upMb', { a: upd.done_mb, b: Math.round(upd.info.size / 1048576) }) : upd.done_mb + ' MB')"></p>
       </div>
     </template>
     <template x-if="upd.state === 'installing'">
