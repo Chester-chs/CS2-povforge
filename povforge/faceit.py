@@ -2,9 +2,9 @@
 
 FACEIT demo files are named after the match (``1-<uuid>-1-1.dem.zst``), and
 the match room page is public, so no login is needed. The page is opened in a
-headless browser (Playwright, using the Edge or Chrome already on the PC), the
-cookie-consent banner is hidden (nothing is accepted), and the visible part of
-the page is saved as an image.
+headless copy of the Edge or Chrome already on the PC (driven directly through
+its DevTools protocol, see cdp.py), the cookie-consent banner is hidden
+(nothing is accepted), and the scoreboard is saved as an image.
 """
 
 from __future__ import annotations
@@ -99,20 +99,6 @@ def room_url(mid: str) -> str:
     return f"https://www.faceit.com/en/cs2/room/{mid}/scoreboard"
 
 
-def _launch(pw, headless: bool):
-    """Prefer the browsers Windows already has, so nothing extra is downloaded."""
-    errors = []
-    for channel in ("msedge", "chrome", None):
-        try:
-            kw = {"channel": channel} if channel else {}
-            return pw.chromium.launch(headless=headless, **kw)
-        except Exception as e:  # browser not installed
-            errors.append(f"{channel or 'chromium'}: {str(e).splitlines()[0]}")
-    raise RuntimeError("No browser found for the FACEIT screenshot (tried Edge, Chrome, Playwright's "
-                       "Chromium). Install Edge/Chrome, or run: python -m playwright install chromium\n  "
-                       + "\n  ".join(errors))
-
-
 def screenshot_room(mid: str, out: Path, size: tuple[int, int] = (1920, 1080),
                     timeout: float = 45.0, headless: bool = True, url: str | None = None,
                     zoom: float = 1.2, info_out: Path | None = None) -> Path:
@@ -124,57 +110,58 @@ def screenshot_room(mid: str, out: Path, size: tuple[int, int] = (1920, 1080),
     The page is laid out at ``size / zoom`` and rendered at ``zoom``x, so the
     image is ``size`` pixels with slightly larger, sharp text.
     """
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError as e:
-        raise RuntimeError("Playwright is not installed: python -m pip install playwright") from e
+    from .cdp import Browser
 
     url = url or room_url(mid)
-    view = {"width": round(size[0] / zoom), "height": round(size[1] / zoom)}
-    with sync_playwright() as pw:
-        browser = _launch(pw, headless)
+    view = (round(size[0] / zoom), round(size[1] / zoom))
+    with Browser(headless=headless, size=view) as browser:
+        page = browser.page()
         try:
             # Headless browsers announce themselves in the user agent; use the normal one.
-            probe = browser.new_page()
-            ua = probe.evaluate("navigator.userAgent").replace("HeadlessChrome", "Chrome")
-            probe.close()
-            ctx = browser.new_context(viewport=view, device_scale_factor=zoom, user_agent=ua,
-                                      locale="en-US", color_scheme="dark")
-            ctx.add_init_script(_INIT_JS)
-            page = ctx.new_page()
-            page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1000)
-            try:
-                page.wait_for_function(_READY_JS, timeout=timeout * 1000)
-            except Exception as e:
+            ua = str(page.evaluate("navigator.userAgent")).replace("HeadlessChrome", "Chrome")
+            page.call("Network.enable")
+            page.call("Network.setUserAgentOverride", userAgent=ua, acceptLanguage="en-US")
+            page.call("Emulation.setDeviceMetricsOverride", width=view[0], height=view[1],
+                      deviceScaleFactor=zoom, mobile=False)
+            page.call("Emulation.setEmulatedMedia", features=[{"name": "prefers-color-scheme", "value": "dark"}])
+            page.call("Page.enable")
+            page.call("Page.addScriptToEvaluateOnNewDocument", source=_INIT_JS)
+            page.call("Page.navigate", url=url)
+            if not page.wait_for(f"({_READY_JS})()", timeout):
                 # keep what the browser saw, to find out why
                 failed = out.with_name(out.stem + "_failed.png")
-                text = ""
+                text = title = ""
                 try:
-                    page.evaluate(_HIDE_JS, CONSENT_SELECTORS)
-                    page.screenshot(path=str(failed))
-                    text = " ".join(page.evaluate("document.body ? document.body.innerText : ''").split())[:160]
+                    page.evaluate(f"({_HIDE_JS})({json.dumps(CONSENT_SELECTORS)})")
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    page.screenshot(failed)
+                    title = page.evaluate("document.title") or ""
+                    text = " ".join((page.evaluate("document.body ? document.body.innerText : ''") or "").split())[:160]
                 except Exception:
                     pass
                 raise RuntimeError(f"the match room did not load; what the browser saw: {failed} "
-                                   f"(page title '{page.title()}', text '{text}')") from e
-            try:  # let pictures and avatars finish
-                page.wait_for_load_state("networkidle", timeout=10_000)
-            except Exception:
-                pass
-            time.sleep(1.5)
-            page.evaluate(_HIDE_JS, CONSENT_SELECTORS)
+                                   f"(page title '{title}', text '{text}')")
+            time.sleep(3.0)                     # let pictures and avatars finish
+            page.evaluate(f"({_HIDE_JS})({json.dumps(CONSENT_SELECTORS)})")
             out.parent.mkdir(parents=True, exist_ok=True)
             if info_out is not None:
-                info = page.evaluate(_MATCH_JS, mid)
+                info = page.evaluate(f"({_MATCH_JS})({json.dumps(mid)})", await_promise=True)
                 if info:
                     info_out.write_text(json.dumps(info, indent=2), encoding="utf-8")
-            try:  # the stats tables load a moment after the header
-                page.wait_for_function(_TABLES_JS, timeout=15_000)
-                time.sleep(1.0)  # avatars
-                page.locator("[data-povforge-shot]").screenshot(path=str(out))
-            except Exception:  # no tables (e.g. match without stats): the top of the page
+            # the stats tables load a moment after the header
+            if page.wait_for(f"({_TABLES_JS})()", 15):
+                time.sleep(1.0)                 # avatars
+                box = page.evaluate("""(() => {
+                    const e = document.querySelector('[data-povforge-shot]');
+                    e.scrollIntoView({block: 'start'});
+                    const r = e.getBoundingClientRect();
+                    return {x: r.left + window.scrollX, y: r.top + window.scrollY, width: r.width, height: r.height};
+                })()""")
+                time.sleep(0.5)
+                page.screenshot(out, clip=box)
+            else:                               # no tables (e.g. match without stats): the top of the page
                 page.evaluate("window.scrollTo(0, 0)")
-                page.screenshot(path=str(out))
+                page.screenshot(out)
         finally:
-            browser.close()
+            page.close()
     return out

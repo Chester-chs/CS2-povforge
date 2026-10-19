@@ -5,7 +5,6 @@
 from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_dynamic_libs
 
 datas = collect_data_files("povforge", includes=["director.js", "gui/static/**/*"])
-datas += collect_data_files("playwright")          # the browser driver used for the FACEIT screenshot
 binaries = collect_dynamic_libs("demoparser2")
 hidden = ["povforge.gui.server", "povforge.cli", "povforge.app"]
 

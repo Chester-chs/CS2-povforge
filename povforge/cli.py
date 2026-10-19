@@ -98,10 +98,13 @@ def _cmd_doctor(args, cfg) -> None:
     except ImportError as e:
         line(False, "demoparser2", f"{e} (pip install demoparser2 polars pyarrow)")
     try:
-        importlib.import_module("playwright.sync_api")
-        line(True, "Playwright", "FACEIT intro screenshot")
+        from .cdp import find_browser
+        browser = find_browser()
+        if browser is None:
+            raise ImportError
+        line(True, "Browser", f"{browser} (FACEIT intro screenshot)")
     except ImportError:
-        line(False, "Playwright", "pip install playwright (needed for the FACEIT intro screenshot)", warn=True)
+        line(False, "Browser", "no Edge or Chrome found (needed for the FACEIT intro screenshot)", warn=True)
     from .media import ffprobe_for
     for tool in (cfg.compose.ffmpeg, ffprobe_for(cfg.compose.ffmpeg)):
         found = shutil.which(tool)
