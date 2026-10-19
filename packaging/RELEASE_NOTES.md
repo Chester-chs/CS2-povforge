@@ -1,4 +1,9 @@
-**What's new in v0.10.0 / 本次更新**
+**What's new in v0.10.1 / 本次更新**
+
+- Updates after this one are usually well under 1 MB: the program code now ships as separate small files, so an update fetches only the files that changed. (Updating to this version itself replaces the code files once.)
+  从这一版之后，更新通常不到 1 MB：程序代码改为一个个小文件，更新时只下载改动过的那几个。（升级到这一版本身会把代码文件整体换一次。）
+
+**v0.10.0**
 
 - Much faster updates from now on: "Check for updates" downloads only the files that changed (usually a few MB instead of the whole 170 MB installer), checks each one, swaps them in after PovForge closes and opens it again. If anything goes wrong the old files are put back; if an incremental update isn't possible, the full installer is used as before. (This version itself still installs the usual way.)
   以后更新快得多："检查更新"只下载有变化的文件（通常几 MB，而不是整个 170 MB 安装包），逐个校验，PovForge 关闭后替换并自动重新打开；出错会还原旧文件，无法增量更新时照旧用完整安装包。（这一版本身仍按原来的方式安装。）

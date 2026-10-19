@@ -100,3 +100,39 @@ def test_a_failed_swap_puts_the_old_files_back(release, tmp_path, monkeypatch):
     assert su.apply(old, work, plan, tmp_path / "update.log", relaunch=False, wait=True) == 1
     assert su.make_manifest(old, "1.0")["files"] == before["files"]   # exactly as before
     assert "putting the old files back" in (tmp_path / "update.log").read_text(encoding="utf-8")
+
+
+def test_many_changed_files_come_down_in_few_requests(tmp_path):
+    """The switch to separate code files changes thousands of small files at once."""
+    import http.server
+    app = write(tmp_path / "app", {"PovForge.exe": b"old"})
+    (app / "manifest.json").write_text(json.dumps(su.make_manifest(app, "1.0")))
+    new = write(tmp_path / "v2", {f"_internal/m{i:04d}.pyc": os.urandom(2000) for i in range(800)})
+    (new / "manifest.json").write_text(json.dumps(su.make_manifest(new, "2.0")))
+    z = tmp_path / "r.zip"
+    with zipfile.ZipFile(z, "w", zipfile.ZIP_DEFLATED) as f:
+        for p in sorted(new.rglob("*")):
+            f.write(p, "PovForge/" + p.relative_to(new).as_posix())
+    data, ranges = z.read_bytes(), []
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            a, b = (int(x) for x in self.headers["Range"].split("=")[1].split("-"))
+            b = min(b, len(data) - 1)
+            ranges.append((a, b))
+            self.send_response(206)
+            self.send_header("Content-Range", f"bytes {a}-{b}/{len(data)}")
+            self.send_header("Content-Length", str(b - a + 1))
+            self.end_headers()
+            self.wfile.write(data[a:b + 1])
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        plan = su.prepare(app, f"http://127.0.0.1:{srv.server_address[1]}/r.zip", "1.0", tmp_path / "work")
+    finally:
+        srv.shutdown()
+    assert len(plan["changed"]) == 800 and plan["removed"] == ["PovForge.exe"]
+    assert len(ranges) < 15                                   # not one request per file

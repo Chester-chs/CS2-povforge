@@ -21,7 +21,10 @@ for pkg in ("polars", "_polars_runtime_32", "_polars_runtime_64", "_polars_runti
     hidden += [m for m in h if ".tests" not in m]
 
 common = dict(pathex=["."], binaries=binaries, datas=datas, hiddenimports=hidden,
-              excludes=["matplotlib", "IPython", "pytest", "scipy", "pyarrow.tests"])
+              excludes=["matplotlib", "IPython", "pytest", "scipy", "pyarrow.tests"],
+              # code as separate .pyc files instead of one archive inside each .exe: a code
+              # change then alters only the files it touches, so updates stay tiny
+              noarchive=True)
 
 a_app = Analysis(["app_main.py"], **common)
 a_cli = Analysis(["cli_main.py"], **common)

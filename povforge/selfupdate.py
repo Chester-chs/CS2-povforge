@@ -181,6 +181,28 @@ def open_zip(source: str | Path) -> tuple[zipfile.ZipFile, HttpRangeFile | None]
     return zipfile.ZipFile(source), None
 
 
+def _rel(info: zipfile.ZipInfo) -> str:
+    return info.filename.replace("\\", "/")[len(ZIP_ROOT):]
+
+
+def _end_of(info: zipfile.ZipInfo) -> int:
+    """Last byte of a member's local header + data (+ room for its extra field)."""
+    return info.header_offset + 30 + len(info.orig_filename.encode("utf-8")) + 1024 + info.compress_size
+
+
+def _runs(infos: list[zipfile.ZipInfo], gap: int = 256 * 1024, most: int = 64 << 20) -> list[list[zipfile.ZipInfo]]:
+    """Group members lying close together in the zip (fetching a small unneeded gap
+    is cheaper than another request), capped so one group stays modest in memory."""
+    runs: list[list[zipfile.ZipInfo]] = []
+    for info in sorted(infos, key=lambda i: i.header_offset):
+        if runs and info.header_offset - _end_of(runs[-1][-1]) < gap \
+                and _end_of(info) - runs[-1][0].header_offset < most:
+            runs[-1].append(info)
+        else:
+            runs.append([info])
+    return runs
+
+
 def _members(z: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]:
     out = {}
     for info in z.infolist():
@@ -209,29 +231,31 @@ def prepare(app_dir: Path, source: str | Path, version: str, work: Path,
     stage.mkdir(parents=True)
     total = sum(members[p].compress_size for p in fetch) or 1
     done = 0
-    for p in fetch:
-        dest = stage / p
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        info = members[p]
-        if raw is not None:     # the local header (+ extra field) and the data, in one go
-            start = info.header_offset
+    # neighbours in the zip come down together: one request per run of files, not per file
+    for group in _runs([members[p] for p in fetch]):
+        if raw is not None:
+            first, last = group[0], group[-1]
             seen = [0]
 
             def tick(n: int, base=done) -> None:
                 seen[0] += n
                 if progress:
                     progress(min(base + seen[0], total), total)
-            raw.prefetch(start, start + 30 + len(info.orig_filename.encode("utf-8")) + 1024 + info.compress_size, tick)
-        h = hashlib.sha256()
-        with z.open(members[p]) as src, open(dest, "wb") as out:
-            while chunk := src.read(1 << 20):
-                out.write(chunk)
-                h.update(chunk)
-        if h.hexdigest() != new["files"][p]["sha256"]:
-            raise RuntimeError(f"{p} didn't download correctly (checksum differs).")
-        done += members[p].compress_size
-        if progress:
-            progress(done, total)
+            raw.prefetch(first.header_offset, _end_of(last), tick)
+        for info in group:
+            p = _rel(info)
+            dest = stage / p
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            h = hashlib.sha256()
+            with z.open(info) as src, open(dest, "wb") as out:
+                while chunk := src.read(1 << 20):
+                    out.write(chunk)
+                    h.update(chunk)
+            if h.hexdigest() != new["files"][p]["sha256"]:
+                raise RuntimeError(f"{p} didn't download correctly (checksum differs).")
+            done += info.compress_size
+            if progress:
+                progress(done, total)
     (stage / MANIFEST).write_text(json.dumps(new), encoding="utf-8")
     return {"version": new["version"], "changed": fetch, "removed": remove, "bytes": total if fetch else 0}
 
