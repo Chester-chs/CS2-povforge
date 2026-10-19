@@ -22,7 +22,7 @@ A 28-minute FACEIT demo becomes a ~16-minute POV video.
 
 ## The app
 
-Download **PovForge-windows.zip** from [Releases](https://github.com/Chester-chs/cs2-povforge/releases/latest), unzip it anywhere and double-click **PovForge.exe**. It opens a window where you:
+Download **PovForge-Setup.exe** from [Releases](https://github.com/Chester-chs/CS2-povforge/releases/latest) and run it. It installs for your Windows user (no admin rights needed) and puts a **PovForge** icon on the desktop and in the Start menu. Open it from there; it shows a window where you:
 
 1. pick a demo (demos in your Downloads folder are listed; any file can be chosen),
 2. click a player on the scoreboard and, if you like, the rounds to record (each round shows that player's kills and whether they died),
@@ -32,7 +32,7 @@ While one recording runs you can keep browsing and press **Queue** to add more p
 
 The first time, click **Install HLAE and FFmpeg** in the setup panel; both are downloaded from their official GitHub releases into `%LOCALAPPDATA%\povforge\tools`. Steam and CS2 must be installed. Videos go to `Videos\PovForge` (changeable).
 
-From the command line, `povforge gui` opens the same window.
+Newer versions install over the old one and keep your settings; uninstall from Windows Settings → Apps. There's also a no-install `PovForge-windows.zip`. From the command line, `povforge gui` opens the same window.
 
 ## How it works
 

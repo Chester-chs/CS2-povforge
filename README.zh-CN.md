@@ -22,7 +22,7 @@
 
 ## 软件
 
-在 [Releases](https://github.com/Chester-chs/cs2-povforge/releases/latest) 下载 **PovForge-windows.zip**，解压到任意位置，双击 **PovForge.exe**，会打开一个窗口：
+在 [Releases](https://github.com/Chester-chs/CS2-povforge/releases/latest) 下载 **PovForge-Setup.exe** 并运行，一路"下一步"即可（装在当前用户下，不需要管理员权限）。装好后桌面和开始菜单都有 **PovForge** 图标，以后从那里打开。打开后的窗口里：
 
 1. 选一个 demo（自动列出"下载"文件夹里的 demo，也可以手动选择文件）；
 2. 在战绩表上点一位选手，需要的话再挑要录的回合（每个回合会显示他的击杀数和是否阵亡）；
@@ -32,7 +32,7 @@
 
 第一次使用时，点左下角 **一键安装 HLAE 和 FFmpeg**，两者都从官方 GitHub 发布页下载到 `%LOCALAPPDATA%\povforge\tools`。需要已安装 Steam 和 CS2。视频默认保存到 `视频\PovForge`（可以更改）。
 
-命令行里运行 `povforge gui` 也能打开同一个窗口。
+新版本直接覆盖安装，设置会保留；卸载在 Windows 设置 → 应用里。另有免安装的 `PovForge-windows.zip`。命令行里运行 `povforge gui` 也能打开同一个窗口。
 
 ## 工作原理
 

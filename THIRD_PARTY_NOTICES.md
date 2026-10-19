@@ -20,6 +20,7 @@ downloaded data, as described here.
 | [Alpine.js](https://github.com/alpinejs/alpine) by Caleb Porzio | MIT | Vendored unmodified in `povforge/gui/static/vendor/alpine.min.js` (v3.17.4) with its licence. 原样随附（含许可证），用于软件界面交互。 |
 | [Lucide](https://github.com/lucide-icons/lucide) icons | ISC | 31 icons copied unmodified into `povforge/gui/static/vendor/icons.svg` (lucide-static 1.59.0), licence included. 原样复制 31 个图标（含许可证）。 |
 | [Barlow Semi Condensed](https://github.com/jpt/barlow) via [Fontsource](https://github.com/fontsource/font-files) | SIL OFL 1.1 | Font files vendored unmodified in `povforge/gui/static/vendor/fonts/` with the licence. 字体文件原样随附（含许可证）。 |
+| [Inno Setup](https://github.com/jrsoftware/issrc) by Jordan Russell and Martijn Laan | Inno Setup License | Builds the Windows installer `PovForge-Setup.exe`. Its official Simplified Chinese messages file (`packaging/ChineseSimplified.isl`, maintained by Zhenghan Yang) is included unmodified with its header. 用于制作 Windows 安装包；随附其官方简体中文界面文件，原样保留文件头。 |
 | [PyInstaller](https://github.com/pyinstaller/pyinstaller) | GPL 2.0 with bootloader exception | Builds the Windows app; the exception allows distributing the built program under our own licence. 用于打包 Windows 程序，其例外条款允许按本项目协议分发打包结果。 |
 | [pandas](https://pandas.pydata.org), [NumPy](https://numpy.org), [Pillow](https://python-pillow.org), [zstandard](https://github.com/indygreg/python-zstandard) | BSD-3-Clause / MIT-CMU (Pillow) | Python dependencies. Python 依赖库。 |
 
