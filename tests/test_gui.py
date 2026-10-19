@@ -46,9 +46,10 @@ class FakeJob:
         self.state, self.item, self.started = "idle", 0, []
         self.on_finish = None
 
-    def start(self, path, steamid, name, rounds, prefs, item):
-        self.state, self.item = "running", item
-        self.started.append(name)
+    def start(self, item, prefs):
+        self.state, self.item = "running", item["id"]
+        self.started.append(item["name"])
+        self.last = item
 
     def finish(self, state="done"):
         self.state = state
@@ -181,3 +182,20 @@ def test_updater_waits_while_recording(monkeypatch):
 def test_no_update_when_current(monkeypatch):
     _release_api(monkeypatch, server.DOWNLOADS + "v9.9.9/PovForge-Setup.exe")
     assert server.Updater("10.0.0", busy=lambda: False, quit_app=lambda: None).check()["state"] == "current"
+
+
+def test_reel_items_go_through_the_queue():
+    job = FakeJob()
+    q = server.Queue(job, {})
+    q.add_reel("donk 集锦", [{"demo": "a.dem", "steamid": "1", "round": 18}, {"demo": "b.dem", "steamid": "1", "round": 3}])
+    assert job.started == ["donk 集锦"] and job.last["kind"] == "reel"
+    assert [i["round"] for i in job.last["reel"]] == [18, 3]      # the user's order is kept
+
+
+def test_job_reads_reel_progress():
+    j = server.Job()
+    for line in ["Reel source 2/3: x.dem", "Cutting the reel 4/7", "Done: C:/v/r.mp4"]:
+        j._take(line)
+    snap = j.snapshot()
+    assert snap["stage"] == "cut" and snap["step"] == [4, 7] and snap["result"] == "C:/v/r.mp4"
+    assert snap["source"] == [2, 3]

@@ -42,3 +42,30 @@ def test_kill_windows_merge_close_kills():
     kills = [(64 * 10, False), (64 * 12, True), (64 * 30, False)]   # 10 s and 12 s merge; 30 s alone
     w = kill_windows(plan, {}, kills, [60.0], before=4, after=1.5, gap=2.5)
     assert w == [(0, 6.0, 13.5), (0, 26.0, 31.5)]
+
+
+def test_round_table_kills_and_won_clutch():
+    from povforge.highlights import is_highlight, round_table
+    from povforge.model import Death, Round
+    r = Round(1, 100, 1000)
+    sides = {1: {"me": 3, "mate": 3, "e1": 2, "e2": 2, "e3": 2}}
+    deaths = [Death(200, "mate", "e1", "ak47"),          # I'm alone vs 3
+              Death(300, "e1", "me", "m4a1", True),
+              Death(400, "e2", "me", "m4a1"),
+              Death(500, "e3", "me", "m4a1", True),
+              Death(1200, "x", "me", "knife")]           # after the round: not counted
+    t = round_table([r], deaths, {1000: 3}, sides)
+    me = t["me"][0]
+    assert (me.kills, me.headshots, me.clutch, me.won) == (3, 2, 3, True)
+    assert t["e1"][0].kills == 1 and t["e1"][0].won is False and t["e1"][0].clutch == 0
+    assert is_highlight(me.kills, me.clutch) and not is_highlight(2, 0) and is_highlight(0, 1)
+
+
+def test_lost_clutch_is_not_a_clutch():
+    from povforge.highlights import round_table
+    from povforge.model import Death, Round
+    sides = {1: {"me": 3, "mate": 3, "e1": 2}}
+    t = round_table([Round(1, 0, 900)], [Death(10, "mate", "e1", "ak47"), Death(20, "me", "e1", "ak47")],
+                    {900: 2}, sides)
+    assert t["me"][0].clutch == 0                 # lost after being left alone
+    assert t["e1"][0].clutch == 2                 # e1 alone vs two and won

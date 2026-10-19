@@ -21,8 +21,7 @@ class RoundHighlight:
 
     @property
     def score(self) -> int:
-        """Rough interest score: multi-kills and clutches first."""
-        return self.kills * 10 + self.headshots + (25 * self.clutch if self.clutch else 0)
+        return score(self.kills, self.headshots, self.clutch)
 
 
 def analyse(demo: DemoData, steamid: str, track: Track) -> list[RoundHighlight]:
@@ -39,6 +38,57 @@ def analyse(demo: DemoData, steamid: str, track: Track) -> list[RoundHighlight]:
             h.clutch = _clutch(in_round, steamid, me.team, track, r.freeze_end_tick) if h.won else 0
         out.append(h)
     return out
+
+
+def score(kills: int, headshots: int, clutch: int) -> int:
+    """Rough interest score: multi-kills and clutches first."""
+    return kills * 10 + headshots + (25 * clutch if clutch else 0)
+
+
+def is_highlight(kills: int, clutch: int) -> bool:
+    """What the highlight reel picks by default: 3+ kills, or a won clutch (1v1 counts)."""
+    return kills >= 3 or clutch >= 1
+
+
+def round_table(rounds, deaths, winners: dict[int, int],
+                sides: dict[int, dict[str, int]]) -> dict[str, list[RoundHighlight]]:
+    """Kills, headshots and won clutches of every player in every round, from
+    the deaths and who was alive on which side when the round started."""
+    deaths = sorted(deaths, key=lambda d: d.tick)
+    everyone = {sid for side in sides.values() for sid in side}
+    table = {sid: [] for sid in everyone}
+    for r in rounds:
+        alive = dict(sides.get(r.number, {}))
+        winner = winners.get(r.end_tick)
+        rows = {sid: RoundHighlight(r.number, 0, 0) for sid in everyone}
+        last_alone: dict[str, int] = {}        # player -> enemies alive when they became the last one
+
+        def check_last() -> None:
+            for team in (2, 3):
+                left = [s for s, t in alive.items() if t == team]
+                if len(left) == 1 and left[0] not in last_alone:
+                    enemies = sum(1 for t in alive.values() if t != team)
+                    if enemies:
+                        last_alone[left[0]] = enemies
+
+        check_last()
+        for d in deaths:
+            if not (r.freeze_end_tick <= d.tick <= r.end_tick):
+                continue
+            a = d.attacker_steamid
+            if a in rows and a != d.victim_steamid and alive.get(a) != alive.get(d.victim_steamid, -1):
+                rows[a].kills += 1
+                rows[a].headshots += int(d.headshot)
+            alive.pop(d.victim_steamid, None)
+            check_last()
+        for sid, row in rows.items():
+            team = sides.get(r.number, {}).get(sid)
+            if team is not None and winner is not None:
+                row.won = winner == team
+                if row.won and sid in last_alone:
+                    row.clutch = last_alone[sid]
+            table[sid].append(row)
+    return table
 
 
 def _clutch(deaths, steamid: str, my_team: int, track: Track, tick: int) -> int:

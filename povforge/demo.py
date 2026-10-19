@@ -373,6 +373,23 @@ def load_scoreboard(path: str | Path, rounds_played: int) -> list[TeamStats]:
     return teams
 
 
+def round_sides(path: str | Path, rounds: list[Round]) -> dict[int, dict[str, int]]:
+    """For each round: {steamid: team (2 = T, 3 = CT)} of the players alive when
+    freeze time ends. Reads only those few ticks, so it's quick."""
+    if not rounds:
+        return {}
+    parser = _parser(Path(path))
+    ticks = [r.freeze_end_tick + 1 for r in rounds]
+    df = parser.parse_ticks(["team_num", "is_alive"], ticks=ticks)
+    by_tick: dict[int, dict[str, int]] = {}
+    for _, row in df.iterrows():
+        sid = _sid(row.get("steamid"))
+        team = int(row.get("team_num") or 0)
+        if sid and team in (2, 3) and bool(row.get("is_alive")):
+            by_tick.setdefault(int(row["tick"]), {})[sid] = team
+    return {r.number: by_tick.get(t, {}) for r, t in zip(rounds, ticks)}
+
+
 def find_player(players: list[Player], query: str) -> Player:
     """Match by steamid, exact name, or a unique case-insensitive substring."""
     q = query.strip()

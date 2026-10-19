@@ -2,6 +2,17 @@
 
 const TEXT = {
   zh: {
+    reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "挑出最精彩的回合，只剪击杀片段拼在一起。只用游戏画面，不加小地图和片头。",
+    reelName: "名称", reelSources: "素材", reelSourcesHelp: "勾选要用的 demo，可以多选", reelPlayer: "选手",
+    reelSame: "同一个人", reelEach: "每场分别选", reelEachHelp: "在上面每场 demo 的右边选这场用哪位选手。", reelPlayerIn: "{name}（{n} 场）", reelNotIn: "这场没有这名选手", reelPick: "选择选手",
+    reelItems: "集锦内容", reelItemsHelp: "已自动挑出 3 杀以上和残局获胜的回合，按精彩程度排好，最强的放最后。拖动或用箭头调整顺序。",
+    reelEmpty: "还没有回合。先勾选 demo 和选手，或从下面“其他回合”里加。", reelMore: "其他回合（{n}）",
+    reelCount: "{n} 段，约 {s} 秒", roundN: "第 {r} 回合", tagClutch: "1v{n} 残局", tagHs: "{n} 爆头", kills1: "{n} 杀",
+    reelMake: "开始制作", reelQueue: "加入队列", reelNeedItems: "至少加一个回合。", up: "上移", down: "下移", add: "加入",
+    stage_cut: "剪辑集锦", making: "正在制作 {name}", reelDone: "集锦做好了", anotherReel: "再做一个集锦", reelDefault: "{name} 高光集锦", reelDefaultMany: "高光集锦",
+    reelSummary: "集锦，{n} 段", reelEmptySources: "下载文件夹里还没有 demo。", reelStageRead: "读取 demo（第 {a} / {b} 场）",
+    settings: "设置", appearance: "外观", appAuto: "自动", appLight: "浅色", appDark: "深色", accent: "强调色", language: "语言",
+    acc_blue: "蓝色", acc_purple: "紫色", acc_pink: "粉色", acc_red: "红色", acc_orange: "橙色", acc_yellow: "黄色", acc_green: "绿色", acc_graphite: "石墨色",
     checkUpdate: "检查更新", upChecking: "正在检查更新…", upCurrent: "已是最新版本", upCurrentBody: "PovForge {v} 是目前最新的版本。",
     upAvailable: "PovForge {v} 可以更新了", upYouHave: "你现在用的是 {v}。", upInstall: "更新并重新打开", upOpenPage: "去下载页面",
     upDownloading: "正在下载 PovForge {v}", upMb: "{a} / {b} MB", upInstalling: "正在安装…",
@@ -53,6 +64,17 @@ const TEXT = {
     keep: "CS2 会在录完后自己关闭，期间别用电脑玩游戏。",
   },
   en: {
+    reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "The best rounds, cut down to the kills and joined together. Game picture only: no minimap, no intro.",
+    reelName: "Name", reelSources: "Demos", reelSourcesHelp: "Tick the demos to use; several are fine", reelPlayer: "Player",
+    reelSame: "Same player", reelEach: "Per demo", reelEachHelp: "Choose the player for each demo on its row above.", reelPlayerIn: "{name} ({n} demos)", reelNotIn: "This player isn't in this demo", reelPick: "Choose a player",
+    reelItems: "In the reel", reelItemsHelp: "Rounds with 3+ kills and won clutches are picked for you, best last. Drag or use the arrows to change the order.",
+    reelEmpty: "No rounds yet. Tick demos and a player, or add some from Other rounds below.", reelMore: "Other rounds ({n})",
+    reelCount: "{n} moments, about {s} s", roundN: "Round {r}", tagClutch: "1v{n} clutch", tagHs: "{n} HS", kills1: "{n} kill",
+    reelMake: "Make the reel", reelQueue: "Add to queue", reelNeedItems: "Add at least one round.", up: "Move up", down: "Move down", add: "Add",
+    stage_cut: "Cut the reel", making: "Making {name}", reelDone: "Your reel is ready", anotherReel: "Make another reel", reelDefault: "{name} highlights", reelDefaultMany: "Highlights",
+    reelSummary: "Reel, {n} moments", reelEmptySources: "No demos in your Downloads folder yet.", reelStageRead: "Read the demo ({a} of {b})",
+    settings: "Settings", appearance: "Appearance", appAuto: "Auto", appLight: "Light", appDark: "Dark", accent: "Accent colour", language: "Language",
+    acc_blue: "Blue", acc_purple: "Purple", acc_pink: "Pink", acc_red: "Red", acc_orange: "Orange", acc_yellow: "Yellow", acc_green: "Green", acc_graphite: "Graphite",
     checkUpdate: "Check for updates", upChecking: "Checking for updates…", upCurrent: "You're up to date", upCurrentBody: "PovForge {v} is the latest version.",
     upAvailable: "PovForge {v} is available", upYouHave: "You have {v}.", upInstall: "Update and reopen", upOpenPage: "Open download page",
     upDownloading: "Downloading PovForge {v}", upMb: "{a} of {b} MB", upInstalling: "Installing…",
@@ -111,16 +133,19 @@ document.addEventListener("alpine:init", () => {
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
     updateOpen: false, updatingAway: false, upd: { state: "idle" },
     player: null, chosenRounds: [], lastRun: null, setupOpen: false, customRounds: false, lastPath: "",
+    settingsOpen: false, reelOpen: false, dragFrom: null,
+    reel: { title: "", titleEdited: false, mode: "same", steamid: "", sources: [], items: [], reordered: false },
+    accents: ["blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"],
     options: [
       { key: "intro", label: "optIntro" }, { key: "minimap", label: "optMinimap" }, { key: "keyboard", label: "optKeyboard" },
-      { key: "show_enemies", label: "optEnemies" }, { key: "highlights", label: "optHighlights" }, { key: "upload", label: "optUpload" },
+      { key: "show_enemies", label: "optEnemies" }, { key: "upload", label: "optUpload" },
     ],
-    stages: ["read", "record", "overlays", "intro", "compose", "extras"],
     queue: { items: [], paused: false }, update: null, showRun: false, viewId: null, toasts: [], toastSeq: 0,
 
     async boot() {
       fetch("/static/vendor/icons.svg").then(r => r.text()).then(s => { document.getElementById("icons").innerHTML = s; });
       await this.refresh();
+      this.applyTheme();
       this.showRun = this.job.state === "running";
       this.lang = this.prefs.lang || (navigator.language.startsWith("zh") ? "zh" : "en");
       document.documentElement.lang = this.lang === "zh" ? "zh-CN" : "en";
@@ -172,7 +197,126 @@ document.addEventListener("alpine:init", () => {
         .map(l => (/^\s{2,}\S/.test(l) ? "• " : "") + l.trim().replace(/^- /, "• "));
       return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
     },
-    openSetup() { this.setupOpen = true; this.showRun = false; },
+    openSetup() { this.setupOpen = true; this.showRun = false; this.reelOpen = false; },
+
+    // --- appearance ---
+    applyTheme() {
+      const r = document.documentElement;
+      r.dataset.theme = this.prefs.appearance || "auto";
+      r.dataset.accent = this.prefs.accent || "blue";
+    },
+    setAppearance(v) { this.prefs.appearance = v; this.applyTheme(); this.savePrefs(); },
+    setAccent(v) { this.prefs.accent = v; this.applyTheme(); this.savePrefs(); },
+
+    // --- highlight reel ---
+    openReel(fromMatch) {
+      this.reelOpen = true; this.showRun = false; this.setupOpen = false;
+      if (fromMatch && this.demo && this.player) {
+        this.reel = { title: "", titleEdited: false, mode: "same", steamid: this.player.steamid, items: [], reordered: false,
+                      sources: [{ path: this.demo.path, info: this.demo, loading: false, error: "", steamid: this.player.steamid }] };
+        this.recompute();
+      }
+    },
+    reelSrc(path) { return this.reel.sources.find(x => x.path === path); },
+    get reelRows() {
+      const rows = this.demos.map(d => ({ path: d.path, label: d.map || this.niceDemoName(d), sub: [d.score, this.ago(d.mtime)].filter(Boolean).join("  ") }));
+      for (const x of this.reel.sources)
+        if (!rows.some(r => r.path === x.path)) rows.unshift({ path: x.path, label: x.info?.map_pretty || x.path.split(/[\\/]/).pop(), sub: "" });
+      return rows;
+    },
+    async toggleSource(path) {
+      const have = this.reelSrc(path);
+      if (have) { this.reel.sources = this.reel.sources.filter(x => x.path !== path); this.recompute(); return; }
+      const src = { path, info: null, loading: true, error: "", steamid: this.reel.steamid };
+      this.reel.sources.push(src);
+      try {
+        const info = await this.post("/api/inspect", { path });
+        const x = this.reelSrc(path); if (!x) return;
+        x.info = info; x.loading = false;
+        if (!this.reel.steamid) this.reel.steamid = this.reelPlayers[0]?.steamid || "";
+        if (!this.playerIn(x.info, x.steamid)) x.steamid = this.playerIn(info, this.reel.steamid) ? this.reel.steamid : "";
+        this.loadDemos();
+      } catch (e) {
+        const x = this.reelSrc(path); if (x) { x.loading = false; x.error = e.message === "not_a_demo" ? this.t("notDemo") : e.message; }
+      }
+      this.recompute();
+    },
+    playersOf(info) { return (info?.teams || []).flatMap(t => t.players); },
+    playerIn(info, sid) { return this.playersOf(info).find(p => p.steamid === sid); },
+    get reelPlayers() {
+      const m = new Map();
+      for (const x of this.reel.sources) for (const p of this.playersOf(x.info)) {
+        const e = m.get(p.steamid) || { steamid: p.steamid, name: p.name, n: 0, k: 0 };
+        e.n += 1; e.k += p.k || 0; m.set(p.steamid, e);
+      }
+      return [...m.values()].sort((a, b) => b.n - a.n || b.k - a.k);
+    },
+    srcPlayerId(x) { return this.reel.mode === "same" ? this.reel.steamid : x.steamid; },
+    setMode(m) { this.reel.mode = m; for (const x of this.reel.sources) if (!x.steamid) x.steamid = this.playerIn(x.info, this.reel.steamid) ? this.reel.steamid : ""; this.recompute(); },
+    // every round of the chosen player(s) in the chosen demos
+    get reelCandidates() {
+      const out = [];
+      for (const x of this.reel.sources) {
+        const p = this.playerIn(x.info, this.srcPlayerId(x));
+        if (!p) continue;
+        (p.rounds_k || []).forEach((k, i) => {
+          const hs = p.rounds_hs?.[i] || 0, c = p.rounds_clutch?.[i] || 0;
+          out.push({ key: x.path + "|" + p.steamid + "|" + (i + 1), path: x.path, map: x.info.map_pretty, steamid: p.steamid,
+                     name: p.name, round: i + 1, k, hs, clutch: c, score: k * 10 + hs + (c ? 25 * c : 0) });
+        });
+      }
+      return out;
+    },
+    recompute() {
+      this.reel.items = this.reelCandidates.filter(c => c.k >= 3 || c.clutch >= 1).sort((a, b) => a.score - b.score);
+      this.reel.reordered = false;
+      if (!this.reel.titleEdited) {
+        const names = [...new Set(this.reel.items.map(i => i.name))];
+        const one = names.length === 1 ? names[0] : (this.reel.mode === "same" ? this.reelPlayers.find(p => p.steamid === this.reel.steamid)?.name : "");
+        this.reel.title = one ? this.t("reelDefault", { name: one }) : this.t("reelDefaultMany");
+      }
+    },
+    get reelOthers() {
+      const inReel = new Set(this.reel.items.map(i => i.key));
+      return this.reelCandidates.filter(c => !inReel.has(c.key) && (c.k > 0 || c.clutch > 0));
+    },
+    addReelItem(c) {
+      const items = this.reel.items;
+      const at = this.reel.reordered ? items.length : items.findIndex(i => i.score > c.score);
+      items.splice(at < 0 ? items.length : at, 0, c);
+    },
+    removeReelItem(i) { this.reel.items.splice(i, 1); },
+    moveReelItem(i, d) {
+      const j = i + d, items = this.reel.items;
+      if (j < 0 || j >= items.length) return;
+      [items[i], items[j]] = [items[j], items[i]]; this.reel.reordered = true;
+    },
+    dropAt(i) {
+      const from = this.dragFrom; this.dragFrom = null;
+      if (from === null || from === i) return;
+      const [it] = this.reel.items.splice(from, 1); this.reel.items.splice(i, 0, it); this.reel.reordered = true;
+    },
+    tagOf(c) {
+      const zh = this.lang === "zh", names = zh ? { 2: "双杀", 3: "三杀", 4: "四杀", 5: "ACE" } : { 2: "2K", 3: "3K", 4: "4K", 5: "ACE" };
+      const parts = [];
+      if (c.k >= 2) parts.push(names[Math.min(c.k, 5)]); else if (c.k === 1) parts.push(this.t("kills1", { n: 1 }));
+      if (c.clutch) parts.push(this.t("tagClutch", { n: c.clutch }));
+      return parts.join("  ");
+    },
+    reelSeconds(items) { return Math.round(items.reduce((t, c) => t + (c.k ? 5.5 + (c.k - 1) * 2.5 : 8), 0)); },
+    get reelWhyNot() {
+      const w = this.whyNotSetup;
+      return w || (this.reel.items.length ? "" : this.t("reelNeedItems"));
+    },
+    async startReel(watch) {
+      const wasRunning = this.job.state === "running";
+      const body = { title: this.reel.title.trim() || this.t("reelDefaultMany"), summary: this.t("reelSummary", { n: this.reel.items.length }),
+                     items: this.reel.items.map(c => ({ demo: c.path, steamid: c.steamid, round: c.round })) };
+      const j = await this.post("/api/queue/add-reel", body);
+      this.queue = j.queue; this.job = j;
+      if (watch && !wasRunning) { this.viewId = null; this.reelOpen = false; this.showRun = true; }
+      else this.toast(this.t("queuedNote", { name: body.title }));
+    },
     get setupHint() {
       if (!this.setup.cs2 && !this.setup.placeholder) return this.t("hintCs2");
       if (!this.setup.hlae || !this.setup.ffmpeg) return this.t("hintTools");
@@ -197,7 +341,7 @@ document.addEventListener("alpine:init", () => {
     async loadDemos() { this.demos = await this.get("/api/demos"); this.demosLoaded = true; },
 
     async pickDemo(path) {
-      this.showRun = false; this.setupOpen = false; this.customRounds = false; this.lastPath = path;
+      this.showRun = false; this.setupOpen = false; this.reelOpen = false; this.customRounds = false; this.lastPath = path;
       this.inspecting = true; this.inspectError = ""; this.demo = null; this.player = null;
       try {
         this.demo = await this.post("/api/inspect", { path });
@@ -237,15 +381,15 @@ document.addEventListener("alpine:init", () => {
       return this.t("ckToolsHelp", { list: m.join(this.lang === "zh" ? " 和 " : " and "), size: m.includes("FFmpeg") ? "~100 MB" : "~10 MB" });
     },
     get ready() { return !!((this.setup.cs2 || this.setup.placeholder) && this.setup.hlae && this.setup.ffmpeg && !this.setup.anticheat?.length); },
-    get whyNot() {
-      if (this.setup.placeholder) return this.chosenRounds.length ? "" : this.t("needRounds");
+    get whyNotSetup() {
+      if (this.setup.placeholder) return "";
       if (!this.setup.windows) return this.t("needWindows");
       if (!this.setup.hlae || !this.setup.ffmpeg) return this.t("needTools");
       if (!this.setup.cs2) return this.t("needCs2");
       if (this.setup.anticheat?.length) return this.t("needAntiCheat", { list: this.setup.anticheat.join(", ") });
-      if (!this.chosenRounds.length) return this.t("needRounds");
       return "";
     },
+    get whyNot() { return this.whyNotSetup || (this.chosenRounds.length ? "" : this.t("needRounds")); },
     get canStart() { return !!this.player && !this.whyNot; },
 
     async start(watch) {
@@ -267,13 +411,14 @@ document.addEventListener("alpine:init", () => {
     async clearQueue() { this.queue = await this.post("/api/queue/clear"); },
     async resumeQueue() { this.queue = await this.post("/api/queue/resume"); },
     openItem(it) {
-      this.setupOpen = false;
+      this.setupOpen = false; this.reelOpen = false;
       this.viewId = it.state === "running" ? null : it.id;
       this.showRun = true;
     },
     async cancel() { const j = await this.post("/api/cancel"); this.queue = j.queue || this.queue; this.job = j; },
-    async again() {
+    async again(toReel = false) {
       this.viewId = null; this.showRun = false;
+      if (toReel) this.reelOpen = true;
       if (this.job.state !== "running") this.job = await this.post("/api/reset");
     },
     openPath(path, select = false) { if (path) this.post("/api/open", { path, select }); },
@@ -297,10 +442,17 @@ document.addEventListener("alpine:init", () => {
       return t[0].score > t[1].score ? 0 : 1;
     },
     // rough overall progress; recording rounds is most of the time
+    get stages() { return this.job.kind === "reel" ? ["read", "record", "cut"] : ["read", "record", "overlays", "intro", "compose", "extras"]; },
     get progressPct() {
       const j = this.job;
       if (j.state === "done") return 100;
       const [a, b] = j.step || [0, 0], f = b ? Math.min(a / b, 1) : 0;
+      if (j.kind === "reel") {     // each demo: read then record; then cutting at the end
+        if (j.stage === "cut") return Math.round(85 + 15 * f);
+        const [si, sn] = j.source?.[1] ? j.source : [1, 1];
+        const within = j.stage === "record" ? 0.15 + 0.85 * f : 0.05;
+        return Math.round(85 * ((si - 1 + within) / sn));
+      }
       const span = { read: [2, 5], record: [5, 70], overlays: [70, 80], intro: [80, 83], compose: [83, 95], extras: [95, 100] }[j.stage] || [0, 0];
       return Math.round(span[0] + (span[1] - span[0]) * f);
     },
@@ -328,14 +480,21 @@ document.addEventListener("alpine:init", () => {
     get runRounds() { return this.job.planned.length ? this.job.planned : this.roundList; },
     get runTitle() {
       const r = this.res, n = r.player || "";
+      if (r.kind === "reel") return { running: this.t("making", { name: n }), done: this.t("reelDone"), error: this.t("failed"), cancelled: this.t("stopped") }[r.state] || "";
       return { running: this.t("recording", { name: n }), done: this.t("recorded"), error: this.t("failed"), cancelled: this.t("stopped") }[r.state] || "";
     },
     get runSub() {
       const r = this.res;
       const item = this.queue.items.find(i => i.id === (this.viewingItem ? this.viewId : this.job.item));
       const map = item?.map || "";
+      if (r.kind === "reel") return r.state === "done" ? (r.player || "") : map;
       if (r.state === "running") return [map, item ? (item.rounds.length ? this.t("nRounds", { n: item.rounds.length }) : this.t("wholeMatch")) : ""].filter(Boolean).join(" · ");
       return [r.player, map].filter(Boolean).join(" · ");
+    },
+    stageLabel(s) {
+      const src = this.job.source || [0, 0];
+      if (s === "read" && this.job.kind === "reel" && src[1] > 1) return this.t("reelStageRead", { a: src[0] || 1, b: src[1] });
+      return this.t("stage_" + s);
     },
     stageClass(s) {
       const order = this.stages, cur = order.indexOf(this.job.stage);

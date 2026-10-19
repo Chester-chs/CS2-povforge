@@ -62,6 +62,13 @@ def _cmd_run(args, cfg) -> None:
     run(cfg, args.demo, args.player, placeholder=args.placeholder, rounds=parse_rounds(args.rounds))
 
 
+def _cmd_reel(args, cfg) -> None:
+    from . import reel
+
+    title, items = reel.load_spec(Path(args.spec))
+    reel.run(cfg, args.title or title, items, placeholder=args.placeholder)
+
+
 def _cmd_doctor(args, cfg) -> None:
     import importlib
     import shutil
@@ -246,6 +253,12 @@ def build_parser() -> argparse.ArgumentParser:
                                          "screenshotted automatically), 'latest', a file, or '' for "
                                          "the scoreboard card")
     s.set_defaults(func=_cmd_run)
+
+    s = sub.add_parser("reel", help="highlight reel: the kills of chosen rounds, from one or more demos")
+    s.add_argument("spec", help='JSON file: {"title": "...", "items": [{"demo": path, "steamid": id, "round": n}, ...]}')
+    s.add_argument("--title", help="file name for the reel (default: the title in the spec)")
+    s.add_argument("--placeholder", action="store_true", help="grey test clips instead of recording in CS2")
+    s.set_defaults(func=_cmd_reel)
 
     s = sub.add_parser("doctor", help="check that everything needed is installed")
     s.set_defaults(func=_cmd_doctor)

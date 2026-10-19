@@ -43,11 +43,14 @@ def default_output() -> Path:
     return (videos if videos.is_dir() else Path.home()) / "PovForge"
 
 
+ACCENTS = ("blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite")
+
+
 def load_prefs() -> dict:
     f = app_dir() / "app.json"
     prefs = {"output": str(default_output()), "demo_folders": [str(Path.home() / "Downloads")],
              "intro": True, "minimap": True, "keyboard": True, "show_enemies": False, "lang": "",
-             "highlights": True, "upload": True}
+             "upload": True, "appearance": "auto", "accent": "blue"}
     if f.exists():
         try:
             prefs.update(json.loads(f.read_text(encoding="utf-8")))
@@ -72,7 +75,7 @@ def write_job_config(prefs: dict) -> Path:
              f"keyboard = {str(bool(prefs['keyboard'])).lower()}",
              f"show_enemies = {str(bool(prefs['show_enemies'])).lower()}", "",
              "[intro]", f"enabled = {str(bool(prefs['intro'])).lower()}", "",
-             "[highlights]", f"enabled = {str(bool(prefs.get('highlights', True))).lower()}", "",
+             "[highlights]", "enabled = false", "",      # highlights are made as a reel now
              "[upload]", f"enabled = {str(bool(prefs.get('upload', True))).lower()}", ""]
     f = app_dir() / "last-run.toml"
     app_dir().mkdir(parents=True, exist_ok=True)
@@ -169,18 +172,34 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
         a = death.attacker_steamid
         if a in kills and a != death.victim_steamid:
             kills[a][i] += 1
+    # kills, headshots and won clutches per round (for the highlight reel)
+    table = {}
+    try:
+        from ..demo import round_sides
+        from ..highlights import round_table
+        table = round_table(d.rounds, d.deaths, d.winners, round_sides(dem, d.rounds))
+    except Exception:
+        pass
+
+    def per_round(sid: str) -> dict:
+        rows = table.get(sid)
+        if not rows:
+            return {"rounds_k": kills.get(sid, []), "rounds_died": died.get(sid, []),
+                    "rounds_hs": [0] * n, "rounds_clutch": [0] * n, "rounds_won": [None] * n}
+        return {"rounds_k": [r.kills for r in rows], "rounds_died": died.get(sid, []),
+                "rounds_hs": [r.headshots for r in rows], "rounds_clutch": [r.clutch for r in rows],
+                "rounds_won": [r.won for r in rows]}
+
     known = {p.steamid for t in teams for p in t.players}
     loose = [p for p in d.players if p.steamid not in known]
     out_teams = [{"name": t.name, "score": t.score,
                   "players": [{"steamid": p.steamid, "name": p.name, "k": p.kills, "d": p.deaths,
-                               "a": p.assists, "adr": round(p.adr), "hs": round(p.hs_pct),
-                               "rounds_k": kills.get(p.steamid, []), "rounds_died": died.get(p.steamid, [])}
+                               "a": p.assists, "adr": round(p.adr), "hs": round(p.hs_pct), **per_round(p.steamid)}
                               for p in t.players]} for t in teams]
     if loose:
         out_teams.append({"name": "", "score": None,
                           "players": [{"steamid": p.steamid, "name": p.name, "k": None, "d": None, "a": None,
-                                       "adr": None, "hs": None, "rounds_k": kills.get(p.steamid, []),
-                                       "rounds_died": died.get(p.steamid, [])} for p in loose]})
+                                       "adr": None, "hs": None, **per_round(p.steamid)} for p in loose]})
     info = {"path": str(src), "name": src.name, "map": d.map_name, "map_pretty": pretty_map(d.map_name),
             "rounds": n, "minutes": round(d.last_tick / d.tickrate / 60, 1), "faceit_match": match_id(src.name),
             "date": time.strftime("%Y-%m-%d %H:%M", time.localtime(src.stat().st_mtime)), "teams": out_teams}
@@ -215,7 +234,7 @@ def rounds_spec(rounds: list[int]) -> str:
 class Job:
     """One `povforge run` child process and what it has reported so far."""
 
-    STAGES = ["read", "record", "overlays", "intro", "compose", "extras", "done"]
+    STAGES = ["read", "record", "overlays", "intro", "compose", "extras", "cut", "done"]
 
     def __init__(self):
         self.lock = threading.Lock()
@@ -239,6 +258,8 @@ class Job:
         self.player = ""
         self.demo = ""
         self.item = 0                # queue item being recorded
+        self.kind = "match"          # match | reel
+        self.source = (0, 0)         # reel: which demo of how many
         self.started = 0.0
 
     def snapshot(self) -> dict:
@@ -247,22 +268,33 @@ class Job:
                     "recorded": self.recorded, "planned": self.planned, "step": list(self.step),
                     "result": self.result, "highlights": self.highlights, "cover": self.cover,
                     "description": self.description, "title": self.title, "error": self.error,
-                    "player": self.player, "demo": self.demo, "item": self.item,
+                    "player": self.player, "demo": self.demo, "item": self.item, "kind": self.kind,
+                    "source": list(self.source),
                     "elapsed": time.time() - self.started if self.started else 0}
 
-    def start(self, demo: str, steamid: str, name: str, rounds: list[int], prefs: dict, item: int = 0) -> None:
+    def start(self, item: dict, prefs: dict) -> None:
+        """Start a queue item: a whole-match recording or a highlight reel."""
+        kind = item.get("kind", "match")
         with self.lock:
             if self.state == "running":
                 raise RuntimeError("A recording is already running.")
             self.reset()
             self.state, self.stage, self.started = "running", "read", time.time()
-            self.player, self.demo, self.planned, self.item = name, demo, sorted(rounds), item
+            self.player, self.demo, self.item, self.kind = item["name"], item.get("path", ""), item.get("id", 0), kind
+            self.planned = sorted(item.get("rounds") or [])
         cfg = write_job_config(prefs)
-        args = ["--config", str(cfg), "run", demo, steamid]
+        if kind == "reel":
+            spec = app_dir() / "reels" / f"reel-{item.get('id', 0)}.json"
+            spec.parent.mkdir(parents=True, exist_ok=True)
+            spec.write_text(json.dumps({"title": item["name"], "items": item["reel"]}, ensure_ascii=False),
+                            encoding="utf-8")
+            args = ["--config", str(cfg), "reel", str(spec)]
+        else:
+            args = ["--config", str(cfg), "run", item["path"], item["steamid"]]
+            if item.get("rounds"):
+                args += ["--rounds", rounds_spec(item["rounds"])]
         if os.environ.get("POVFORGE_PLACEHOLDER"):  # testing without CS2
             args.append("--placeholder")
-        if rounds:
-            args += ["--rounds", rounds_spec(rounds)]
         flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
         self.proc = subprocess.Popen(cli_command(*args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -316,6 +348,14 @@ class Job:
                     self.title = Path(self.description).read_text(encoding="utf-8").splitlines()[0]
                 except Exception:
                     self.title = ""
+            elif m := re.match(r"Reel source (\d+)/(\d+)", line):
+                self.stage, self.step = "read", (0, 0)
+                self.source = (int(m.group(1)), int(m.group(2)))
+                self.recorded = []
+            elif m := re.match(r"Cutting the reel (\d+)/(\d+)", line):
+                self.stage, self.step = "cut", (int(m.group(1)), int(m.group(2)))
+            elif line.startswith("Joining the reel"):
+                self.stage, self.step = "cut", (1, 1)
             elif line.startswith("Done: "):
                 self.result = line[6:].strip()
             elif line.startswith("Error: "):
@@ -359,10 +399,21 @@ class Queue:
             return {"items": [dict(i) for i in self.items], "paused": self.paused}
 
     def add(self, path: str, steamid: str, name: str, rounds: list[int], map_pretty: str) -> dict:
+        return self._add({"kind": "match", "path": path, "steamid": steamid, "name": name, "rounds": rounds,
+                          "map": map_pretty})
+
+    def add_reel(self, title: str, items: list[dict], summary: str = "") -> dict:
+        """A highlight reel: items are {demo, steamid, round} in the order they appear."""
+        reel = [{"demo": str(i["demo"]), "steamid": str(i["steamid"]), "round": int(i["round"])} for i in items]
+        if not reel:
+            raise ValueError("No rounds in the reel.")
+        return self._add({"kind": "reel", "name": title or "Highlights", "reel": reel, "rounds": [],
+                          "path": "", "steamid": "", "map": summary})
+
+    def _add(self, fields: dict) -> dict:
         with self.lock:
-            item = {"id": self.next_id, "path": path, "steamid": steamid, "name": name, "rounds": rounds,
-                    "map": map_pretty, "state": "queued", "result": "", "highlights": "", "cover": "",
-                    "description": "", "title": "", "error": ""}
+            item = {"id": self.next_id, **fields, "state": "queued", "result": "", "highlights": "",
+                    "cover": "", "description": "", "title": "", "error": ""}
             self.next_id += 1
             self.items.append(item)
             self.paused = False
@@ -378,7 +429,7 @@ class Queue:
                 return
             item["state"] = "running"
         try:
-            self.job.start(item["path"], item["steamid"], item["name"], item["rounds"], self.prefs, item["id"])
+            self.job.start(dict(item), self.prefs)
         except Exception as e:
             with self.lock:
                 item["state"], item["error"] = "error", str(e)
@@ -816,14 +867,21 @@ def make_handler(app: App):
                         save_prefs(app.prefs)
                     return self._json(app.prefs)
                 if url.path == "/api/prefs":
-                    for k in ("intro", "minimap", "keyboard", "show_enemies", "lang", "highlights", "upload"):
+                    for k in ("intro", "minimap", "keyboard", "show_enemies", "lang", "upload"):
                         if k in b:
                             app.prefs[k] = b[k]
+                    if b.get("appearance") in ("auto", "light", "dark"):
+                        app.prefs["appearance"] = b["appearance"]
+                    if b.get("accent") in ACCENTS:
+                        app.prefs["accent"] = b["accent"]
                     save_prefs(app.prefs)
                     return self._json(app.prefs)
                 if url.path in ("/api/run", "/api/queue/add"):
                     app.queue.add(b["path"], b["steamid"], b.get("name", ""),
                                   [int(r) for r in b.get("rounds") or []], b.get("map", ""))
+                    return self._json({**app.job.snapshot(), "queue": app.queue.snapshot()})
+                if url.path == "/api/queue/add-reel":
+                    app.queue.add_reel(b.get("title", ""), b.get("items") or [], b.get("summary", ""))
                     return self._json({**app.job.snapshot(), "queue": app.queue.snapshot()})
                 if url.path == "/api/queue/remove":
                     app.queue.remove(int(b.get("id", 0)))

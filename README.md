@@ -15,7 +15,7 @@ A personal, non-commercial tool that turns Counter-Strike 2 demos into full-matc
 - Keyboard/mouse display (Shift, Ctrl, W A S D, Space, mouse buttons) just above the HUD's kill icons
 - Intro: "<player> POV" written over the FACEIT match room. The screenshot is taken automatically from the demo's match id (headless Edge/Chrome, no login, cookie banner hidden, nothing accepted). The intro also shows the match start time in your time zone. Other demos get the final scoreboard
 - Writes chapter markers per round (embedded in the video and as a YouTube-ready `chapters.txt`), named after what happened: "Round 18 · ACE", "Round 7 · 3K · 1v2 clutch"
-- A highlights cut next to the full video: every kill (4 s before, 1.5 s after), taken from the finished rounds, no extra recording
+- Highlight reel (its own entry in the app): the best rounds of one or more demos and players (3+ kills or a won clutch, picked for you and editable), cut down to the kills (4 s before, 1.5 s after) and joined in the order you choose, best last by default. Game picture and HUD only, no overlays or intro. Only the needed seconds are recorded
 - Upload kit: `cover.jpg` (the best moment, name, map, score, K/D/A) and `description.txt` (a title, match info and the chapters)
 
 A 28-minute FACEIT demo becomes a ~16-minute POV video.
@@ -26,7 +26,9 @@ Download **PovForge-Setup.exe** from [Releases](https://github.com/Chester-chs/C
 
 1. pick a demo (demos in your Downloads folder are listed; any file can be chosen),
 2. click a player on the scoreboard and, if you like, the rounds to record (each round shows that player's kills and whether they died),
-3. press **Record** and follow the progress; when it's done, play the video or the highlights, copy the upload title, or open the folder.
+3. press **Record** and follow the progress; when it's done, play the video, copy the upload title, or open the folder.
+
+For a highlight reel, press **Make a reel** after picking a player, or open **Highlight reel** in the sidebar to combine several demos. Appearance (auto, light, dark), accent colour and language are under the gear at the bottom left.
 
 While one recording runs you can keep browsing and press **Queue** to add more players or demos; they're recorded one after another. The app tells you when a new version is out.
 
@@ -73,6 +75,7 @@ povforge run match.dem.zst donk --rounds 1-2 --placeholder   # quick test, no CS
 povforge run match.dem.zst donk                # the real thing
 povforge run match.dem.zst donk --intro-image latest   # intro from your own screenshot instead
 povforge faceit match.dem.zst --show       # test the FACEIT intro screenshot on its own
+povforge reel reel.json                    # highlight reel; reel.json: {"title": ..., "items": [{"demo": ..., "steamid": ..., "round": 18}, ...]}
 ```
 
 - Demos can be `.dem`, or FACEIT's `.dem.zst` / `.dem.gz` as downloaded. HLTV demos come as `.rar`: extract the `.dem` first.

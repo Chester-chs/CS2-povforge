@@ -9,10 +9,13 @@
   --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI",
           "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
 
-  /* light appearance: Apple system colours */
-  --accent: #007aff;
-  --accent-press: #0062cc;
+  /* accent colours (Apple system colours, light / dark); chosen in Settings */
+  --acc-l: #007aff; --acc-d: #0a84ff;
   --on-accent: #fff;
+
+  /* light appearance: Apple system colours */
+  --accent: var(--acc-l);
+  --accent-press: color-mix(in srgb, var(--acc-l) 84%, black);
   --green: #34c759;
   --red: #ff3b30;
   --orange: #ff9500;
@@ -32,10 +35,18 @@
   --radius: 12px;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --accent: #0a84ff;
-    --accent-press: #409cff;
+:root[data-accent="purple"] { --acc-l: #af52de; --acc-d: #bf5af2; }
+:root[data-accent="pink"] { --acc-l: #ff2d55; --acc-d: #ff375f; }
+:root[data-accent="red"] { --acc-l: #ff3b30; --acc-d: #ff453a; }
+:root[data-accent="orange"] { --acc-l: #ff9500; --acc-d: #ff9f0a; }
+:root[data-accent="yellow"] { --acc-l: #ffcc00; --acc-d: #ffd60a; --on-accent: #1d1d1f; }
+:root[data-accent="green"] { --acc-l: #34c759; --acc-d: #30d158; }
+:root[data-accent="graphite"] { --acc-l: #8e8e93; --acc-d: #98989d; }
+
+/* dark appearance: chosen in Settings, or following Windows when set to Auto */
+:root[data-theme="dark"] {
+    --accent: var(--acc-d);
+    --accent-press: color-mix(in srgb, var(--acc-d) 82%, white);
     --green: #30d158;
     --red: #ff453a;
     --orange: #ff9f0a;
@@ -52,6 +63,27 @@
     --shadow: 0 0 0 0.5px rgb(255 255 255 / 0.06);
     --toolbar: rgb(28 28 30 / 0.78);
     color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+      --accent: var(--acc-d);
+      --accent-press: color-mix(in srgb, var(--acc-d) 82%, white);
+      --green: #30d158;
+      --red: #ff453a;
+      --orange: #ff9f0a;
+      --label: #f5f5f7;
+      --label-2: rgb(235 235 245 / 0.6);
+      --label-3: rgb(235 235 245 / 0.3);
+      --separator: rgb(84 84 88 / 0.55);
+      --fill: rgb(118 118 128 / 0.24);
+      --fill-strong: rgb(118 118 128 / 0.36);
+      --window: #1c1c1e;
+      --sidebar: #252527;
+      --group: #2c2c2e;
+      --seg-on: #636366;
+      --shadow: 0 0 0 0.5px rgb(255 255 255 / 0.06);
+      --toolbar: rgb(28 28 30 / 0.78);
+      color-scheme: dark;
   }
 }
 
@@ -360,3 +392,41 @@ svg { width: 16px; height: 16px; flex: none; fill: none; }
 .notes { width: 100%; max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 10px 12px; border-radius: 10px; text-align: left;
   background: var(--fill); font: 12.5px/1.55 var(--font); white-space: pre-wrap; user-select: text; }
 .small-note { font-size: 12px; }
+
+/* highlight reel editor */
+.nav-group { margin-bottom: 6px; }
+.hint { font-size: 12px; font-weight: 400; color: var(--label-3); }
+.hint.below { margin: -2px 4px 8px; color: var(--label-2); }
+.text-input { width: 100%; border: 0; background: none; padding: 13px 16px; font: 500 15px var(--font); color: var(--label); outline: none; user-select: text; }
+.text-input:focus-visible { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); border-radius: var(--radius); }
+.check { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); flex: none; }
+.select { font: 13px var(--font); color: var(--label); background: var(--fill); border: 0; border-radius: 7px; padding: 5px 8px; max-width: 220px; }
+.select.wide { max-width: none; width: 100%; padding: 7px 10px; font-size: 14px; }
+.src-state { display: inline-flex; align-items: center; gap: 8px; }
+.reel-list .row { gap: 10px; }
+.reel-list .row[draggable="true"] { cursor: grab; }
+.reel-list .row.dragging { opacity: .45; }
+.grip { color: var(--label-3); width: 14px; height: 14px; }
+.idx { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none; font-size: 12px; font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.reel-list .row.last .idx { background: var(--accent); color: var(--on-accent); }
+.row-main b .hs { font-style: normal; font-weight: 400; color: var(--label-2); margin-left: 8px; font-size: 12.5px; }
+.row-main small { white-space: pre; }
+.row-tools { display: inline-flex; gap: 0; }
+.icon-btn:disabled { opacity: .3; pointer-events: none; }
+.more { margin-top: 14px; }
+.more summary { cursor: default; color: var(--accent); font-size: 13px; margin: 0 4px 8px; }
+.reel { padding-bottom: 110px; }
+.reel-btn svg { width: 14px; height: 14px; }
+.btn svg { width: 14px; height: 14px; }
+
+/* settings */
+.settings-sheet { width: 480px; justify-items: stretch; text-align: left; gap: 14px; }
+.settings-sheet h2 { font-size: 17px; text-align: center; }
+.group.plain { box-shadow: none; background: var(--fill); }
+.swatches { display: flex; gap: 8px; }
+.swatch { width: 22px; height: 22px; border-radius: 50%; border: 0; padding: 0; cursor: default; position: relative; }
+.swatch[aria-checked="true"]::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: #fff; }
+.swatch:focus-visible { outline-offset: 2px; }
+.sw-blue { background: #007aff; } .sw-purple { background: #af52de; } .sw-pink { background: #ff2d55; } .sw-red { background: #ff3b30; }
+.sw-orange { background: #ff9500; } .sw-yellow { background: #ffcc00; } .sw-green { background: #34c759; } .sw-graphite { background: #8e8e93; }

@@ -26,7 +26,7 @@ from .intro import IntroInfo, make_intro, pretty_map
 from .overlay.hud import HudRenderer, crosshair_png, scope_png
 from .maps import get_map
 from .media import probe
-from .model import Plan
+from .model import Plan, Segment
 from .overlay.keyboard import KeyboardRenderer
 from .overlay.minimap import MinimapRenderer
 from .overlay.playerbar import PlayerBarRenderer
@@ -35,8 +35,8 @@ from .planner import plan_segments
 from .timeline import Track, frame_count
 
 
-def job_dir_for(cfg: Config, demo: Path, player_name: str) -> Path:
-    return cfg.output_dir / f"{demo.stem}__{safe_filename(player_name)}"
+def job_dir_for(cfg: Config, demo: Path, player_name: str, suffix: str = "") -> Path:
+    return cfg.output_dir / f"{demo.stem}__{safe_filename(player_name)}{'__' + suffix if suffix else ''}"
 
 
 def _log(msg: str) -> None:
@@ -61,13 +61,17 @@ def parse_rounds(spec: str | None) -> set[int] | None:
 
 
 def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
-              rounds: set[int] | None = None) -> tuple[Plan, Path]:
+              rounds: set[int] | None = None, job_suffix: str = "",
+              trim_to_kills: tuple[float, float] | None = None) -> tuple[Plan, Path]:
+    """Work out the clips to record. ``job_suffix`` keeps a separate job folder
+    (the highlight reel uses its own); ``trim_to_kills`` = (seconds before the
+    first kill, seconds after the last) records only that part of each round."""
     source = Path(demo_path)
     demo_path = prepare_demo(demo_path, cfg.output_dir / "demos")
     _log(f"Reading {demo_path.name} ...")
     demo = load_demo(demo_path)
     player = find_player(demo.players, player_query)
-    job = job_dir_for(cfg, demo_path, player.name)
+    job = job_dir_for(cfg, demo_path, player.name, job_suffix)
     job.mkdir(parents=True, exist_ok=True)
 
     _log(f"Parsing positions and inputs for {player.name} ...")
@@ -98,6 +102,8 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     )
     if rounds:
         segments = [sg for sg in segments if sg.round_number in rounds]
+    if trim_to_kills:
+        segments = trim_segments(segments, [t for t, _ in kills], demo.tickrate, *trim_to_kills)
     plan = Plan(str(demo_path.resolve()), demo.map_name, demo.tickrate, player, segments)
     plan_file = job / "plan.json"
     if plan_file.exists() and load_plan(job).segments != plan.segments:
@@ -114,6 +120,21 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     if not track.has_keys:
         _log("Note: this demo has no input data, the keyboard overlay will stay blank.")
     return plan, job
+
+
+def trim_segments(segments: list[Segment], kill_ticks: list[int], tickrate: float,
+                  before: float, after: float, pad: float = 1.0) -> list[Segment]:
+    """Shorten each round to its kills (plus a little room); rounds without
+    kills (a clutch won on the bomb) are kept whole."""
+    out = []
+    for sg in segments:
+        ks = sorted(t for t in kill_ticks if sg.start_tick <= t <= sg.end_tick)
+        if ks:
+            a = max(sg.start_tick, ks[0] - round((before + pad) * tickrate))
+            b = min(sg.end_tick, ks[-1] + round((after + pad) * tickrate))
+            sg = Segment(sg.round_number, a, b, sg.ends_by)
+        out.append(sg)
+    return out
 
 
 def load_plan(job: Path) -> Plan:

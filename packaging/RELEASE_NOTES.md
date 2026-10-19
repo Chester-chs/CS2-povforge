@@ -1,13 +1,11 @@
-**What's new in v0.8.5 / 本次更新**
+**What's new in v0.9.0 / 本次更新**
 
-- Check for updates inside the app (bottom left): it downloads the new installer, checks it against the release's SHA-256, installs quietly and reopens PovForge. Settings are kept.
-  软件内检查更新（左下角）：自动下载新版安装包、核对 SHA-256、静默安装并重新打开，设置保留。
-- Fixed: the installed app couldn't read demos ("No module named 'polars'"). The build now includes the libraries demoparser2 needs, and the build check reads them.
-  修复：安装版读不了 demo（"No module named 'polars'"）。打包时漏了 demoparser2 需要的库，现已补上，并加入构建检查。
-- New look following Apple's design guidelines: follows Windows light/dark mode, sidebar plus grouped lists, segmented control for whole match or picked rounds, switches, a bottom toolbar. The setup panel only shows up when something needs doing.
-  界面按苹果设计规范重做：跟随系统浅色/深色模式，侧边栏加分组列表，"整场/选择回合"分段控件，开关和底部工具栏；准备工作只在有事要做时才出现。
-- FFmpeg is built in; first-time setup only downloads HLAE (about 10 MB).
-  FFmpeg 已内置，第一次只需下载 HLAE（约 10 MB）。
+- Highlight reel, a new entry: pick one or more demos and players; rounds with 3+ kills or a won clutch are chosen for you (add or remove any), ordered best last (drag to change), cut down to the kills and joined. Game picture and HUD only. The old "highlights cut" switch is gone.
+  高光集锦（新入口）：选一场或多场 demo、一位或多位选手，自动挑出 3 杀以上和残局获胜的回合（可增可减），默认最强的放最后（可拖动调整），只剪击杀片段拼在一起，只用游戏画面和 HUD。原来的"精华版"开关去掉了。
+- Settings (gear, bottom left): appearance auto / light / dark, eight accent colours, language.
+  设置（左下角齿轮）：外观自动 / 浅色 / 深色、8 种强调色、语言。
+- Earlier: update from inside the app (v0.8.5); demo reading fixed in the installed app, Apple-style look, FFmpeg built in (v0.8.4).
+  之前：软件内一键更新（v0.8.5）；修复安装版读不了 demo、苹果风格界面、内置 FFmpeg（v0.8.4）。
 
 **Windows / Windows 程序**
 

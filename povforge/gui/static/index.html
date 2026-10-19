@@ -27,6 +27,13 @@
   </button>
 
   <div class="side-scroll">
+    <section class="side-group nav-group">
+      <button class="side-row" :aria-selected="reelOpen && !runVisible" @click="openReel(false)">
+        <svg class="row-ic"><use href="#i-sparkles"/></svg>
+        <span class="row-text"><b><span x-text="t('reelNav')"></span></b></span>
+      </button>
+    </section>
+
     <section class="side-group">
       <div class="side-title">
         <h2 x-text="t('demos')"></h2>
@@ -39,7 +46,7 @@
       <ul class="side-list" role="listbox" :aria-label="t('demos')">
         <template x-for="d in demos" :key="d.path">
           <li>
-            <button class="side-row" role="option" :aria-selected="!!(demo && demo.path === d.path && !runVisible && !setupOpen)" @click="pickDemo(d.path)">
+            <button class="side-row" role="option" :aria-selected="!!(demo && demo.path === d.path && !runVisible && !setupOpen && !reelOpen)" @click="pickDemo(d.path)">
               <svg class="row-ic"><use href="#i-film"/></svg>
               <span class="row-text">
                 <b><span x-text="d.map || niceDemoName(d)"></span><em x-show="d.score" x-text="d.score"></em></b>
@@ -73,7 +80,7 @@
               </span>
               <span class="row-text">
                 <b x-text="it.name"></b>
-                <small x-text="it.state === 'running' ? progressPct + '%  ' + (it.map || '') : [it.map, it.rounds.length ? t('nRounds', { n: it.rounds.length }) : t('wholeMatch'), it.state === 'queued' ? '' : t('st_' + it.state)].filter(Boolean).join('  ')"></small>
+                <small x-text="it.state === 'running' ? progressPct + '%  ' + (it.map || '') : it.kind === 'reel' ? [it.map, it.state === 'queued' ? '' : t('st_' + it.state)].filter(Boolean).join('  ') : [it.map, it.rounds.length ? t('nRounds', { n: it.rounds.length }) : t('wholeMatch'), it.state === 'queued' ? '' : t('st_' + it.state)].filter(Boolean).join('  ')"></small>
               </span>
             </button>
             <span class="q-act">
@@ -95,10 +102,7 @@
       <button class="update-pill" x-show="update" x-cloak @click="openUpdate(false)" x-text="t('updateAvail', { v: update?.version })"></button>
       <button class="link small" x-show="!update" @click="openUpdate(true)" x-text="t('checkUpdate')"></button>
     </div>
-    <div class="segmented tiny" role="radiogroup" aria-label="Language">
-      <button role="radio" :aria-checked="lang === 'zh'" @click="setLang('zh')">中文</button>
-      <button role="radio" :aria-checked="lang === 'en'" @click="setLang('en')">EN</button>
-    </div>
+    <button class="icon-btn" @click="settingsOpen = true" :title="t('settings')" :aria-label="t('settings')"><svg><use href="#i-settings"/></svg></button>
   </footer>
 </nav>
 
@@ -106,7 +110,7 @@
 <main class="content">
 
   <!-- setup / nothing picked yet -->
-  <section class="page narrow" x-show="(setupOpen || !demo) && !inspecting && !inspectError && !runVisible">
+  <section class="page narrow" x-show="(setupOpen || !demo) && !reelOpen && !inspecting && !inspectError && !runVisible">
     <header class="title-block">
       <h1 x-text="ready ? t('blankTitle') : t('setupTitle')"></h1>
       <p x-text="ready ? t('blankBody') : t('setupBody')"></p>
@@ -148,7 +152,7 @@
     <p class="footnote err" x-show="setup.problems?.length" x-text="(setup.problems || []).join('; ')"></p>
   </section>
 
-  <section class="page center" x-show="inspecting && !runVisible">
+  <section class="page center" x-show="inspecting && !runVisible && !reelOpen">
     <div class="placeholder">
       <span class="spinner"></span>
       <h2 x-text="t('reading')"></h2>
@@ -156,7 +160,7 @@
     </div>
   </section>
 
-  <section class="page center" x-show="inspectError && !inspecting && !runVisible && !setupOpen">
+  <section class="page center" x-show="inspectError && !inspecting && !runVisible && !setupOpen && !reelOpen">
     <div class="placeholder">
       <svg class="big-ic warn"><use href="#i-circle-alert"/></svg>
       <h2 x-text="t('cantRead')"></h2>
@@ -166,7 +170,7 @@
   </section>
 
   <!-- match: choose player, rounds, options -->
-  <section class="page match" x-show="demo && !setupOpen && !inspecting && !runVisible">
+  <section class="page match" x-show="demo && !setupOpen && !reelOpen && !inspecting && !runVisible">
     <header class="match-head">
       <img class="radar" x-show="demo" :src="demo ? '/api/radar?map=' + demo.map : ''" alt="" x-on:error="$el.style.display = 'none'">
       <div class="title-block">
@@ -267,8 +271,113 @@
         <small x-text="customRounds ? t('nRounds', { n: chosenRounds.length }) : t('wholeMatch')"></small>
       </div>
       <p class="why-not" x-show="!canStart" x-text="whyNot"></p>
+      <button class="btn reel-btn" @click="openReel(true)"><svg><use href="#i-sparkles"/></svg><span x-text="t('makeReel')"></span></button>
       <button class="btn" x-show="job.state !== 'running'" @click="start(false)" :disabled="!canStart" x-text="t('addQueue')"></button>
       <button class="btn primary" @click="start(true)" :disabled="!canStart" x-text="job.state === 'running' ? t('queueIt', { name: player?.name }) : t('recordShort')"></button>
+    </div>
+  </section>
+
+  <!-- highlight reel: pick demos, player, rounds and order -->
+  <section class="page narrow reel" x-show="reelOpen && !runVisible">
+    <header class="title-block">
+      <h1 x-text="t('reelTitle')"></h1>
+      <p x-text="t('reelBody')"></p>
+    </header>
+
+    <h3 class="group-title" x-text="t('reelName')"></h3>
+    <div class="group"><input class="text-input" x-model="reel.title" @input="reel.titleEdited = true" :aria-label="t('reelName')"></div>
+
+    <div class="group-title with-control"><h3 x-text="t('reelSources')"></h3><span class="hint" x-text="t('reelSourcesHelp')"></span></div>
+    <ul class="group">
+      <template x-for="d in reelRows" :key="d.path">
+        <li class="row">
+          <input type="checkbox" class="check" :id="'src-' + d.path" :checked="!!reelSrc(d.path)" @change="toggleSource(d.path)">
+          <label class="row-main" :for="'src-' + d.path"><b x-text="d.label"></b><small x-text="d.sub"></small></label>
+          <template x-if="reelSrc(d.path)">
+            <span class="src-state">
+              <span class="spinner small" x-show="reelSrc(d.path).loading"></span>
+              <small class="err" x-show="reelSrc(d.path).error" x-text="reelSrc(d.path).error"></small>
+              <small class="muted" x-show="reel.mode === 'same' && reelSrc(d.path).info && !playerIn(reelSrc(d.path).info, reel.steamid)" x-text="t('reelNotIn')"></small>
+              <select class="select" x-show="reel.mode === 'each' && reelSrc(d.path).info" x-model="reelSrc(d.path).steamid" @change="recompute()">
+                <option value="" x-text="t('reelPick')"></option>
+                <template x-for="p in playersOf(reelSrc(d.path).info)" :key="p.steamid">
+                  <option :value="p.steamid" x-text="p.name" :selected="p.steamid === reelSrc(d.path).steamid"></option>
+                </template>
+              </select>
+            </span>
+          </template>
+        </li>
+      </template>
+      <li class="row" x-show="!reelRows.length"><span class="row-main"><small x-text="t('reelEmptySources')"></small></span>
+        <button class="btn" @click="browse()" x-text="t('openFile')"></button></li>
+    </ul>
+
+    <div class="group-title with-control">
+      <h3 x-text="t('reelPlayer')"></h3>
+      <div class="segmented" role="radiogroup" :aria-label="t('reelPlayer')">
+        <button role="radio" :aria-checked="reel.mode === 'same'" @click="setMode('same')" x-text="t('reelSame')"></button>
+        <button role="radio" :aria-checked="reel.mode === 'each'" @click="setMode('each')" x-text="t('reelEach')"></button>
+      </div>
+    </div>
+    <p class="hint below" x-show="reel.mode === 'each'" x-text="t('reelEachHelp')"></p>
+    <div class="group" x-show="reel.mode === 'same'">
+      <div class="row">
+        <select class="select wide" x-model="reel.steamid" @change="recompute()" :disabled="!reelPlayers.length" :aria-label="t('reelPlayer')">
+          <option value="" x-text="t('reelPick')"></option>
+          <template x-for="p in reelPlayers" :key="p.steamid">
+            <option :value="p.steamid" x-text="reel.sources.length > 1 ? t('reelPlayerIn', { name: p.name, n: p.n }) : p.name" :selected="p.steamid === reel.steamid"></option>
+          </template>
+        </select>
+      </div>
+    </div>
+
+    <div class="group-title with-control">
+      <h3 x-text="t('reelItems')"></h3>
+      <span class="hint num" x-show="reel.items.length" x-text="t('reelCount', { n: reel.items.length, s: reelSeconds(reel.items) })"></span>
+    </div>
+    <p class="hint below" x-text="t('reelItemsHelp')"></p>
+    <ul class="group reel-list">
+      <template x-for="(c, i) in reel.items" :key="c.key">
+        <li class="row" draggable="true" @dragstart="dragFrom = i" @dragover.prevent @drop.prevent="dropAt(i)" :class="{ dragging: dragFrom === i, last: i === reel.items.length - 1 }">
+          <svg class="grip"><use href="#i-grip-vertical"/></svg>
+          <span class="idx num" x-text="i + 1"></span>
+          <span class="row-main">
+            <b><span x-text="tagOf(c)"></span><em class="hs" x-show="c.hs" x-text="t('tagHs', { n: c.hs })"></em></b>
+            <small x-text="[c.map, c.name, t('roundN', { r: c.round })].join('  ')"></small>
+          </span>
+          <span class="row-tools">
+            <button class="icon-btn" @click="moveReelItem(i, -1)" :disabled="i === 0" :title="t('up')" :aria-label="t('up')"><svg><use href="#i-chevron-up"/></svg></button>
+            <button class="icon-btn" @click="moveReelItem(i, 1)" :disabled="i === reel.items.length - 1" :title="t('down')" :aria-label="t('down')"><svg><use href="#i-chevron-down"/></svg></button>
+            <button class="icon-btn" @click="removeReelItem(i)" :title="t('remove')" :aria-label="t('remove')"><svg><use href="#i-x"/></svg></button>
+          </span>
+        </li>
+      </template>
+      <li class="row" x-show="!reel.items.length"><span class="row-main"><small x-text="t('reelEmpty')"></small></span></li>
+    </ul>
+
+    <details class="more" x-show="reelOthers.length">
+      <summary x-text="t('reelMore', { n: reelOthers.length })"></summary>
+      <ul class="group">
+        <template x-for="c in reelOthers" :key="c.key">
+          <li class="row">
+            <span class="row-main">
+              <b><span x-text="tagOf(c)"></span><em class="hs" x-show="c.hs" x-text="t('tagHs', { n: c.hs })"></em></b>
+              <small x-text="[c.map, c.name, t('roundN', { r: c.round })].join('  ')"></small>
+            </span>
+            <button class="btn" @click="addReelItem(c)"><svg><use href="#i-plus"/></svg><span x-text="t('add')"></span></button>
+          </li>
+        </template>
+      </ul>
+    </details>
+
+    <div class="toolbar">
+      <div class="who">
+        <b x-text="reel.title || t('reelTitle')"></b>
+        <small x-text="reel.items.length ? t('reelCount', { n: reel.items.length, s: reelSeconds(reel.items) }) : ''"></small>
+      </div>
+      <p class="why-not" x-show="reelWhyNot" x-text="reelWhyNot"></p>
+      <button class="btn" x-show="job.state !== 'running'" @click="startReel(false)" :disabled="!!reelWhyNot" x-text="t('reelQueue')"></button>
+      <button class="btn primary" @click="startReel(true)" :disabled="!!reelWhyNot" x-text="job.state === 'running' ? t('reelQueue') : t('reelMake')"></button>
     </div>
   </section>
 
@@ -287,7 +396,7 @@
             <span class="num"><span x-text="progressPct + '%'"></span>  <span class="muted" x-text="clock(job.elapsed)"></span></span>
           </div>
           <span class="bar big" role="progressbar" :aria-valuenow="progressPct" aria-valuemin="0" aria-valuemax="100"><span :style="'width:' + progressPct + '%'"></span></span>
-          <div class="rounds mini">
+          <div class="rounds mini" x-show="job.kind !== 'reel'">
             <template x-for="r in runRounds" :key="r">
               <span class="round" :aria-pressed="roundDone(r)" x-text="r"></span>
             </template>
@@ -300,7 +409,7 @@
                 <svg x-show="stageClass(s) === 'done'"><use href="#i-check"/></svg>
                 <span class="spinner small" x-show="stageClass(s) === 'now'"></span>
               </span>
-              <span class="row-main"><b x-text="t('stage_' + s)"></b></span>
+              <span class="row-main"><b x-text="stageLabel(s)"></b></span>
               <span class="num muted" x-show="stageClass(s) === 'now' && job.step[1]" x-text="job.step[0] + ' / ' + job.step[1]"></span>
             </li>
           </template>
@@ -333,7 +442,7 @@
             </ul>
           </div>
         </template>
-        <div class="actions left"><button class="link" @click="again()" x-text="t('another')"></button></div>
+        <div class="actions left"><button class="link" @click="again(res.kind === 'reel')" x-text="res.kind === 'reel' ? t('anotherReel') : t('another')"></button></div>
       </div>
     </template>
 
@@ -365,6 +474,38 @@
   <template x-for="m in toasts" :key="m.id">
     <div class="hud-msg"><svg><use href="#i-circle-check"/></svg><span x-text="m.text"></span></div>
   </template>
+</div>
+
+<div class="sheet-backdrop" x-show="settingsOpen" x-cloak @keydown.escape.window="settingsOpen = false" @click.self="settingsOpen = false">
+  <div class="sheet settings-sheet" role="dialog" aria-modal="true" :aria-label="t('settings')">
+    <h2 x-text="t('settings')"></h2>
+    <ul class="group plain">
+      <li class="row">
+        <span class="row-main"><b x-text="t('appearance')"></b></span>
+        <div class="segmented" role="radiogroup" :aria-label="t('appearance')">
+          <button role="radio" :aria-checked="(prefs.appearance || 'auto') === 'auto'" @click="setAppearance('auto')" x-text="t('appAuto')"></button>
+          <button role="radio" :aria-checked="prefs.appearance === 'light'" @click="setAppearance('light')" x-text="t('appLight')"></button>
+          <button role="radio" :aria-checked="prefs.appearance === 'dark'" @click="setAppearance('dark')" x-text="t('appDark')"></button>
+        </div>
+      </li>
+      <li class="row">
+        <span class="row-main"><b x-text="t('accent')"></b><small x-text="t('acc_' + (prefs.accent || 'blue'))"></small></span>
+        <div class="swatches" role="radiogroup" :aria-label="t('accent')">
+          <template x-for="a in accents" :key="a">
+            <button class="swatch" :class="'sw-' + a" role="radio" :aria-checked="(prefs.accent || 'blue') === a" :title="t('acc_' + a)" :aria-label="t('acc_' + a)" @click="setAccent(a)"></button>
+          </template>
+        </div>
+      </li>
+      <li class="row">
+        <span class="row-main"><b x-text="t('language')"></b></span>
+        <div class="segmented" role="radiogroup" :aria-label="t('language')">
+          <button role="radio" :aria-checked="lang === 'zh'" @click="setLang('zh')">中文</button>
+          <button role="radio" :aria-checked="lang === 'en'" @click="setLang('en')">English</button>
+        </div>
+      </li>
+    </ul>
+    <div class="sheet-actions"><button class="btn primary" @click="settingsOpen = false" x-text="t('ok')"></button></div>
+  </div>
 </div>
 
 <div class="sheet-backdrop" x-show="updateOpen && !offline" x-cloak @keydown.escape.window="closeUpdate()">
