@@ -411,7 +411,7 @@ svg { width: 16px; height: 16px; flex: none; fill: none; }
   background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
 .reel-list .row.last .idx { background: var(--accent); color: var(--on-accent); }
 .row-main b .hs { font-style: normal; font-weight: 400; color: var(--label-2); margin-left: 8px; font-size: 12.5px; }
-.row-main small { white-space: pre; }
+.reel-list .row-main small, .more .row-main small { white-space: pre; }
 .row-tools { display: inline-flex; gap: 0; }
 .icon-btn:disabled { opacity: .3; pointer-events: none; }
 .more { margin-top: 14px; }

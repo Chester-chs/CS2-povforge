@@ -116,6 +116,24 @@
       <p x-text="ready ? t('blankBody') : t('setupBody')"></p>
     </header>
 
+    <h3 class="group-title" x-text="t('foldersTitle')"></h3>
+    <ul class="group folders">
+      <li class="row">
+        <span class="status" :class="prefs.folders_set ? 'ok' : 'todo'"><svg x-show="prefs.folders_set"><use href="#i-check"/></svg></span>
+        <span class="row-main"><b x-text="t('demoFolderLabel')"></b><small class="path" x-text="prefs.demo_folders?.[0]" :title="prefs.demo_folders?.[0]"></small></span>
+        <button class="btn" @click="chooseFolder('demos')" x-text="t('change')"></button>
+      </li>
+      <li class="row">
+        <span class="status" :class="prefs.folders_set ? 'ok' : 'todo'"><svg x-show="prefs.folders_set"><use href="#i-check"/></svg></span>
+        <span class="row-main"><b x-text="t('outputFolderLabel')"></b><small class="path" x-text="prefs.output" :title="prefs.output"></small></span>
+        <button class="btn" @click="chooseFolder('output')" x-text="t('change')"></button>
+      </li>
+      <li class="row" x-show="!prefs.folders_set">
+        <span class="row-main"><small x-text="t('foldersHelp')"></small></span>
+        <button class="btn primary" @click="confirmFolders()" x-text="t('useFolders')"></button>
+      </li>
+    </ul>
+
     <h3 class="group-title" x-text="t('setup')"></h3>
     <ul class="group">
       <li class="row">
@@ -495,6 +513,14 @@
             <button class="swatch" :class="'sw-' + a" role="radio" :aria-checked="(prefs.accent || 'blue') === a" :title="t('acc_' + a)" :aria-label="t('acc_' + a)" @click="setAccent(a)"></button>
           </template>
         </div>
+      </li>
+      <li class="row">
+        <span class="row-main"><b x-text="t('demoFolderLabel')"></b><small class="path" x-text="prefs.demo_folders?.[0]" :title="prefs.demo_folders?.[0]"></small></span>
+        <button class="btn" @click="chooseFolder('demos')" x-text="t('change')"></button>
+      </li>
+      <li class="row">
+        <span class="row-main"><b x-text="t('outputFolderLabel')"></b><small class="path" x-text="prefs.output" :title="prefs.output"></small></span>
+        <button class="btn" @click="chooseFolder('output').then(() => openSettings())" x-text="t('change')"></button>
       </li>
       <li class="row">
         <span class="row-main">

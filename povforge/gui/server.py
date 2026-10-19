@@ -50,10 +50,13 @@ def load_prefs() -> dict:
     f = app_dir() / "app.json"
     prefs = {"output": str(default_output()), "demo_folders": [str(Path.home() / "Downloads")],
              "intro": True, "minimap": True, "keyboard": True, "show_enemies": False, "lang": "",
-             "upload": True, "appearance": "auto", "accent": "blue"}
+             "upload": True, "appearance": "auto", "accent": "blue",
+             "folders_set": False}       # first run: the user picks where demos are and where videos go
     if f.exists():
         try:
-            prefs.update(json.loads(f.read_text(encoding="utf-8")))
+            saved = json.loads(f.read_text(encoding="utf-8"))
+            saved.setdefault("folders_set", True)    # set up before this existed: keep their folders
+            prefs.update(saved)
         except Exception:
             pass
     return prefs
@@ -898,6 +901,10 @@ def make_handler(app: App):
                             app.prefs["demo_folders"] = [chosen] + [f for f in app.prefs["demo_folders"]
                                                                       if f != chosen][:4]
                         save_prefs(app.prefs)
+                    return self._json(app.prefs)
+                if url.path == "/api/folders/confirm":
+                    app.prefs["folders_set"] = True
+                    save_prefs(app.prefs)
                     return self._json(app.prefs)
                 if url.path == "/api/prefs":
                     for k in ("intro", "minimap", "keyboard", "show_enemies", "lang", "upload"):

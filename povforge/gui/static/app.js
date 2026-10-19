@@ -10,7 +10,10 @@ const TEXT = {
     reelCount: "{n} 段", roundN: "第 {r} 回合", tagClutch: "1v{n} 残局", tagHs: "{n} 爆头", kills1: "{n} 杀",
     reelMake: "开始制作", reelQueue: "加入队列", reelNeedItems: "至少加一个回合。", up: "上移", down: "下移", add: "加入",
     stage_cut: "剪辑集锦", making: "正在制作 {name}", reelDone: "集锦做好了", anotherReel: "再做一个集锦", reelDefault: "{name} 高光集锦", reelDefaultMany: "高光集锦",
-    reelSummary: "集锦，{n} 段", reelEmptySources: "下载文件夹里还没有 demo。", reelStageRead: "读取 demo（第 {a} / {b} 场）",
+    reelSummary: "集锦，{n} 段", reelEmptySources: "demo 文件夹里还没有 demo。", reelStageRead: "读取 demo（第 {a} / {b} 场）",
+    foldersTitle: "文件夹", demoFolderLabel: "从这里读取 demo", outputFolderLabel: "成片保存到", useFolders: "就用这两个",
+    foldersHelp: "PovForge 会列出 demo 文件夹里的 demo，做好的视频放进保存文件夹。之后可以随时在这里或设置里更改。",
+    hintFolders: "先选择 demo 和成片的文件夹",
     workFiles: "工作文件", workUsed: "占用 {size}", workNone: "没有", open: "打开", clean: "清理", cleanSure: "确定删除？", cleaning: "正在清理…",
     workHelp: "录制时留下的原始画面和中间文件，用来重试、改选项重新出片和再做集锦时直接复用。删掉不影响已经做好的视频，只是以后重做要重新录。",
     cleaned: "已清理 {size}", workBusy: "队列里还有录制任务，录完再清理。",
@@ -39,7 +42,7 @@ const TEXT = {
     ckCs2: "安装 Steam 和 CS2", ckCs2Help: "在 Steam 里安装 Counter-Strike 2，装好后这里会自动变绿。",
     ckTools: "下载录制组件", ckToolsHelp: "点下面的按钮，自动从官方 GitHub 下载 {list}（{size}），不用自己找。", ckToolsDone: "已就绪。",
     ckAc: "退出反作弊客户端", ckAcDone: "FACEIT、5E、完美世界都没有在运行。",
-    ckDemo: "准备一个 demo", ckDemoHelp: "从 FACEIT 比赛房间或 HLTV 下载 demo，放进下载文件夹即可。", ckDemoDone: "下载文件夹里有 {n} 个 demo，在左边选一个。",
+    ckDemo: "准备一个 demo", ckDemoHelp: "从 FACEIT 比赛房间或 HLTV 下载 demo，放进 demo 文件夹即可。", ckDemoDone: "demo 文件夹里有 {n} 个 demo，在左边选一个。",
     offlineTitle: "PovForge 已经关闭", offlineBody: "后台程序已退出。重新打开 PovForge 即可继续。",
     demos: "Demo", refresh: "刷新", lookingIn: "正在看：", noDemos: "这个文件夹里还没有 demo。下载一个 FACEIT 或 HLTV demo，或者手动选择文件。",
     openFile: "选择 demo 文件…", demoFolder: "更换 demo 文件夹…",
@@ -47,7 +50,7 @@ const TEXT = {
     antiCheat: "反作弊", running: "正在运行", closed: "已关闭", installTools: "一键下载录制组件",
     preparing: "准备中…", settingsPending: "上次录制被打断，你的 CS2 设置还没还原。", restoreNow: "立即还原",
     safeNote: "录制不会改动你的 CS2 设置。",
-    blankTitle: "选一个 demo", blankBody: "左边是下载文件夹里的 demo。选好比赛和选手，就能得到这名选手整场的第一人称视频。",
+    blankTitle: "选一个 demo", blankBody: "左边是 demo 文件夹里的 demo。选好比赛和选手，就能得到这名选手整场的第一人称视频。",
     reading: "正在读取 demo", readingBody: "解压并分析比赛，通常需要十几秒。", cantRead: "读不了这个 demo",
     rounds: "回合", minDemo: "分钟", others: "其他",
     pickPlayer: "点一位选手，录他的第一人称视角。", playerPicked: "默认录整场，也可以只选其中几个回合。",
@@ -75,7 +78,10 @@ const TEXT = {
     reelCount: "{n} rounds", roundN: "Round {r}", tagClutch: "1v{n} clutch", tagHs: "{n} HS", kills1: "{n} kill",
     reelMake: "Make the reel", reelQueue: "Add to queue", reelNeedItems: "Add at least one round.", up: "Move up", down: "Move down", add: "Add",
     stage_cut: "Cut the reel", making: "Making {name}", reelDone: "Your reel is ready", anotherReel: "Make another reel", reelDefault: "{name} highlights", reelDefaultMany: "Highlights",
-    reelSummary: "Reel, {n} rounds", reelEmptySources: "No demos in your Downloads folder yet.", reelStageRead: "Read the demo ({a} of {b})",
+    reelSummary: "Reel, {n} rounds", reelEmptySources: "No demos in your demo folder yet.", reelStageRead: "Read the demo ({a} of {b})",
+    foldersTitle: "Folders", demoFolderLabel: "Read demos from", outputFolderLabel: "Save videos to", useFolders: "Use these",
+    foldersHelp: "PovForge lists the demos in the demo folder and puts finished videos in the save folder. You can change them here or in Settings any time.",
+    hintFolders: "Choose your demo and video folders",
     workFiles: "Work files", workUsed: "{size} used", workNone: "None", open: "Open", clean: "Clean up", cleanSure: "Delete them?", cleaning: "Cleaning…",
     workHelp: "Recordings and in-between files, reused when you retry, re-render with other options or make a reel. Deleting them keeps your finished videos; redoing one just means recording again.",
     cleaned: "{size} freed", workBusy: "Recordings are still queued; clean up when they're done.",
@@ -104,7 +110,7 @@ const TEXT = {
     ckCs2: "Install Steam and CS2", ckCs2Help: "Install Counter-Strike 2 in Steam; this turns green once it's found.",
     ckTools: "Download the recording add-on", ckToolsHelp: "Click the button and {list} is downloaded from its official GitHub page ({size}).", ckToolsDone: "Ready.",
     ckAc: "Quit anti-cheat clients", ckAcDone: "FACEIT, 5E and Perfect World aren't running.",
-    ckDemo: "Get a demo", ckDemoHelp: "Download a demo from a FACEIT match room or HLTV into your Downloads folder.", ckDemoDone: "{n} demos in your Downloads folder; pick one on the left.",
+    ckDemo: "Get a demo", ckDemoHelp: "Download a demo from a FACEIT match room or HLTV into your demo folder.", ckDemoDone: "{n} demos in your demo folder; pick one on the left.",
     offlineTitle: "PovForge has closed", offlineBody: "The background program stopped. Open PovForge again to carry on.",
     demos: "Demos", refresh: "Refresh", lookingIn: "Looking in", noDemos: "No demos in this folder yet. Download a FACEIT or HLTV demo, or choose a file.",
     openFile: "Choose a demo file…", demoFolder: "Change demo folder…",
@@ -112,7 +118,7 @@ const TEXT = {
     antiCheat: "Anti-cheat", running: "running", closed: "Closed", installTools: "Download the recording add-on",
     preparing: "Preparing…", settingsPending: "A recording was interrupted and your CS2 settings aren't restored yet.", restoreNow: "Restore now",
     safeNote: "Recording never changes your CS2 settings.",
-    blankTitle: "Pick a demo to start", blankBody: "Demos from your Downloads folder are listed on the left. Choose a match and a player to get their full first-person video.",
+    blankTitle: "Pick a demo to start", blankBody: "Demos from your demo folder are listed on the left. Choose a match and a player to get their full first-person video.",
     reading: "Reading the demo", readingBody: "Unpacking and analysing the match usually takes a few seconds.", cantRead: "Can't read this demo",
     rounds: "rounds", minDemo: "min", others: "Others",
     pickPlayer: "Click a player to record their first-person view.", playerPicked: "The whole match is recorded unless you pick rounds.",
@@ -343,6 +349,7 @@ document.addEventListener("alpine:init", () => {
       else this.toast(this.t("queuedNote", { name: body.title }));
     },
     get setupHint() {
+      if (!this.prefs.folders_set) return this.t("hintFolders");
       if (!this.setup.cs2 && !this.setup.placeholder) return this.t("hintCs2");
       if (!this.setup.hlae || !this.setup.ffmpeg) return this.t("hintTools");
       if (this.setup.anticheat?.length) return this.t("hintAc");
@@ -381,6 +388,7 @@ document.addEventListener("alpine:init", () => {
       const r = await this.post("/api/browse");
       if (r.path) this.pickDemo(r.path);
     },
+    async confirmFolders() { this.prefs = await this.post("/api/folders/confirm"); this.loadDemos(); },
     async chooseFolder(which) {
       this.prefs = await this.post("/api/folder", { which });
       if (which === "demos") this.loadDemos();
@@ -405,8 +413,9 @@ document.addEventListener("alpine:init", () => {
       const m = this.missingTools;
       return this.t("ckToolsHelp", { list: m.join(this.lang === "zh" ? " 和 " : " and "), size: m.includes("FFmpeg") ? "~100 MB" : "~10 MB" });
     },
-    get ready() { return !!((this.setup.cs2 || this.setup.placeholder) && this.setup.hlae && this.setup.ffmpeg && !this.setup.anticheat?.length); },
+    get ready() { return !!(this.prefs.folders_set && (this.setup.cs2 || this.setup.placeholder) && this.setup.hlae && this.setup.ffmpeg && !this.setup.anticheat?.length); },
     get whyNotSetup() {
+      if (!this.prefs.folders_set) return this.t("hintFolders");
       if (this.setup.placeholder) return "";
       if (!this.setup.windows) return this.t("needWindows");
       if (!this.setup.hlae || !this.setup.ffmpeg) return this.t("needTools");

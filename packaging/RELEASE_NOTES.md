@@ -1,4 +1,9 @@
-**What's new in v0.9.1 / 本次更新**
+**What's new in v0.9.2 / 本次更新**
+
+- First run asks where your demos are and where finished videos should go (both can be changed later on the setup page or in Settings).
+  第一次打开时先选择 demo 所在的文件夹和成片保存的位置（之后可在准备页或设置里更改）。
+
+**v0.9.1**
 
 - Highlight reels keep each round unbroken, from 4 s before its first kill to 1.5 s after its last; nothing in between is cut.
   高光集锦每个回合完整保留：从第一个击杀前 4 秒连续到最后一个击杀后 1.5 秒，中间不剪。

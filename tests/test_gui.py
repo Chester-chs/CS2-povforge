@@ -215,3 +215,13 @@ def test_clean_work_only_removes_the_work_folder(tmp_path):
 def test_config_and_app_agree_on_the_work_folder():
     from povforge.config import Config
     assert Config().work_dir_name == server.WORK_DIR_NAME
+
+
+def test_first_run_asks_for_folders_but_old_installs_keep_theirs(tmp_path, monkeypatch):
+    import json
+    monkeypatch.setenv("POVFORGE_STATE", str(tmp_path))
+    assert server.load_prefs()["folders_set"] is False            # brand new
+    server.app_dir().mkdir(parents=True)
+    (server.app_dir() / "app.json").write_text(json.dumps({"output": "D:/v"}), encoding="utf-8")
+    p = server.load_prefs()
+    assert p["folders_set"] is True and p["output"] == "D:/v"     # set up by an older version
