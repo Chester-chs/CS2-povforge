@@ -1,9 +1,11 @@
-**What's new in v0.8.3 / 本次更新**
+**What's new in v0.8.4 / 本次更新**
 
-FFmpeg now comes inside the installer, so the first-run setup only downloads HLAE (about 10 MB).
-FFmpeg 已内置进安装包，第一次使用只需一键下载 HLAE（约 10 MB）。
-
-v0.8.2: new look built on [Basecoat UI](https://github.com/hunvreus/basecoat). 界面基于 Basecoat UI 重做。
+- Fixed: the installed app couldn't read demos ("No module named 'polars'"). The build now includes the libraries demoparser2 needs, and the build check reads them.
+  修复：安装版读不了 demo（"No module named 'polars'"）。打包时漏了 demoparser2 需要的库，现已补上，并加入构建检查。
+- New look following Apple's design guidelines: follows Windows light/dark mode, sidebar plus grouped lists, segmented control for whole match or picked rounds, switches, a bottom toolbar. The setup panel only shows up when something needs doing.
+  界面按苹果设计规范重做：跟随系统浅色/深色模式，侧边栏加分组列表，"整场/选择回合"分段控件，开关和底部工具栏；准备工作只在有事要做时才出现。
+- FFmpeg is built in; first-time setup only downloads HLAE (about 10 MB).
+  FFmpeg 已内置，第一次只需下载 HLAE（约 10 MB）。
 
 **Windows / Windows 程序**
 

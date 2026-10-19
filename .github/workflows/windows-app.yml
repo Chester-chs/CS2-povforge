@@ -76,6 +76,7 @@ jobs:
           $dir = "packaging/dist/PovForge"
           $doc = (& "$dir/povforge-cli.exe" doctor | Out-String)
           Write-Host $doc
+          if (-not ($doc -match "OK  \] demoparser2")) { throw "demoparser2 can't load its tables (polars/pyarrow missing from the build)" }
           if (-not ($doc -match "PovForge[\\/]ffmpeg[\\/]ffmpeg\.exe")) { throw "the app does not use its bundled FFmpeg" }
           & "$dir/povforge-cli.exe" --help
           if ($LASTEXITCODE -ne 0) { throw "povforge-cli.exe --help failed" }

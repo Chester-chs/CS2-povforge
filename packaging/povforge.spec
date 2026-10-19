@@ -2,15 +2,27 @@
 # (command line, povforge-cli.exe), sharing the same libraries. The names must
 # differ by more than case: Windows file names ignore case. Run from the repo root:
 #   pyinstaller packaging/povforge.spec
-from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
+from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_dynamic_libs
 
 datas = collect_data_files("povforge", includes=["director.js", "gui/static/**/*"])
 datas += collect_data_files("playwright")          # the browser driver used for the FACEIT screenshot
 binaries = collect_dynamic_libs("demoparser2")
 hidden = ["povforge.gui.server", "povforge.cli", "povforge.app"]
 
+# demoparser2 is a compiled extension that imports polars and pyarrow at run time
+# (to build its tables), so PyInstaller can't see them: collect them explicitly.
+# polars 1.3x+ keeps its compiled core in a separate _polars_runtime_* package.
+for pkg in ("polars", "_polars_runtime_32", "_polars_runtime_64", "_polars_runtime_compat", "pyarrow"):
+    try:
+        d, b, h = collect_all(pkg)
+    except Exception:
+        continue
+    datas += [x for x in d if not any(k in x[1].replace("\\", "/") for k in ("pyarrow/include", "pyarrow/src", "pyarrow/tests"))]
+    binaries += b
+    hidden += [m for m in h if ".tests" not in m]
+
 common = dict(pathex=["."], binaries=binaries, datas=datas, hiddenimports=hidden,
-              excludes=["matplotlib", "IPython", "pytest"])
+              excludes=["matplotlib", "IPython", "pytest", "scipy", "pyarrow.tests"])
 
 a_app = Analysis(["app_main.py"], **common)
 a_cli = Analysis(["cli_main.py"], **common)

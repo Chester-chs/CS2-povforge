@@ -78,11 +78,12 @@ def _cmd_doctor(args, cfg) -> None:
         print(f"[{mark}] {what}" + (f": {detail}" if detail else ""))
 
     line(sys.version_info >= (3, 11), "Python", sys.version.split()[0])
-    try:
-        importlib.import_module("demoparser2")
-        line(True, "demoparser2")
-    except ImportError:
-        line(False, "demoparser2", "pip install demoparser2")
+    try:  # demoparser2 also needs polars and pyarrow at run time to hand back tables
+        for mod in ("demoparser2", "polars", "pyarrow"):
+            importlib.import_module(mod)
+        line(True, "demoparser2", "with polars and pyarrow")
+    except ImportError as e:
+        line(False, "demoparser2", f"{e} (pip install demoparser2 polars pyarrow)")
     try:
         importlib.import_module("playwright.sync_api")
         line(True, "Playwright", "FACEIT intro screenshot")

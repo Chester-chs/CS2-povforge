@@ -2,7 +2,10 @@
 
 const TEXT = {
   zh: {
-    playerCol: "选手", readyAll: "就绪", notReady: "未就绪", pickTitle: "选择选手", roundsHelp: "点回合格子可以取消或加回，默认录整场。",
+    povOf: "{name} 的第一人称视角",
+    finishSetup: "完成准备工作", hintCs2: "没找到 CS2", hintTools: "需要下载录制组件", hintAc: "请先退出反作弊客户端",
+    someRounds: "选择回合", won: "胜", change: "更改…", failedTitle: "录制没有完成", notDemo: "这不是 CS2 的 demo 文件（.dem、.dem.zst、.dem.gz）。",
+    playerCol: "选手", readyAll: "就绪", notReady: "未就绪", pickTitle: "选择选手", roundsHelp: "点一下选中或取消。小点是击杀数，红线表示这回合阵亡。",
     legendPicked: "要录", optsTitle: "成片内容", recordShort: "开始录制",
     optIntroHelp: "FACEIT 计分板截图和比赛时间", optMinimapHelp: "左上角雷达和队友位置",
     optKeyboardHelp: "画面下方显示按键和鼠标", optEnemiesHelp: "雷达上也画出敌人",
@@ -13,7 +16,7 @@ const TEXT = {
     optHighlights: "精华版", optUpload: "封面和简介", stage_extras: "生成精华版、封面和简介",
     playHighlights: "播放精华版", titleLabel: "投稿标题", copy: "复制", copied: "已复制", openDesc: "打开简介和章节",
     updateAvail: "有新版本 v{v}", download: "下载",
-    setupTitle: "先准备一下录制环境", setupBody: "第一次用需要这几步，之后打开就能直接录。",
+    setupTitle: "开始之前", setupBody: "录制前需要准备好下面几项，只需要做一次。",
     ckCs2: "安装 Steam 和 CS2", ckCs2Help: "在 Steam 里安装 Counter-Strike 2，装好后这里会自动变绿。",
     ckTools: "下载录制组件", ckToolsHelp: "点下面的按钮，自动从官方 GitHub 下载 {list}（{size}），不用自己找。", ckToolsDone: "已就绪。",
     ckAc: "退出反作弊客户端", ckAcDone: "FACEIT、5E、完美世界都没有在运行。",
@@ -21,14 +24,14 @@ const TEXT = {
     offlineTitle: "PovForge 已经关闭", offlineBody: "后台程序已退出。重新打开 PovForge 即可继续。",
     demos: "Demo", refresh: "刷新", lookingIn: "正在看：", noDemos: "这个文件夹里还没有 demo。下载一个 FACEIT 或 HLTV demo，或者手动选择文件。",
     openFile: "选择 demo 文件…", demoFolder: "更换 demo 文件夹…",
-    setup: "录制环境", found: "已就绪", cs2Missing: "没找到，请先在 Steam 安装", notInstalled: "未安装",
+    setup: "准备工作", found: "已就绪", cs2Missing: "没找到，请先在 Steam 安装", notInstalled: "未安装",
     antiCheat: "反作弊", running: "正在运行", closed: "已关闭", installTools: "一键下载录制组件",
     preparing: "准备中…", settingsPending: "上次录制被打断，你的 CS2 设置还没还原。", restoreNow: "立即还原",
     safeNote: "录制不会改动你的 CS2 设置。",
-    blankTitle: "选一个 demo 开始", blankBody: "左边列出了下载文件夹里的 demo。选好比赛和选手，就能得到这个人的完整第一人称视频。",
+    blankTitle: "选一个 demo", blankBody: "左边是下载文件夹里的 demo。选好比赛和选手，就能得到这名选手整场的第一人称视频。",
     reading: "正在读取 demo", readingBody: "解压并分析比赛，通常需要十几秒。", cantRead: "读不了这个 demo",
     rounds: "回合", minDemo: "分钟", others: "其他",
-    pickPlayer: "点一位选手，录他的第一人称视角。", playerPicked: "已选好选手。可以在下面挑回合，默认整场。",
+    pickPlayer: "点一位选手，录他的第一人称视角。", playerPicked: "默认录整场，也可以只选其中几个回合。",
     roundsTitle: "要录的回合", all: "全选", none: "清空",
     legendKill: "这回合的击杀", legendDied: "这回合阵亡",
     optIntro: "片头", optMinimap: "小地图", optKeyboard: "键鼠显示", optEnemies: "小地图显示敌人",
@@ -45,7 +48,10 @@ const TEXT = {
     keep: "CS2 会在录完后自己关闭，期间别用电脑玩游戏。",
   },
   en: {
-    playerCol: "Player", readyAll: "Ready", notReady: "Not ready", pickTitle: "Choose a player", roundsHelp: "Click a round to leave it out or add it back; the whole match is the default.",
+    povOf: "{name}'s first-person view",
+    finishSetup: "Finish setting up", hintCs2: "CS2 not found", hintTools: "Recording add-on needed", hintAc: "Quit the anti-cheat client",
+    someRounds: "Pick rounds", won: "Won", change: "Change…", failedTitle: "The recording didn't finish", notDemo: "Not a CS2 demo file (.dem, .dem.zst, .dem.gz).",
+    playerCol: "Player", readyAll: "Ready", notReady: "Not ready", pickTitle: "Choose a player", roundsHelp: "Click to select or clear. Dots are kills; a red line means they died.",
     legendPicked: "to record", optsTitle: "What goes in the video", recordShort: "Start recording",
     optIntroHelp: "FACEIT scoreboard and match time", optMinimapHelp: "Radar with teammates, top left",
     optKeyboardHelp: "Keys and mouse along the bottom", optEnemiesHelp: "Draw enemies on the radar too",
@@ -56,7 +62,7 @@ const TEXT = {
     optHighlights: "Highlights cut", optUpload: "Cover and description", stage_extras: "Make highlights, cover and description",
     playHighlights: "Play highlights", titleLabel: "Upload title", copy: "Copy", copied: "Copied", openDesc: "Open description and chapters",
     updateAvail: "Version v{v} is out", download: "Download",
-    setupTitle: "Set up recording first", setupBody: "These steps are needed once; after that you can record straight away.",
+    setupTitle: "Before you start", setupBody: "Recording needs the things below. You only do this once.",
     ckCs2: "Install Steam and CS2", ckCs2Help: "Install Counter-Strike 2 in Steam; this turns green once it's found.",
     ckTools: "Download the recording add-on", ckToolsHelp: "Click the button and {list} is downloaded from its official GitHub page ({size}).", ckToolsDone: "Ready.",
     ckAc: "Quit anti-cheat clients", ckAcDone: "FACEIT, 5E and Perfect World aren't running.",
@@ -64,14 +70,14 @@ const TEXT = {
     offlineTitle: "PovForge has closed", offlineBody: "The background program stopped. Open PovForge again to carry on.",
     demos: "Demos", refresh: "Refresh", lookingIn: "Looking in", noDemos: "No demos in this folder yet. Download a FACEIT or HLTV demo, or choose a file.",
     openFile: "Choose a demo file…", demoFolder: "Change demo folder…",
-    setup: "Recording setup", found: "Ready", cs2Missing: "Not found, install it in Steam", notInstalled: "Not installed",
+    setup: "Setup", found: "Ready", cs2Missing: "Not found, install it in Steam", notInstalled: "Not installed",
     antiCheat: "Anti-cheat", running: "running", closed: "Closed", installTools: "Download the recording add-on",
     preparing: "Preparing…", settingsPending: "A recording was interrupted and your CS2 settings aren't restored yet.", restoreNow: "Restore now",
     safeNote: "Recording never changes your CS2 settings.",
     blankTitle: "Pick a demo to start", blankBody: "Demos from your Downloads folder are listed on the left. Choose a match and a player to get their full first-person video.",
     reading: "Reading the demo", readingBody: "Unpacking and analysing the match usually takes a few seconds.", cantRead: "Can't read this demo",
     rounds: "rounds", minDemo: "min", others: "Others",
-    pickPlayer: "Click a player to record their first-person view.", playerPicked: "Player chosen. Pick rounds below, or keep the whole match.",
+    pickPlayer: "Click a player to record their first-person view.", playerPicked: "The whole match is recorded unless you pick rounds.",
     roundsTitle: "Rounds to record", all: "All", none: "None",
     legendKill: "kill this round", legendDied: "died this round",
     optIntro: "Intro", optMinimap: "Minimap", optKeyboard: "Keys and mouse", optEnemies: "Enemies on minimap",
@@ -93,7 +99,11 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("povforge", () => ({
     version: "", lang: "zh", prefs: {}, setup: {}, job: { state: "idle", lines: [], recorded: [], planned: [], step: [0, 0] },
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
-    player: null, chosenRounds: [], lastRun: null,
+    player: null, chosenRounds: [], lastRun: null, setupOpen: false, customRounds: false, lastPath: "",
+    options: [
+      { key: "intro", label: "optIntro" }, { key: "minimap", label: "optMinimap" }, { key: "keyboard", label: "optKeyboard" },
+      { key: "show_enemies", label: "optEnemies" }, { key: "highlights", label: "optHighlights" }, { key: "upload", label: "optUpload" },
+    ],
     stages: ["read", "record", "overlays", "intro", "compose", "extras"],
     queue: { items: [], paused: false }, update: null, showRun: false, viewId: null, toasts: [], toastSeq: 0,
 
@@ -103,6 +113,7 @@ document.addEventListener("alpine:init", () => {
       this.showRun = this.job.state === "running";
       this.lang = this.prefs.lang || (navigator.language.startsWith("zh") ? "zh" : "en");
       document.documentElement.lang = this.lang === "zh" ? "zh-CN" : "en";
+      this.setupOpen = !this.ready;
       this.loadDemos();
       const tick = async () => {
         try {
@@ -123,7 +134,15 @@ document.addEventListener("alpine:init", () => {
       for (const [k, v] of Object.entries(vars)) s = s.replace("{" + k + "}", v);
       return s;
     },
-    toggleLang() { this.lang = this.lang === "zh" ? "en" : "zh"; this.prefs.lang = this.lang; this.savePrefs(); document.documentElement.lang = this.lang === "zh" ? "zh-CN" : "en"; },
+    setLang(l) { if (l === this.lang) return; this.lang = l; this.prefs.lang = l; this.savePrefs(); document.documentElement.lang = l === "zh" ? "zh-CN" : "en"; },
+    openSetup() { this.setupOpen = true; this.showRun = false; },
+    get setupHint() {
+      if (!this.setup.cs2 && !this.setup.placeholder) return this.t("hintCs2");
+      if (!this.setup.hlae || !this.setup.ffmpeg) return this.t("hintTools");
+      if (this.setup.anticheat?.length) return this.t("hintAc");
+      return "";
+    },
+    setCustom(on) { this.customRounds = on; if (!on) this.allRounds(); },
 
     async get(url) { const r = await fetch(url); return r.json(); },
     async post(url, body = {}) {
@@ -141,14 +160,14 @@ document.addEventListener("alpine:init", () => {
     async loadDemos() { this.demos = await this.get("/api/demos"); this.demosLoaded = true; },
 
     async pickDemo(path) {
-      this.showRun = false;
+      this.showRun = false; this.setupOpen = false; this.customRounds = false; this.lastPath = path;
       this.inspecting = true; this.inspectError = ""; this.demo = null; this.player = null;
       try {
         this.demo = await this.post("/api/inspect", { path });
         this.loadDemos();  // the list now knows this demo's map
         this.chosenRounds = this.roundList.slice();
       } catch (e) {
-        this.inspectError = e.message === "not_a_demo" ? "Not a CS2 demo file (.dem, .dem.zst, .dem.gz)." : e.message;
+        this.inspectError = e.message === "not_a_demo" ? this.t("notDemo") : e.message;
       }
       this.inspecting = false;
     },
@@ -180,7 +199,7 @@ document.addEventListener("alpine:init", () => {
       const m = this.missingTools;
       return this.t("ckToolsHelp", { list: m.join(this.lang === "zh" ? " 和 " : " and "), size: m.includes("FFmpeg") ? "~100 MB" : "~10 MB" });
     },
-    get ready() { return !!(this.setup.cs2 && this.setup.hlae && this.setup.ffmpeg && !this.setup.anticheat?.length); },
+    get ready() { return !!((this.setup.cs2 || this.setup.placeholder) && this.setup.hlae && this.setup.ffmpeg && !this.setup.anticheat?.length); },
     get whyNot() {
       if (this.setup.placeholder) return this.chosenRounds.length ? "" : this.t("needRounds");
       if (!this.setup.windows) return this.t("needWindows");
@@ -211,6 +230,7 @@ document.addEventListener("alpine:init", () => {
     async clearQueue() { this.queue = await this.post("/api/queue/clear"); },
     async resumeQueue() { this.queue = await this.post("/api/queue/resume"); },
     openItem(it) {
+      this.setupOpen = false;
       this.viewId = it.state === "running" ? null : it.id;
       this.showRun = true;
     },
@@ -277,7 +297,7 @@ document.addEventListener("alpine:init", () => {
       const r = this.res;
       const item = this.queue.items.find(i => i.id === (this.viewingItem ? this.viewId : this.job.item));
       const map = item?.map || "";
-      if (r.state === "running") return (map ? map + " · " : "") + this.t("keep");
+      if (r.state === "running") return [map, item ? (item.rounds.length ? this.t("nRounds", { n: item.rounds.length }) : this.t("wholeMatch")) : ""].filter(Boolean).join(" · ");
       return [r.player, map].filter(Boolean).join(" · ");
     },
     stageClass(s) {
