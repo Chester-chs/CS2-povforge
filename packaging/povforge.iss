@@ -1,6 +1,6 @@
 ; Inno Setup script for the PovForge installer (https://jrsoftware.org/isinfo.php).
 ; Built by .github/workflows/windows-app.yml:
-;   iscc /DAppVersion=0.8.4 packaging\povforge.iss
+;   iscc /DAppVersion=0.8.5 packaging\povforge.iss
 ; Installs for the current user only (no admin rights), adds a desktop icon and
 ; a Start menu entry, and registers an uninstaller.
 
@@ -60,3 +60,12 @@ Name: "{autoprograms}\PovForge"; Filename: "{app}\PovForge.exe"; WorkingDir: "{a
 
 [Run]
 Filename: "{app}\PovForge.exe"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent
+; in-app update: the app runs this installer with /SILENT /update=1 and quits;
+; open the new version when the install is done
+Filename: "{app}\PovForge.exe"; Flags: nowait; Check: IsAppUpdate
+
+[Code]
+function IsAppUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:update|0}') = '1';
+end;

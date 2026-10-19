@@ -122,6 +122,15 @@ jobs:
           $menu = [Environment]::GetFolderPath("Programs")
           if (-not (Test-Path "$menu\PovForge.lnk")) { throw "no Start menu entry" }
           Write-Host "Installed OK: $app, desktop and Start menu shortcuts"
+          # in-app update path: install over the top quietly, the new app must open by itself
+          $p = Start-Process ./PovForge-Setup.exe -ArgumentList "/SILENT","/SUPPRESSMSGBOXES","/NORESTART","/update=1" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "update install failed: $($p.ExitCode)" }
+          $opened = $null
+          for ($i = 0; $i -lt 20 -and -not $opened; $i++) { Start-Sleep 1; $opened = Get-Process PovForge -ErrorAction SilentlyContinue }
+          if (-not $opened) { throw "PovForge did not reopen after the update install" }
+          Write-Host "Update install reopened PovForge (pid $($opened.Id))"
+          Get-Process PovForge, msedge -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep 2
           Start-Process "$env:LOCALAPPDATA\Programs\PovForge\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait
           for ($i = 0; $i -lt 30 -and (Test-Path $app); $i++) { Start-Sleep 1 }
           if (Test-Path $app) { throw "uninstall left the app behind" }

@@ -32,7 +32,7 @@
 
 FFmpeg（视频编码工具）已经内置在软件里。第一次使用时点 **一键下载录制组件**，会从官方 GitHub 发布页下载 HLAE（约 10 MB）到 `%LOCALAPPDATA%\povforge\tools`；HLAE 要跟着 CS2 更新，所以不打包进安装包。需要已安装 Steam 和 CS2。视频默认保存到 `视频\PovForge`（可以更改）。
 
-新版本直接覆盖安装，设置会保留；卸载在 Windows 设置 → 应用里。另有免安装的 `PovForge-windows.zip`。命令行里运行 `povforge gui` 也能打开同一个窗口。
+更新：点左下角 **检查更新**，软件会下载新版安装包、校验后安装并自动重新打开。新版本直接覆盖安装，设置会保留；卸载在 Windows 设置 → 应用里。另有免安装的 `PovForge-windows.zip`。命令行里运行 `povforge gui` 也能打开同一个窗口。
 
 ## 工作原理
 

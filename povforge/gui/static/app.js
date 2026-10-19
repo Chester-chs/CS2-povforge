@@ -2,6 +2,11 @@
 
 const TEXT = {
   zh: {
+    checkUpdate: "检查更新", upChecking: "正在检查更新…", upCurrent: "已是最新版本", upCurrentBody: "PovForge {v} 是目前最新的版本。",
+    upAvailable: "PovForge {v} 可以更新了", upYouHave: "你现在用的是 {v}。", upInstall: "更新并重新打开", upOpenPage: "去下载页面",
+    upDownloading: "正在下载 PovForge {v}", upMb: "{a} / {b} MB", upInstalling: "正在安装…",
+    upInstallingBody: "PovForge 会关闭，装好后自动重新打开，设置都会保留。", upError: "更新没有完成", upBusy: "正在录制，录完再更新。",
+    later: "以后再说", ok: "好", close: "关闭",
     povOf: "{name} 的第一人称视角",
     finishSetup: "完成准备工作", hintCs2: "没找到 CS2", hintTools: "需要下载录制组件", hintAc: "请先退出反作弊客户端",
     someRounds: "选择回合", won: "胜", change: "更改…", failedTitle: "录制没有完成", notDemo: "这不是 CS2 的 demo 文件（.dem、.dem.zst、.dem.gz）。",
@@ -15,7 +20,7 @@ const TEXT = {
     st_queued: "排队中", st_running: "录制中", st_done: "完成", st_error: "失败", st_cancelled: "已停止",
     optHighlights: "精华版", optUpload: "封面和简介", stage_extras: "生成精华版、封面和简介",
     playHighlights: "播放精华版", titleLabel: "投稿标题", copy: "复制", copied: "已复制", openDesc: "打开简介和章节",
-    updateAvail: "有新版本 v{v}", download: "下载",
+    updateAvail: "更新到 {v}", download: "下载",
     setupTitle: "开始之前", setupBody: "录制前需要准备好下面几项，只需要做一次。",
     ckCs2: "安装 Steam 和 CS2", ckCs2Help: "在 Steam 里安装 Counter-Strike 2，装好后这里会自动变绿。",
     ckTools: "下载录制组件", ckToolsHelp: "点下面的按钮，自动从官方 GitHub 下载 {list}（{size}），不用自己找。", ckToolsDone: "已就绪。",
@@ -48,6 +53,11 @@ const TEXT = {
     keep: "CS2 会在录完后自己关闭，期间别用电脑玩游戏。",
   },
   en: {
+    checkUpdate: "Check for updates", upChecking: "Checking for updates…", upCurrent: "You're up to date", upCurrentBody: "PovForge {v} is the latest version.",
+    upAvailable: "PovForge {v} is available", upYouHave: "You have {v}.", upInstall: "Update and reopen", upOpenPage: "Open download page",
+    upDownloading: "Downloading PovForge {v}", upMb: "{a} of {b} MB", upInstalling: "Installing…",
+    upInstallingBody: "PovForge will close and open again when the update is installed. Your settings are kept.", upError: "The update didn't finish", upBusy: "A recording is running; update when it's done.",
+    later: "Later", ok: "OK", close: "Close",
     povOf: "{name}'s first-person view",
     finishSetup: "Finish setting up", hintCs2: "CS2 not found", hintTools: "Recording add-on needed", hintAc: "Quit the anti-cheat client",
     someRounds: "Pick rounds", won: "Won", change: "Change…", failedTitle: "The recording didn't finish", notDemo: "Not a CS2 demo file (.dem, .dem.zst, .dem.gz).",
@@ -61,7 +71,7 @@ const TEXT = {
     st_queued: "Waiting", st_running: "Recording", st_done: "Done", st_error: "Failed", st_cancelled: "Stopped",
     optHighlights: "Highlights cut", optUpload: "Cover and description", stage_extras: "Make highlights, cover and description",
     playHighlights: "Play highlights", titleLabel: "Upload title", copy: "Copy", copied: "Copied", openDesc: "Open description and chapters",
-    updateAvail: "Version v{v} is out", download: "Download",
+    updateAvail: "Update to {v}", download: "Download",
     setupTitle: "Before you start", setupBody: "Recording needs the things below. You only do this once.",
     ckCs2: "Install Steam and CS2", ckCs2Help: "Install Counter-Strike 2 in Steam; this turns green once it's found.",
     ckTools: "Download the recording add-on", ckToolsHelp: "Click the button and {list} is downloaded from its official GitHub page ({size}).", ckToolsDone: "Ready.",
@@ -99,6 +109,7 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("povforge", () => ({
     version: "", lang: "zh", prefs: {}, setup: {}, job: { state: "idle", lines: [], recorded: [], planned: [], step: [0, 0] },
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
+    updateOpen: false, updatingAway: false, upd: { state: "idle" },
     player: null, chosenRounds: [], lastRun: null, setupOpen: false, customRounds: false, lastPath: "",
     options: [
       { key: "intro", label: "optIntro" }, { key: "minimap", label: "optMinimap" }, { key: "keyboard", label: "optKeyboard" },
@@ -119,11 +130,13 @@ document.addEventListener("alpine:init", () => {
         try {
           if (this.job.state === "running") { const j = await this.get("/api/job"); this.queue = j.queue; this.job = j; }
           else await this.refresh();
+          if (this.updateOpen && ["downloading", "installing"].includes(this.upd.state)) this.upd = await this.get("/api/update");
           this.failures = 0; this.offline = false;
         } catch (e) {
           if (++this.failures >= 3) this.offline = true;
+          if (this.upd.state === "installing") { this.updatingAway = true; try { window.close(); } catch (_) {} }
         }
-        setTimeout(tick, this.job.state === "running" ? 1000 : 2500);
+        setTimeout(tick, this.job.state === "running" || this.updateOpen ? 1000 : 2500);
       };
       setTimeout(tick, 1000);
       this.$watch("job.lines", () => this.$nextTick(() => { const el = this.$refs.log; if (el) el.scrollTop = el.scrollHeight; }));
@@ -135,6 +148,30 @@ document.addEventListener("alpine:init", () => {
       return s;
     },
     setLang(l) { if (l === this.lang) return; this.lang = l; this.prefs.lang = l; this.savePrefs(); document.documentElement.lang = l === "zh" ? "zh-CN" : "en"; },
+    async openUpdate(check) {
+      this.updateOpen = true;
+      if (check || !this.update) {
+        this.upd = { state: "checking" };
+        try { this.upd = await this.post("/api/update/check"); }
+        catch (e) { this.upd = { state: "error", error: e.message }; }
+        if (this.upd.state === "available") this.update = this.upd.info;
+      } else {
+        this.upd = { state: "available", info: this.update, can_install: true };
+        this.get("/api/update").then(s => { if (s.state === "available" || s.state === "idle") this.upd = { ...s, state: "available", info: s.info || this.update }; });
+      }
+    },
+    async installUpdate() {
+      try { this.upd = await this.post("/api/update/install"); }
+      catch (e) { this.upd = { state: "error", error: e.message }; }
+    },
+    closeUpdate() { if (!["downloading", "installing"].includes(this.upd.state)) this.updateOpen = false; },
+    // the release notes are written in both languages, a line each; show the reader's
+    get notesText() {
+      const cjk = /[\u3400-\u9fff]/, zh = this.lang === "zh";
+      const lines = (this.upd.info?.notes || "").split("\n").filter(l => !l.trim() || cjk.test(l) === zh)
+        .map(l => (/^\s{2,}\S/.test(l) ? "• " : "") + l.trim().replace(/^- /, "• "));
+      return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    },
     openSetup() { this.setupOpen = true; this.showRun = false; },
     get setupHint() {
       if (!this.setup.cs2 && !this.setup.placeholder) return this.t("hintCs2");

@@ -1,5 +1,7 @@
-**What's new in v0.8.4 / 本次更新**
+**What's new in v0.8.5 / 本次更新**
 
+- Check for updates inside the app (bottom left): it downloads the new installer, checks it against the release's SHA-256, installs quietly and reopens PovForge. Settings are kept.
+  软件内检查更新（左下角）：自动下载新版安装包、核对 SHA-256、静默安装并重新打开，设置保留。
 - Fixed: the installed app couldn't read demos ("No module named 'polars'"). The build now includes the libraries demoparser2 needs, and the build check reads them.
   修复：安装版读不了 demo（"No module named 'polars'"）。打包时漏了 demoparser2 需要的库，现已补上，并加入构建检查。
 - New look following Apple's design guidelines: follows Windows light/dark mode, sidebar plus grouped lists, segmented control for whole match or picked rounds, switches, a bottom toolbar. The setup panel only shows up when something needs doing.

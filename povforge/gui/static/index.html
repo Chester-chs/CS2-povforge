@@ -90,8 +90,11 @@
   </div>
 
   <footer class="side-foot">
-    <button class="link small" x-show="update" x-cloak @click="openUrl(update.url)" x-text="t('updateAvail', { v: update?.version })"></button>
-    <span class="ver" x-show="!update" x-text="'PovForge ' + version"></span>
+    <div class="ver-box">
+      <span class="ver" x-text="'PovForge ' + version"></span>
+      <button class="update-pill" x-show="update" x-cloak @click="openUpdate(false)" x-text="t('updateAvail', { v: update?.version })"></button>
+      <button class="link small" x-show="!update" @click="openUpdate(true)" x-text="t('checkUpdate')"></button>
+    </div>
     <div class="segmented tiny" role="radiogroup" aria-label="Language">
       <button role="radio" :aria-checked="lang === 'zh'" @click="setLang('zh')">中文</button>
       <button role="radio" :aria-checked="lang === 'en'" @click="setLang('en')">EN</button>
@@ -364,7 +367,62 @@
   </template>
 </div>
 
-<div class="sheet-backdrop" x-show="offline" x-cloak>
+<div class="sheet-backdrop" x-show="updateOpen && !offline" x-cloak @keydown.escape.window="closeUpdate()">
+  <div class="sheet update-sheet" role="dialog" aria-modal="true" :aria-label="t('checkUpdate')">
+    <img src="/static/icon.png" alt="">
+    <template x-if="upd.state === 'checking' || upd.state === 'idle'">
+      <div class="sheet-body"><span class="spinner small"></span><h2 x-text="t('upChecking')"></h2></div>
+    </template>
+    <template x-if="upd.state === 'current'">
+      <div class="sheet-body">
+        <h2 x-text="t('upCurrent')"></h2>
+        <p x-text="t('upCurrentBody', { v: version })"></p>
+        <div class="sheet-actions"><button class="btn primary" @click="closeUpdate()" x-text="t('ok')"></button></div>
+      </div>
+    </template>
+    <template x-if="upd.state === 'available'">
+      <div class="sheet-body">
+        <h2 x-text="t('upAvailable', { v: upd.info?.version })"></h2>
+        <p x-text="t('upYouHave', { v: version })"></p>
+        <pre class="notes" x-show="notesText" x-text="notesText"></pre>
+        <p class="err" x-show="upd.error === 'busy'" x-text="t('upBusy')"></p>
+        <div class="sheet-actions">
+          <button class="btn" @click="closeUpdate()" x-text="t('later')"></button>
+          <button class="btn primary" x-show="upd.can_install && upd.info?.setup" @click="installUpdate()" :disabled="job.state === 'running'" x-text="t('upInstall')"></button>
+          <button class="btn primary" x-show="!(upd.can_install && upd.info?.setup)" @click="openUrl(upd.info?.url)" x-text="t('upOpenPage')"></button>
+        </div>
+        <p class="muted small-note" x-show="job.state === 'running'" x-text="t('upBusy')"></p>
+      </div>
+    </template>
+    <template x-if="upd.state === 'downloading'">
+      <div class="sheet-body wide">
+        <h2 x-text="t('upDownloading', { v: upd.info?.version })"></h2>
+        <span class="bar big"><span :style="'width:' + (upd.fraction >= 0 ? Math.round(upd.fraction * 100) : 30) + '%'"></span></span>
+        <p class="num" x-text="upd.info?.size ? t('upMb', { a: upd.done_mb, b: Math.round(upd.info.size / 1048576) }) : upd.done_mb + ' MB'"></p>
+      </div>
+    </template>
+    <template x-if="upd.state === 'installing'">
+      <div class="sheet-body">
+        <span class="spinner small"></span>
+        <h2 x-text="t('upInstalling')"></h2>
+        <p x-text="t('upInstallingBody')"></p>
+      </div>
+    </template>
+    <template x-if="upd.state === 'error'">
+      <div class="sheet-body">
+        <h2 x-text="t('upError')"></h2>
+        <p class="err selectable" x-text="upd.error"></p>
+        <div class="sheet-actions">
+          <button class="btn" @click="closeUpdate()" x-text="t('close')"></button>
+          <button class="btn" @click="openUrl(upd.info?.url || 'https://github.com/Chester-chs/CS2-povforge/releases/latest')" x-text="t('upOpenPage')"></button>
+          <button class="btn primary" @click="openUpdate(true)" x-text="t('retry')"></button>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
+
+<div class="sheet-backdrop" x-show="offline && !updatingAway" x-cloak>
   <div class="sheet">
     <img src="/static/icon.png" alt="">
     <h2 x-text="t('offlineTitle')"></h2>

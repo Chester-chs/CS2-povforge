@@ -32,7 +32,7 @@ While one recording runs you can keep browsing and press **Queue** to add more p
 
 FFmpeg (the video encoder) comes with the app. The first time, click **Download the recording add-on**: it fetches HLAE (about 10 MB) from its official GitHub release into `%LOCALAPPDATA%\povforge\tools`; HLAE isn't bundled because it has to keep up with CS2 updates. Steam and CS2 must be installed. Videos go to `Videos\PovForge` (changeable).
 
-Newer versions install over the old one and keep your settings; uninstall from Windows Settings → Apps. There's also a no-install `PovForge-windows.zip`. From the command line, `povforge gui` opens the same window.
+To update, click **Check for updates** at the bottom left: the app downloads the new installer, checks it, installs it and reopens. Newer versions install over the old one and keep your settings; uninstall from Windows Settings → Apps. There's also a no-install `PovForge-windows.zip`. From the command line, `povforge gui` opens the same window.
 
 ## How it works
 

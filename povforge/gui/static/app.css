@@ -344,3 +344,19 @@ svg { width: 16px; height: 16px; flex: none; fill: none; }
   .switch, .switch::after, .bar > span, .hud-msg, .ring .ring-fill { transition: none; animation: none; }
 }
 .q-row .side-row[aria-selected="true"] .q-ic { color: #fff; }
+
+/* version and updates (sidebar footer, update sheet) */
+.ver-box { display: grid; justify-items: start; gap: 1px; min-width: 0; }
+.update-pill { border: 0; border-radius: 999px; padding: 2px 10px; font-size: 11.5px; font-weight: 600; cursor: default;
+  background: var(--accent); color: var(--on-accent); }
+.update-pill:hover { background: var(--accent-press); }
+.update-sheet { width: 420px; }
+.sheet-body { display: grid; justify-items: center; gap: 8px; width: 100%; }
+.sheet-body.wide { justify-items: stretch; text-align: center; }
+.sheet-body p { font-size: 13px; color: var(--label-2); }
+.sheet-body .err { color: var(--red); }
+.sheet-actions { display: flex; justify-content: center; gap: 8px; margin-top: 10px; width: 100%; }
+.sheet-actions .btn { flex: 1; }
+.notes { width: 100%; max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 10px 12px; border-radius: 10px; text-align: left;
+  background: var(--fill); font: 12.5px/1.55 var(--font); white-space: pre-wrap; user-select: text; }
+.small-note { font-size: 12px; }

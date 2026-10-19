@@ -86,3 +86,98 @@ def test_stopping_pauses_the_queue_until_resumed():
 
 def test_version_compare():
     assert server._version_tuple("v0.10.0") > server._version_tuple("0.9.3")
+
+
+class _Resp:
+    def __init__(self, body: bytes, url: str = ""):
+        self.body, self._url = body, url
+        self.headers = {"Content-Length": str(len(body))}
+
+    def read(self, n=-1):
+        out, self.body = (self.body, b"") if n < 0 else (self.body[:n], self.body[n:])
+        return out
+
+    def geturl(self):
+        return self._url
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _release_api(monkeypatch, setup_url, payload=b"installer", digest=None):
+    import hashlib
+    import json
+    import urllib.request
+    release = {"tag_name": "v9.9.9", "html_url": "https://github.com/Chester-chs/CS2-povforge/releases/tag/v9.9.9",
+               "body": "**What's new in v9.9.9 / 本次更新**\n\nFaster.\n更快。\n\n**Windows / Windows 程序**\n\nhow to install",
+               "assets": [{"name": "PovForge-Setup.exe", "browser_download_url": setup_url, "size": len(payload),
+                           "digest": digest or "sha256:" + hashlib.sha256(payload).hexdigest()}]}
+
+    def fake_urlopen(req, timeout=0):
+        url = req.full_url if hasattr(req, "full_url") else req
+        if url == server.RELEASES_API:
+            return _Resp(json.dumps(release).encode())
+        return _Resp(payload)
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+
+def test_latest_release_reads_installer_and_notes(monkeypatch):
+    url = server.DOWNLOADS + "v9.9.9/PovForge-Setup.exe"
+    _release_api(monkeypatch, url)
+    info = server.latest_release()
+    assert info["version"] == "9.9.9" and info["setup"] == url and info["size"] == 9 and len(info["sha256"]) == 64
+    assert info["notes"] == "Faster.\n更快。"           # what's new only
+
+
+def test_latest_release_ignores_installers_from_elsewhere(monkeypatch):
+    _release_api(monkeypatch, "https://evil.example/PovForge-Setup.exe")
+    assert server.latest_release()["setup"] == ""
+
+
+def _wait(up, states, also=lambda: True):
+    import threading
+    for _ in range(250):
+        if up.status()["state"] in states and also():
+            return up.status()
+        threading.Event().wait(0.02)
+    return up.status()
+
+
+def test_updater_downloads_checks_and_runs_the_installer(monkeypatch):
+    _release_api(monkeypatch, server.DOWNLOADS + "v9.9.9/PovForge-Setup.exe")
+    ran, quit_ = [], []
+    monkeypatch.setattr(server, "can_self_update", lambda: True)
+    monkeypatch.setattr(server, "run_installer", lambda p: ran.append(p.read_bytes()))
+    monkeypatch.setattr(server.time, "sleep", lambda s: None)
+    up = server.Updater("0.8.4", busy=lambda: False, quit_app=lambda: quit_.append(1))
+    assert up.check()["state"] == "available"
+    up.install()
+    st = _wait(up, ("installing", "error"), also=lambda: bool(quit_) or up.status()["state"] == "error")
+    assert st["state"] == "installing" and ran == [b"installer"] and quit_ == [1]
+
+
+def test_updater_refuses_a_bad_checksum(monkeypatch):
+    _release_api(monkeypatch, server.DOWNLOADS + "v9.9.9/PovForge-Setup.exe", digest="sha256:" + "0" * 64)
+    ran = []
+    monkeypatch.setattr(server, "run_installer", lambda p: ran.append(p))
+    up = server.Updater("0.8.4", busy=lambda: False, quit_app=lambda: None)
+    up.check()
+    up.install()
+    st = _wait(up, ("error",))
+    assert st["state"] == "error" and "checksum" in st["error"] and not ran
+
+
+def test_updater_waits_while_recording(monkeypatch):
+    _release_api(monkeypatch, server.DOWNLOADS + "v9.9.9/PovForge-Setup.exe")
+    up = server.Updater("0.8.4", busy=lambda: True, quit_app=lambda: None)
+    up.check()
+    st = up.install()
+    assert st["state"] == "available" and st["error"] == "busy"
+
+
+def test_no_update_when_current(monkeypatch):
+    _release_api(monkeypatch, server.DOWNLOADS + "v9.9.9/PovForge-Setup.exe")
+    assert server.Updater("10.0.0", busy=lambda: False, quit_app=lambda: None).check()["state"] == "current"

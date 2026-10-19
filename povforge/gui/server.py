@@ -427,26 +427,157 @@ def _version_tuple(v: str) -> tuple[int, ...]:
     return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
 
 
-def check_update(current: str) -> dict | None:
-    """Newest release on GitHub if it's newer than this one (quietly None on any problem)."""
+DOWNLOADS = "https://github.com/Chester-chs/CS2-povforge/releases/download/"
+SETUP_ASSET = "PovForge-Setup.exe"
+
+
+def _plain_notes(md: str, limit: int = 900) -> str:
+    """Release notes as plain text for the update sheet."""
+    md = re.split(r"(?m)^\*\*Windows", md or "")[0]                # what's new only, not install help
+    md = re.sub(r"(?m)^\*\*What's new.*\n", "", md)
+    md = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", md)             # [text](url) -> text
+    md = md.replace("**", "").replace("`", "").replace("\r", "")
+    md = re.sub(r"\n{3,}", "\n\n", md).strip()
+    return md if len(md) <= limit else md[:limit].rsplit("\n", 1)[0] + "\n…"
+
+
+def latest_release() -> dict:
+    """The newest release: version, page, installer url/size/sha256, notes. Raises on failure."""
     import urllib.request
     try:
         req = urllib.request.Request(RELEASES_API, headers={"User-Agent": "PovForge",
                                                            "Accept": "application/vnd.github+json"})
         with urllib.request.urlopen(req, timeout=10) as r:
             data = json.load(r)
-        tag, url = data.get("tag_name", ""), data.get("html_url", RELEASES_PAGE)
+        tag = data.get("tag_name", "")
+        info = {"version": tag.lstrip("v"), "url": data.get("html_url", RELEASES_PAGE),
+                "notes": _plain_notes(data.get("body", "")), "setup": "", "size": 0, "sha256": ""}
+        for a in data.get("assets", []):
+            if a.get("name") == SETUP_ASSET:
+                info["setup"] = a.get("browser_download_url", "")
+                info["size"] = int(a.get("size") or 0)
+                digest = a.get("digest") or ""
+                if digest.startswith("sha256:"):
+                    info["sha256"] = digest[7:].lower()
     except Exception:
-        try:
-            req = urllib.request.Request(RELEASES_PAGE, headers={"User-Agent": "PovForge"})
-            with urllib.request.urlopen(req, timeout=10) as r:
-                url = r.geturl()
-            tag = url.rstrip("/").rsplit("/", 1)[-1]
-        except Exception:
-            return None
-    if tag and _version_tuple(tag) > _version_tuple(current):
-        return {"version": tag.lstrip("v"), "url": url}
+        # API blocked or rate-limited: the release page redirects to the newest tag
+        req = urllib.request.Request(RELEASES_PAGE, headers={"User-Agent": "PovForge"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            url = r.geturl()
+        tag = url.rstrip("/").rsplit("/", 1)[-1]
+        if not tag.startswith("v"):
+            raise RuntimeError("Couldn't find the latest release.")
+        info = {"version": tag.lstrip("v"), "url": url, "notes": "",
+                "setup": f"{DOWNLOADS}{tag}/{SETUP_ASSET}", "size": 0, "sha256": ""}
+    if not info["setup"].startswith(DOWNLOADS):
+        info["setup"] = ""        # only ever download our own release assets
+    return info
+
+
+def check_update(current: str) -> dict | None:
+    """Newest release on GitHub if it's newer than this one (quietly None on any problem)."""
+    try:
+        info = latest_release()
+    except Exception:
+        return None
+    if info["version"] and _version_tuple(info["version"]) > _version_tuple(current):
+        return info
     return None
+
+
+def can_self_update() -> bool:
+    """Only the installed Windows app can update itself (it was put there by the installer)."""
+    return sys.platform == "win32" and getattr(sys, "frozen", False) and \
+        (Path(sys.executable).parent / "unins000.exe").is_file()
+
+
+class Updater:
+    """Check for a new version, download its installer, run it quietly and quit.
+    The installer closes this app, installs over it and opens the new version."""
+
+    def __init__(self, current: str, busy, quit_app):
+        self.current, self.busy, self.quit_app = current, busy, quit_app
+        self.lock = threading.Lock()
+        self.state, self.info, self.error, self.fraction, self.done_mb = "idle", None, "", -1.0, 0
+
+    def status(self) -> dict:
+        with self.lock:
+            return self.status_unlocked()
+
+    def check(self) -> dict:
+        with self.lock:
+            if self.state in ("downloading", "installing"):
+                return self.status_unlocked()
+            self.state, self.error = "checking", ""
+        try:
+            info = latest_release()
+            newer = bool(info["version"]) and _version_tuple(info["version"]) > _version_tuple(self.current)
+            with self.lock:
+                self.info = info if newer else None
+                self.state = "available" if newer else "current"
+        except Exception as e:
+            with self.lock:
+                self.state, self.error = "error", f"{e}"
+        return self.status()
+
+    def status_unlocked(self) -> dict:
+        return {"state": self.state, "current": self.current, "info": self.info, "error": self.error,
+                "fraction": self.fraction, "done_mb": self.done_mb,
+                "can_install": can_self_update() or bool(os.environ.get("POVFORGE_PLACEHOLDER"))}
+
+    def install(self) -> dict:
+        with self.lock:
+            if self.state != "available" or not self.info or not self.info.get("setup"):
+                return self.status_unlocked()
+            if self.busy():
+                self.error = "busy"
+                return self.status_unlocked()
+            self.state, self.error, self.fraction, self.done_mb = "downloading", "", 0.0, 0
+        threading.Thread(target=self._work, daemon=True).start()
+        return self.status()
+
+    def _work(self) -> None:
+        import hashlib
+        import tempfile
+        import urllib.request
+        info = self.info or {}
+        try:
+            folder = Path(tempfile.mkdtemp(prefix="povforge-update-"))
+            dest = folder / f"PovForge-Setup-{info['version']}.exe"
+            h = hashlib.sha256()
+            req = urllib.request.Request(info["setup"], headers={"User-Agent": "PovForge"})
+            with urllib.request.urlopen(req, timeout=60) as r, open(dest, "wb") as f:
+                total = int(r.headers.get("Content-Length") or info.get("size") or 0)
+                done = 0
+                while chunk := r.read(1 << 20):
+                    f.write(chunk)
+                    h.update(chunk)
+                    done += len(chunk)
+                    with self.lock:
+                        self.done_mb = done >> 20
+                        self.fraction = done / total if total else -1.0
+            if info.get("size") and done != info["size"]:
+                raise RuntimeError("The download is incomplete. Try again.")
+            if info.get("sha256") and h.hexdigest() != info["sha256"]:
+                raise RuntimeError("The download doesn't match the release (checksum differs). Try again.")
+            with self.lock:
+                self.state, self.fraction = "installing", 1.0
+            if os.environ.get("POVFORGE_PLACEHOLDER") and not can_self_update():
+                return                      # test mode: stop before running anything
+            run_installer(dest)
+            time.sleep(1.5)                 # let the page hear "installing" first
+            self.quit_app()
+        except Exception as e:
+            with self.lock:
+                self.state, self.error = "error", str(e)
+
+
+def run_installer(setup: Path) -> None:
+    """Start the installer on its own (it must outlive this app). /SILENT shows only a
+    progress window; /update=1 makes it open the new PovForge when it's done."""
+    flags = 0x00000008 | 0x00000200          # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+    subprocess.Popen([str(setup), "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/update=1"],
+                     creationflags=flags, close_fds=True, cwd=str(setup.parent))
 
 
 # --- setup (HLAE, FFmpeg, CS2) ------------------------------------------------------
@@ -584,6 +715,9 @@ class App:
         self.queue = Queue(self.job, self.prefs)
         self.setup = Setup()
         self.update: dict | None = None
+        self.quit = lambda: None            # set by main() once the server exists
+        self.updater = Updater(__version__, busy=lambda: self.job.state == "running",
+                               quit_app=lambda: self.quit())
         threading.Thread(target=self._check_update, daemon=True).start()
 
     def _check_update(self) -> None:
@@ -636,6 +770,8 @@ def make_handler(app: App):
                                        "queue": app.queue.snapshot()})
                 if url.path == "/api/job":
                     return self._json({**app.job.snapshot(), "queue": app.queue.snapshot()})
+                if url.path == "/api/update":
+                    return self._json(app.updater.status())
                 if url.path == "/api/setup":
                     return self._json(app.setup.status())
                 if url.path == "/api/demos":
@@ -713,6 +849,12 @@ def make_handler(app: App):
                     if app.job.state != "running":
                         app.job.reset()
                     return self._json(app.job.snapshot())
+                if url.path == "/api/update/check":
+                    st = app.updater.check()
+                    app.update = st["info"] if st["state"] == "available" else app.update
+                    return self._json(st)
+                if url.path == "/api/update/install":
+                    return self._json(app.updater.install())
                 if url.path == "/api/install":
                     app.setup.install(b.get("what", "all"))
                     return self._json(app.setup.status())
@@ -766,6 +908,8 @@ def main(port: int = 0, open_browser: bool = True) -> None:
     print(f"PovForge is running at {url} (close this window to quit)", flush=True)
     if open_browser:
         open_window(url)
+    app.quit = lambda: threading.Thread(target=server.shutdown, daemon=True).start()
+
     def watch() -> None:
         # quit once the window has been closed for a while (and nothing is recording)
         while True:
