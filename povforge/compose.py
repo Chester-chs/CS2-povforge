@@ -36,6 +36,7 @@ class ComposeSettings:
     crf: int = 18
     preset: str = "veryfast"
     ffmpeg: str = "ffmpeg"
+    chapter_lang: str = "zh"        # chapter titles: "zh" (第18回合 · ACE) or "en" (Round 18 · ACE)
 
 
 def _xy(anchor: str, margin: float) -> tuple[str, str]:
@@ -111,14 +112,15 @@ def _ts(seconds: float) -> str:
     return f"{h}:{m:02d}:{sec:02d}" if h else f"{m:02d}:{sec:02d}"
 
 
-def chapters(plan: Plan, durations: list[float], intro: float = 0.0) -> list[tuple[float, float, str]]:
+def chapters(plan: Plan, durations: list[float], intro: float = 0.0,
+             titles: dict[int, str] | None = None, intro_title: str = "Intro") -> list[tuple[float, float, str]]:
     """(start_s, end_s, title): the intro (if any), then one chapter per round."""
     out, t = [], 0.0
     if intro > 0:
-        out.append((0.0, intro, "Intro"))
+        out.append((0.0, intro, intro_title))
         t = intro
     for seg, dur in zip(plan.segments, durations):
-        out.append((t, t + dur, f"Round {seg.round_number}"))
+        out.append((t, t + dur, (titles or {}).get(seg.round_number, f"Round {seg.round_number}")))
         t += dur
     return out
 
@@ -137,7 +139,8 @@ def write_chapter_files(plan: Plan, chs: list[tuple[float, float, str]], job_dir
 
 def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str, Path]],
             fps: float, s: ComposeSettings, size: tuple[int, int] | None = None,
-            intro: Path | None = None, static_images: dict[str, Path] | None = None) -> Path:
+            intro: Path | None = None, static_images: dict[str, Path] | None = None,
+            titles: dict[int, str] | None = None) -> Path:
     parts_dir = job_dir / "parts"
     parts_dir.mkdir(parents=True, exist_ok=True)
     height = size[1] if size else 1080
@@ -163,7 +166,8 @@ def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str,
     listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in all_parts), encoding="utf-8")
     durations = [probe(p, s.ffmpeg).duration for p in parts]
     intro_len = probe(intro, s.ffmpeg).duration if intro else 0.0
-    _, meta = write_chapter_files(plan, chapters(plan, durations, intro_len), job_dir)
+    intro_title = "片头" if s.chapter_lang == "zh" else "Intro"
+    _, meta = write_chapter_files(plan, chapters(plan, durations, intro_len, titles, intro_title), job_dir)
     final = job_dir / f"{safe_filename(plan.player.name)}_{plan.map_name}_POV.mp4"
     print("Joining parts ...", flush=True)
     subprocess.run([s.ffmpeg, "-y", "-loglevel", "error",

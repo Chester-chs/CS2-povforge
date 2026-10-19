@@ -7,7 +7,7 @@ a demo file.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -47,6 +47,7 @@ class DemoData:
     players: list[Player]
     rounds: list[Round]
     deaths: list[Death]
+    winners: dict[int, int] = field(default_factory=dict)  # round_end tick -> 2 (T) / 3 (CT)
 
 
 def _sid(v) -> str | None:
@@ -166,7 +167,17 @@ def load_demo(path: str | Path, tickrate: float = DEFAULT_TICKRATE) -> DemoData:
                     headshot=bool(row.get("headshot") or False),
                 ))
 
-    return DemoData(path, map_name, tickrate, last_tick, players, rounds, deaths)
+    winners: dict[int, int] = {}
+    try:
+        re_ = parser.parse_event("round_end")
+        for _, row in re_.iterrows():
+            w = str(row.get("winner") or "").upper()
+            if w in ("T", "CT", "2", "3"):
+                winners[int(row["tick"])] = 2 if w in ("T", "2") else 3
+    except Exception:
+        pass
+
+    return DemoData(path, map_name, tickrate, last_tick, players, rounds, deaths, winners)
 
 
 MIN_PRESS_TICKS = 4  # show even the shortest tap for ~60 ms so it's visible

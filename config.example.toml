@@ -49,6 +49,16 @@ keyboard_margin = 135            # distance from the bottom, in pixels at 1080p 
 crf = 18                         # x264 quality: lower = better and bigger
 preset = "veryfast"              # x264 speed; slower presets = smaller files
 ffmpeg = "ffmpeg"
+chapter_lang = "zh"              # chapter titles: "zh" (第18回合 · ACE) or "en" (Round 18 · ACE)
+
+[highlights]
+enabled = true                   # also make <player>_<map>_highlights.mp4: every kill, cut from the full video
+before = 4.0                     # seconds before each kill
+after = 1.5                      # seconds after each kill
+merge_gap = 2.5                  # kills closer than this become one piece
+
+[upload]
+enabled = true                   # cover.jpg and description.txt (title, match info, chapters) next to the video
 
 [intro]
 enabled = true

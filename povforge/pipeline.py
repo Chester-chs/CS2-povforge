@@ -14,7 +14,7 @@ import pandas as pd
 
 from .compose import compose, safe_filename
 from .config import Config
-from . import faceit, hlae
+from . import faceit, highlights, hlae
 import datetime
 from dataclasses import asdict
 
@@ -81,6 +81,7 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     kills = [[d.tick, d.headshot] for d in demo.deaths
              if d.attacker_steamid == player.steamid and d.victim_steamid != player.steamid]
     (job / "kills.json").write_text(json.dumps(kills), encoding="utf-8")
+    highlights.save(job / "highlights.json", highlights.analyse(demo, player.steamid, track))
     try:
         teams = load_scoreboard(demo_path, len(demo.rounds))
     except Exception as e:  # scoreboard is only for the intro card
@@ -304,9 +305,42 @@ def resolve_intro_image(spec: str) -> Path | None:
 def make_video(cfg: Config, job: Path, clips: list[Path]) -> Path:
     layers = make_overlays(cfg, job, clips)
     intro = make_intro_clip(cfg, job, clips)
-    return compose(load_plan(job), job, clips, layers, cfg.record.fps, cfg.compose,
-                   size=(cfg.record.width, cfg.record.height), intro=intro,
-                   static_images=static_images(cfg, job))
+    plan = load_plan(job)
+    hl = highlights.load(job / "highlights.json")
+    titles = {sg.round_number: highlights.chapter_title(sg.round_number, hl.get(sg.round_number),
+                                                         cfg.compose.chapter_lang)
+              for sg in plan.segments}
+    final = compose(plan, job, clips, layers, cfg.record.fps, cfg.compose,
+                    size=(cfg.record.width, cfg.record.height), intro=intro,
+                    static_images=static_images(cfg, job), titles=titles)
+    make_extras(cfg, job, plan, clips, final, intro)
+    return final
+
+
+def make_extras(cfg: Config, job: Path, plan: Plan, clips: list[Path], final: Path,
+                intro: Path | None) -> None:
+    """Highlight cut and upload kit; a failure here never loses the main video."""
+    from . import extras
+    if cfg.highlights.enabled:
+        try:
+            _log("Cutting the highlights ...")
+            parts = [job / "parts" / f"part_{i:03d}.mp4" for i in range(len(plan.segments))]
+            hv = extras.make_highlight_video(cfg, job, plan, parts, intro)
+            if hv:
+                _log(f"Highlights: {hv.resolve()}")
+            else:
+                _log("Note: no kills in the recorded rounds, so no highlight video.")
+        except Exception as e:
+            _log(f"Note: highlight video failed ({e})")
+    if cfg.upload.enabled:
+        try:
+            _log("Making the cover and description ...")
+            cover, desc = extras.make_upload_kit(cfg, job, plan, clips, final,
+                                                 cfg.intro.date or intro_date(cfg, job, load_meta(job)))
+            _log(f"Cover: {cover.resolve()}")
+            _log(f"Description: {desc.resolve()}")
+        except Exception as e:
+            _log(f"Note: cover/description failed ({e})")
 
 
 def make_recording(cfg: Config, job: Path, placeholder: bool = False) -> list[Path]:

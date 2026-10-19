@@ -45,6 +45,19 @@ class IntroSettings:
 
 
 @dataclass
+class HighlightSettings:
+    enabled: bool = True
+    before: float = 4.0
+    after: float = 1.5
+    merge_gap: float = 2.5
+
+
+@dataclass
+class UploadSettings:
+    enabled: bool = True
+
+
+@dataclass
 class Config:
     output_dir: Path = Path("povforge-output")
     plan: PlanOptions = field(default_factory=PlanOptions)
@@ -52,6 +65,8 @@ class Config:
     overlay: OverlaySettings = field(default_factory=OverlaySettings)
     compose: ComposeSettings = field(default_factory=ComposeSettings)
     intro: IntroSettings = field(default_factory=IntroSettings)
+    highlights: HighlightSettings = field(default_factory=HighlightSettings)
+    upload: UploadSettings = field(default_factory=UploadSettings)
 
 
 def _apply(obj, values: dict, where: str) -> None:
@@ -76,7 +91,7 @@ def load_config(path: str | Path | None) -> Config:
     data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
     if "output" in data and "dir" in data["output"]:
         cfg.output_dir = Path(data["output"]["dir"])
-    for section in ("plan", "record", "overlay", "compose", "intro"):
+    for section in ("plan", "record", "overlay", "compose", "intro", "highlights", "upload"):
         if section in data:
             _apply(getattr(cfg, section), data[section], section)
     return cfg
