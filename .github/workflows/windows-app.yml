@@ -123,7 +123,9 @@ jobs:
           if (-not (Test-Path "$menu\PovForge.lnk")) { throw "no Start menu entry" }
           Write-Host "Installed OK: $app, desktop and Start menu shortcuts"
           # in-app update path: install over the top quietly, the new app must open by itself
-          $p = Start-Process ./PovForge-Setup.exe -ArgumentList "/SILENT","/SUPPRESSMSGBOXES","/NORESTART","/update=1" -Wait -PassThru
+          # (no -Wait: it would also wait for the PovForge the installer opens, which keeps running)
+          $p = Start-Process ./PovForge-Setup.exe -ArgumentList "/SILENT","/SUPPRESSMSGBOXES","/NORESTART","/update=1" -PassThru
+          if (-not $p.WaitForExit(300000)) { throw "update install timed out" }
           if ($p.ExitCode -ne 0) { throw "update install failed: $($p.ExitCode)" }
           $opened = $null
           for ($i = 0; $i -lt 20 -and -not $opened; $i++) { Start-Sleep 1; $opened = Get-Process PovForge -ErrorAction SilentlyContinue }
