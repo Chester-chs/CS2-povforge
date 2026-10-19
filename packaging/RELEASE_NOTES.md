@@ -1,4 +1,9 @@
-**What's new in v0.10.1 / 本次更新**
+**What's new in v0.10.2 / 本次更新**
+
+- The update window says it downloads only the files that changed. (A small update, mainly to check that updates now stay small.)
+  更新窗口会注明只下载有变化的文件。（这是一个小更新，主要用来确认之后的更新确实很小。）
+
+**v0.10.1**
 
 - Updates after this one are usually well under 1 MB: the program code now ships as separate small files, so an update fetches only the files that changed. (Updating to this version itself replaces the code files once.)
   从这一版之后，更新通常不到 1 MB：程序代码改为一个个小文件，更新时只下载改动过的那几个。（升级到这一版本身会把代码文件整体换一次。）
