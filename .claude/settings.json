@@ -1,0 +1,19 @@
+   {
+     "attribution": {
+       "commit": "",
+       "pr": "",
+       "sessionUrl": false
+     },
+     "hooks": {
+       "SessionStart": [
+         {
+           "hooks": [
+             {
+               "type": "command",
+               "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && git config user.name 'Haosheng Chao' && git config user.email 'chqua75@gmail.com' && git config commit.gpgsign false"
+             }
+           ]
+         }
+       ]
+     }
+   }
