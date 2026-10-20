@@ -74,7 +74,18 @@ class MinimapRenderer:
         ImageDraw.Draw(bg).rounded_rectangle(
             (0, 0, s - 1, s - 1), radius=max(6, s // 24), fill=(12, 14, 18, 170)
         )
-        radar = Image.open(path).convert("RGBA").resize((s, s), Image.LANCZOS, box=self.crop)
+        img = Image.open(path).convert("RGBA")
+        x0, y0, x1, y1 = self.crop
+        # the square around the map can reach past the image edge; newer Pillow refuses
+        # such a box, so give the image a transparent border first
+        pad = int(max(0.0, -x0, -y0, x1 - img.width, y1 - img.height)) + 1
+        if pad > 1:
+            framed = Image.new("RGBA", (img.width + 2 * pad, img.height + 2 * pad), (0, 0, 0, 0))
+            framed.paste(img, (pad, pad))
+            img, box = framed, (x0 + pad, y0 + pad, x1 + pad, y1 + pad)
+        else:
+            box = self.crop
+        radar = img.resize((s, s), Image.LANCZOS, box=box)
         if opacity < 1:
             a = radar.getchannel("A").point(lambda v: int(v * opacity))
             radar.putalpha(a)

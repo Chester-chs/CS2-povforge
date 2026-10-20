@@ -1,4 +1,7 @@
 import tomllib
+from pathlib import Path
+
+from povforge.config import load_config
 
 from povforge.gui import server
 
@@ -379,3 +382,93 @@ def test_cli_output_reaches_the_app_as_utf8():
     r = subprocess.run([sys.executable, "-c", code], capture_output=True, env=env,
                        cwd=str(Path(__file__).resolve().parents[1]))
     assert r.stdout.decode("utf-8").strip() == "Done: C:/职业选手POV/donk666 高光集锦.mp4"
+
+
+# --- a folder per player --------------------------------------------------------------
+
+def _job(work, name, sid, pname, video=None):
+    import json
+    j = work / name
+    j.mkdir(parents=True)
+    (j / "plan.json").write_text(json.dumps({"player": {"steamid": sid, "name": pname}}), encoding="utf-8")
+    if video:
+        (j / "published.json").write_text(json.dumps({"video": video}), encoding="utf-8")
+    return j
+
+
+def test_videos_go_into_the_players_folder(tmp_path):
+    prefs = {"output": str(tmp_path), "player_folders": {}, "lang": "zh"}
+    assert server.videos_folder(prefs, {"kind": "match", "steamid": "1", "name": "donk666"}) == tmp_path / "donk666"
+    # a new nickname keeps the same folder; another player with that name gets their own
+    assert server.videos_folder(prefs, {"kind": "match", "steamid": "1", "name": "donk"}) == tmp_path / "donk666"
+    assert server.videos_folder(prefs, {"kind": "match", "steamid": "2", "name": "donk666"}) == tmp_path / "donk666 (2)"
+    one = {"kind": "reel", "reel": [{"steamid": "1", "name": "donk"}, {"steamid": "1"}]}
+    many = {"kind": "reel", "reel": [{"steamid": "1"}, {"steamid": "3", "name": "m0NESY"}]}
+    assert server.videos_folder(prefs, one) == tmp_path / "donk666"
+    assert server.videos_folder(prefs, many) == tmp_path / "多人集锦"
+    assert server.videos_folder({**prefs, "by_player": False}, one) is None
+
+
+def test_job_config_names_the_videos_folder(tmp_path, monkeypatch):
+    monkeypatch.setenv("POVFORGE_STATE", str(tmp_path))
+    prefs = {**server.load_prefs(), "output": str(tmp_path / "out")}
+    cfg = load_config(server.write_job_config(prefs, tmp_path / "out" / "donk"))
+    from povforge import pipeline
+    assert pipeline.videos_dir(cfg) == tmp_path / "out" / "donk" and pipeline.work_root(cfg) == tmp_path / "out" / "工作文件"
+
+
+def test_rename_player_folder_moves_and_merges(tmp_path):
+    prefs = {"output": str(tmp_path), "player_folders": {"1": {"folder": "donk666", "name": "donk666"}}}
+    (tmp_path / "donk666").mkdir()
+    (tmp_path / "donk666" / "a.mp4").write_text("a")
+    (tmp_path / "donk").mkdir()
+    (tmp_path / "donk" / "old.mp4").write_text("o")
+    server.rename_player_folder(prefs, "1", "donk")
+    assert prefs["player_folders"]["1"]["folder"] == "donk"
+    assert sorted(p.name for p in (tmp_path / "donk").iterdir()) == ["a.mp4", "old.mp4"]
+    assert not (tmp_path / "donk666").exists()
+
+
+def test_existing_videos_sorted_by_player(tmp_path):
+    out = tmp_path / "PovForge"
+    work = out / "工作文件"
+    _job(work, "a__donk666", "1", "donk666", "donk666_mirage.mp4")
+    _job(work, "b__m0NESY", "2", "m0NESY", "m0NESY_dust2.mp4")
+    for n in ("donk666_mirage.mp4", "donk666_mirage.jpg", "m0NESY_dust2.mp4", "donk666 高光集锦.mp4"):
+        (out / n).write_text("x")
+    prefs = {"output": str(out), "player_folders": {}}
+    server.organize_existing(prefs)
+    assert prefs["output"] == str(out) and prefs["organized"]
+    assert sorted(p.name for p in (out / "donk666").iterdir()) == ["donk666 高光集锦.mp4", "donk666_mirage.jpg", "donk666_mirage.mp4"]
+    assert [p.name for p in (out / "m0NESY").iterdir()] == ["m0NESY_dust2.mp4"]
+
+
+def test_a_players_own_folder_is_kept_as_theirs(tmp_path):
+    """.../Pro POV/donk with only donk666's videos: that folder becomes donk666's,
+    the output folder moves up one, and the work files go with it."""
+    out = tmp_path / "职业选手POV" / "donk"
+    work = out / "工作文件"
+    _job(work, "a__donk666", "1", "donk666", "x.mp4")
+    (work / "demos").mkdir()
+    (work / "demos" / "m.dem").write_text("d")
+    (out / "x.mp4").write_text("v")
+    (out / "donk666 高光集锦.mp4").write_text("v")
+    prefs = {"output": str(out), "player_folders": {}}
+    server.organize_existing(prefs)
+    assert prefs["output"] == str(tmp_path / "职业选手POV")
+    assert prefs["player_folders"]["1"]["folder"] == "donk"
+    assert (out / "x.mp4").exists() and not (out / "工作文件").exists()
+    assert (tmp_path / "职业选手POV" / "工作文件" / "a__donk666" / "plan.json").exists()
+
+
+def test_a_moved_work_folder_still_finds_its_demo(tmp_path):
+    import json
+    from povforge import pipeline
+    job = tmp_path / "工作文件" / "j"
+    job.mkdir(parents=True)
+    (tmp_path / "工作文件" / "demos").mkdir()
+    (tmp_path / "工作文件" / "demos" / "m.dem").write_text("d")
+    plan = {"demo_path": "C:/old/place/工作文件/demos/m.dem", "map_name": "de_dust2", "tickrate": 64.0,
+            "player": {"steamid": "1", "name": "p"}, "segments": []}
+    (job / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
+    assert Path(pipeline.load_plan(job).demo_path) == (tmp_path / "工作文件" / "demos" / "m.dem").resolve()

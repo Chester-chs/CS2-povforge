@@ -26,17 +26,20 @@
     <svg><use href="#i-chevron-right"/></svg>
   </button>
 
+  <nav class="modes" role="tablist" :aria-label="t('modesLabel')">
+    <button role="tab" :aria-selected="!reelOpen" @click="openMatchMode()">
+      <svg><use href="#i-film"/></svg><span x-text="t('modeMatch')"></span>
+    </button>
+    <button role="tab" :aria-selected="reelOpen" @click="openReel(false)">
+      <svg><use href="#i-sparkles"/></svg><span x-text="t('reelNav')"></span>
+    </button>
+  </nav>
+
   <div class="side-scroll">
-    <section class="side-group nav-group">
-      <button class="side-row" :aria-selected="reelOpen && !runVisible" @click="openReel(false)">
-        <svg class="row-ic"><use href="#i-sparkles"/></svg>
-        <span class="row-text"><b><span x-text="t('reelNav')"></span></b></span>
-      </button>
-    </section>
 
     <section class="side-group">
       <div class="side-title">
-        <h2 x-text="t('demos')"></h2>
+        <h2 x-text="reelOpen ? t('demosForReel') : t('demos')"></h2>
         <span class="side-tools">
           <button class="icon-btn" @click="browse()" :title="t('openFile')" :aria-label="t('openFile')"><svg><use href="#i-plus"/></svg></button>
           <button class="icon-btn" @click="chooseFolder('demos')" :title="t('demoFolder')" :aria-label="t('demoFolder')"><svg><use href="#i-folder"/></svg></button>
@@ -46,8 +49,11 @@
       <ul class="side-list" role="listbox" :aria-label="t('demos')">
         <template x-for="d in demos" :key="d.path">
           <li>
-            <button class="side-row" role="option" :aria-selected="!!(demo && demo.path === d.path && !runVisible && !setupOpen && !reelOpen)" @click="pickDemo(d.path)">
-              <svg class="row-ic"><use href="#i-film"/></svg>
+            <button class="side-row" role="option" :class="{ ticking: reelOpen }"
+                    :aria-selected="reelOpen ? !!reelSrc(d.path) : !!(demo && demo.path === d.path && !runVisible && !setupOpen)"
+                    @click="reelOpen ? toggleSource(d.path) : pickDemo(d.path)">
+              <svg class="row-ic" x-show="!reelOpen"><use href="#i-film"/></svg>
+              <span class="tick" x-show="reelOpen" :class="{ on: !!reelSrc(d.path) }"><svg><use href="#i-check"/></svg></span>
               <span class="row-text">
                 <b><span x-text="d.map || niceDemoName(d)"></span><em x-show="d.score" x-text="d.score"></em></b>
                 <small x-text="(d.faceit ? 'FACEIT  ' : '') + ago(d.mtime) + '  ' + mb(d.size)"></small>
@@ -276,7 +282,7 @@
             </li>
           </template>
           <li class="row">
-            <span class="row-main"><b x-text="t('saveTo')"></b><small class="path" x-text="shortPath(prefs.output)" :title="prefs.output"></small></span>
+            <span class="row-main"><b x-text="t('saveTo')"></b><small class="path" x-text="shortPath(saveFolder)" :title="saveFolder"></small></span>
             <button class="btn" @click="chooseFolder('output')" x-text="t('change')"></button>
           </li>
         </ul>
@@ -307,27 +313,28 @@
 
     <div class="group-title with-control"><h3 x-text="t('reelSources')"></h3><span class="hint" x-text="t('reelSourcesHelp')"></span></div>
     <ul class="group">
-      <template x-for="d in reelRows" :key="d.path">
+      <template x-for="x in reel.sources" :key="x.path">
         <li class="row">
-          <input type="checkbox" class="check" :id="'src-' + d.path" :checked="!!reelSrc(d.path)" @change="toggleSource(d.path)">
-          <label class="row-main" :for="'src-' + d.path"><b x-text="d.label"></b><small x-text="d.sub"></small></label>
-          <template x-if="reelSrc(d.path)">
-            <span class="src-state">
-              <span class="spinner small" x-show="reelSrc(d.path).loading"></span>
-              <small class="err" x-show="reelSrc(d.path).error" x-text="reelSrc(d.path).error"></small>
-              <small class="muted" x-show="reel.mode === 'same' && reelSrc(d.path).info && !playerIn(reelSrc(d.path).info, reel.steamid)" x-text="t('reelNotIn')"></small>
-              <select class="select" x-show="reel.mode === 'each' && reelSrc(d.path).info" x-model="reelSrc(d.path).steamid" @change="recompute()">
-                <option value="" x-text="t('reelPick')"></option>
-                <template x-for="p in playersOf(reelSrc(d.path).info)" :key="p.steamid">
-                  <option :value="p.steamid" x-text="p.name" :selected="p.steamid === reelSrc(d.path).steamid"></option>
-                </template>
-              </select>
-            </span>
-          </template>
+          <svg class="row-ic"><use href="#i-film"/></svg>
+          <span class="row-main"><b x-text="sourceLabel(x)"></b><small x-text="sourceSub(x)"></small></span>
+          <span class="src-state">
+            <span class="spinner small" x-show="x.loading"></span>
+            <small class="err" x-show="x.error" x-text="x.error"></small>
+            <small class="muted" x-show="reel.mode === 'same' && x.info && !playerIn(x.info, reel.steamid)" x-text="t('reelNotIn')"></small>
+            <select class="select" x-show="reel.mode === 'each' && x.info" x-model="x.steamid" @change="recompute()">
+              <option value="" x-text="t('reelPick')"></option>
+              <template x-for="p in playersOf(x.info)" :key="p.steamid">
+                <option :value="p.steamid" x-text="p.name" :selected="p.steamid === x.steamid"></option>
+              </template>
+            </select>
+          </span>
+          <button class="icon-btn" @click="toggleSource(x.path)" :title="t('remove')" :aria-label="t('remove')"><svg><use href="#i-x"/></svg></button>
         </li>
       </template>
-      <li class="row" x-show="!reelRows.length"><span class="row-main"><small x-text="t('reelEmptySources')"></small></span>
-        <button class="btn" @click="browse()" x-text="t('openFile')"></button></li>
+      <li class="row" x-show="!reel.sources.length">
+        <span class="row-main"><small x-text="demos.length ? t('reelPickLeft') : t('reelEmptySources')"></small></span>
+        <button class="btn" x-show="!demos.length" @click="browse()" x-text="t('openFile')"></button>
+      </li>
     </ul>
 
     <div class="group-title with-control">
@@ -388,12 +395,12 @@
       </ul>
     </details>
 
-    <!-- effects: chosen before recording, added when the reel is put together -->
+    <!-- style copied from finished videos; nothing imported = the rounds are simply joined -->
     <div class="group-title with-control">
-      <h3 x-text="t('fxTitle')"></h3>
+      <h3 x-text="t('styleTitle')"></h3>
       <button class="btn small" @click="copyStyle()" :disabled="styleRef.state === 'working'"><svg><use href="#i-film"/></svg><span x-text="t('fxCopy')"></span></button>
     </div>
-    <p class="hint below" x-text="t('fxHelp')"></p>
+    <p class="hint below" x-text="t('styleHelp')"></p>
 
     <div class="group fx-ref" x-show="styleRef.state !== 'idle'">
       <div class="row" x-show="styleRef.state === 'working'">
@@ -436,104 +443,45 @@
 
     <template x-if="fx">
       <div>
-        <div class="chips" role="radiogroup" :aria-label="t('fxTitle')">
-          <template x-for="k in Object.keys(fxMeta.presets || {})" :key="k">
-            <button class="chip" role="radio" :aria-checked="fxPreset === k" @click="applyPreset(k)" x-text="t('preset_' + k)"></button>
-          </template>
-          <button class="chip" role="radio" x-show="styleRef.effects" :aria-checked="fxPreset === 'ref'" @click="applyRef()" x-text="t('presetRef')"></button>
+        <div class="chips" role="radiogroup" :aria-label="t('styleTitle')">
+          <button class="chip" role="radio" :aria-checked="fxPreset === 'plain'" @click="applyPreset('plain')" x-text="t('stylePlain')"></button>
           <template x-for="p in (prefs.fx_presets || [])" :key="p.name">
             <span class="chip mine" :aria-checked="fxPreset === 'my:' + p.name" :title="presetTip(p)">
               <button @click="applyPreset('my:' + p.name)" x-text="p.name"></button>
               <button class="chip-x" @click="deletePreset(p.name)" :title="t('remove')" :aria-label="t('remove')"><svg><use href="#i-x"/></svg></button>
             </span>
           </template>
-          <span class="chip" role="radio" aria-checked="true" x-show="fxPreset === 'custom'" x-text="t('presetCustom')"></span>
-          <button class="link small" @click="fxSaveOpen = !fxSaveOpen" x-show="fxPreset === 'custom' || fxPreset === 'ref'" x-text="t('fxSave')"></button>
+          <button class="chip" role="radio" x-show="styleRef.effects && !styleRef.savedAs" :aria-checked="fxPreset === 'ref'" @click="applyRef()" x-text="t('styleUnsaved', { name: styleRef.name })"></button>
+          <span class="chip" role="radio" aria-checked="true" x-show="fxPreset === 'custom'" x-text="t('styleMix')"></span>
         </div>
         <p class="fx-now" x-text="fxNowLine"></p>
-        <div class="group fx-save" x-show="fxSaveOpen">
-          <input class="text-input" x-model="fxSaveName" :placeholder="t('fxSaveName')" @keydown.enter="savePreset()" :aria-label="t('fxSaveName')">
-          <button class="btn" @click="savePreset()" :disabled="!fxSaveName.trim()" x-text="t('save')"></button>
-        </div>
 
-        <div class="group fx">
-          <div class="row">
-            <span class="row-main"><b x-text="t('fxIntro')"></b></span>
-            <select class="select" x-model="fx.intro" @change="fxChanged()" :aria-label="t('fxIntro')">
-              <template x-for="o in ['none', 'fade', 'title']" :key="o"><option :value="o" x-text="t('intro_' + o)" :selected="fx.intro === o"></option></template>
-            </select>
-          </div>
-          <div class="row sub" x-show="fx.intro === 'title'">
-            <input class="text-input inline" x-model="fx.intro_text" @change="fxChanged()" :placeholder="reel.title || t('introText')" :aria-label="t('introText')">
-            <input class="text-input inline" x-model="fx.intro_sub" @change="fxChanged()" :placeholder="reelPlayersLine || t('introSub')" :aria-label="t('introSub')">
-          </div>
-          <div class="row">
-            <span class="row-main"><b x-text="t('fxTransition')"></b><small x-text="t('fxTransitionHelp')"></small></span>
-            <select class="select" x-model="fx.transition" @change="fxChanged()" :aria-label="t('fxTransition')">
-              <template x-for="o in fxMeta.transitions || []" :key="o"><option :value="o" x-text="t('tr_' + o)" :selected="fx.transition === o"></option></template>
-            </select>
-            <select class="select" x-show="fx.transition !== 'cut'" x-model.number="fx.transition_seconds" @change="fxChanged()" :aria-label="t('fxLength')">
-              <template x-for="v in secondsChoices(fx.transition_seconds, [0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0])" :key="v"><option :value="v" x-text="t('sec', { s: v })" :selected="fx.transition_seconds === v"></option></template>
-            </select>
-          </div>
-          <div class="row">
-            <span class="row-main"><b x-text="t('fxKills')"></b><small x-text="t('fxKillsHelp')"></small></span>
-            <span class="toggles">
-              <template x-for="k in ['slowmo', 'zoom', 'flash', 'shake']" :key="k">
-                <button class="toggle" :aria-pressed="fx['kill_' + k]" @click="fx['kill_' + k] = !fx['kill_' + k]; fxChanged()" x-text="t('k_' + k)"></button>
+        <template x-if="(prefs.fx_presets || []).length || styleRef.effects">
+          <div>
+            <p class="hint below" x-text="t('mixHelp')"></p>
+            <div class="group fx">
+              <template x-for="c in fxParts" :key="c.key">
+                <div class="fx-part">
+                  <div class="row">
+                    <span class="row-main"><b x-text="t(c.label)"></b></span>
+                    <select class="select wide-ish" @change="pickPart(c.key, $event.target.value)" :aria-label="t(c.label)">
+                      <template x-for="o in partOptions(c.key)" :key="o.value">
+                        <option :value="o.value" x-text="o.label" :selected="o.value === partNow(c.key)"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div class="row sub" x-show="c.key === 'intro' && fx.intro === 'title'">
+                    <input class="text-input inline" x-model="fx.intro_text" @change="fxChanged()" :placeholder="reel.title || t('introText')" :aria-label="t('introText')">
+                    <input class="text-input inline" x-model="fx.intro_sub" @change="fxChanged()" :placeholder="reelPlayersLine || t('introSub')" :aria-label="t('introSub')">
+                  </div>
+                  <div class="row sub" x-show="c.key === 'outro' && fx.outro === 'card'">
+                    <input class="text-input inline" x-model="fx.outro_text" @change="fxChanged()" :placeholder="t('outroTextDefault')" :aria-label="t('outroText')">
+                  </div>
+                </div>
               </template>
-            </span>
-          </div>
-          <div class="row sub" x-show="fx.kill_slowmo || fx.kill_zoom || fx.kill_flash || fx.kill_shake">
-            <span class="row-main"><small x-text="t('fxScope')"></small></span>
-            <select class="select" x-model="fx.kill_scope" @change="fxChanged()" :aria-label="t('fxScope')">
-              <template x-for="o in ['all', 'last', 'final']" :key="o"><option :value="o" x-text="t('scope_' + o)" :selected="fx.kill_scope === o"></option></template>
-            </select>
-            <select class="select" x-show="fx.kill_slowmo" x-model.number="fx.slowmo_speed" @change="fxChanged()" :aria-label="t('k_slowmo')">
-              <template x-for="v in secondsChoices(fx.slowmo_speed, [0.25, 0.35, 0.5, 0.65])" :key="v"><option :value="v" x-text="t('slowAt', { x: v })" :selected="fx.slowmo_speed === v"></option></template>
-            </select>
-          </div>
-          <div class="row">
-            <span class="row-main"><b x-text="t('fxGrade')"></b></span>
-            <select class="select" x-model="fx.grade" @change="fxChanged()" :aria-label="t('fxGrade')">
-              <template x-for="o in (fxMeta.grades || []).concat(fx.grade_match ? ['match'] : [])" :key="o"><option :value="o" x-text="t('g_' + o)" :selected="fx.grade === o"></option></template>
-            </select>
-          </div>
-          <div class="row">
-            <label class="row-main" for="fx-bars"><b x-text="t('fxBars')"></b><small x-text="t('fxBarsHelp')"></small></label>
-            <input type="checkbox" class="switch" id="fx-bars" x-model="fx.letterbox" @change="fxChanged()">
-          </div>
-          <div class="row">
-            <span class="row-main"><b x-text="t('fxOutro')"></b></span>
-            <select class="select" x-model="fx.outro" @change="fxChanged()" :aria-label="t('fxOutro')">
-              <template x-for="o in ['none', 'fade', 'freeze', 'card']" :key="o"><option :value="o" x-text="t('o_' + o)" :selected="fx.outro === o"></option></template>
-            </select>
-          </div>
-          <div class="row sub" x-show="fx.outro === 'card'">
-            <input class="text-input inline" x-model="fx.outro_text" @change="fxChanged()" :placeholder="t('outroTextDefault')" :aria-label="t('outroText')">
-          </div>
-          <div class="row">
-            <span class="row-main"><b x-text="t('fxPace')"></b><small x-text="t('fxPaceHelp')"></small></span>
-            <div class="segmented" role="radiogroup" :aria-label="t('fxPace')">
-              <template x-for="o in ['tight', 'normal', 'long']" :key="o"><button role="radio" :aria-checked="fx.pace === o" @click="fx.pace = o; fxChanged()" x-text="t('pace_' + o)"></button></template>
             </div>
           </div>
-          <div class="row">
-            <span class="row-main"><b x-text="t('fxMusic')"></b><small x-text="musicName || t('musicNone')"></small></span>
-            <button class="btn small" @click="pickMusic()" x-text="t('musicPick')"></button>
-            <button class="icon-btn" x-show="fx.music" @click="clearMusic()" :title="t('remove')" :aria-label="t('remove')"><svg><use href="#i-x"/></svg></button>
-          </div>
-          <div class="row sub" x-show="fx.music">
-            <span class="row-main"><small x-text="t('musicVol', { v: Math.round(fx.music_volume * 100) })"></small></span>
-            <input type="range" class="range" min="0" max="1.5" step="0.05" x-model.number="fx.music_volume" @change="fxChanged()" :aria-label="t('fxMusic')">
-          </div>
-          <div class="row sub" x-show="fx.music">
-            <span class="row-main"><small x-text="t('gameAudio')"></small></span>
-            <div class="segmented tiny" role="radiogroup" :aria-label="t('gameAudio')">
-              <template x-for="o in ['keep', 'low', 'mute']" :key="o"><button role="radio" :aria-checked="fx.game_audio === o" @click="fx.game_audio = o; fxChanged()" x-text="t('game_' + o)"></button></template>
-            </div>
-          </div>
-        </div>
+        </template>
       </div>
     </template>
 
@@ -671,6 +619,16 @@
         <span class="row-main"><b x-text="t('outputFolderLabel')"></b><small class="path" x-text="prefs.output" :title="prefs.output"></small></span>
         <button class="btn" @click="chooseFolder('output').then(() => openSettings())" x-text="t('change')"></button>
       </li>
+      <li class="row">
+        <label class="row-main" for="by-player"><b x-text="t('byPlayer')"></b><small x-text="t('byPlayerHelp')"></small></label>
+        <input type="checkbox" class="switch" id="by-player" :checked="prefs.by_player !== false" @change="prefs.by_player = $event.target.checked; savePrefs()">
+      </li>
+      <template x-for="[sid, f] in playerFolderList" :key="sid">
+        <li class="row sub">
+          <span class="row-main"><small x-text="t('folderOf', { name: f.name })"></small></span>
+          <input class="text-input inline folder-name" :value="f.folder" @change="renamePlayerFolder(sid, $event.target.value, $event.target)" :aria-label="t('folderOf', { name: f.name })">
+        </li>
+      </template>
       <li class="row">
         <span class="row-main">
           <b x-text="t('workFiles')"></b>

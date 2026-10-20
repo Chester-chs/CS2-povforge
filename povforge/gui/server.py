@@ -51,6 +51,8 @@ def load_prefs() -> dict:
     prefs = {"output": str(default_output()), "demo_folders": [str(Path.home() / "Downloads")],
              "intro": True, "minimap": True, "keyboard": True, "show_enemies": False, "lang": "",
              "upload": True, "appearance": "auto", "accent": "blue",
+             "by_player": True,          # finished videos go into a folder per player
+             "player_folders": {},       # steamid -> {"folder": name on disk, "name": in-game name}
              "folders_set": False}       # first run: the user picks where demos are and where videos go
     if f.exists():
         try:
@@ -71,9 +73,12 @@ def _toml_str(s: str) -> str:
     return json.dumps(s, ensure_ascii=False)  # a JSON string is a valid TOML basic string
 
 
-def write_job_config(prefs: dict) -> Path:
-    """povforge.toml for one run, from the app's switches."""
-    lines = ["[output]", f"dir = {_toml_str(prefs['output'])}", "",
+def write_job_config(prefs: dict, videos: Path | None = None) -> Path:
+    """povforge.toml for one run, from the app's switches; ``videos`` = folder for the finished video."""
+    lines = ["[output]", f"dir = {_toml_str(prefs['output'])}"]
+    if videos is not None:
+        lines.append(f"videos = {_toml_str(str(videos))}")
+    lines += ["",
              "[overlay]", f"minimap = {str(bool(prefs['minimap'])).lower()}",
              f"keyboard = {str(bool(prefs['keyboard'])).lower()}",
              f"show_enemies = {str(bool(prefs['show_enemies'])).lower()}", "",
@@ -84,6 +89,180 @@ def write_job_config(prefs: dict) -> Path:
     app_dir().mkdir(parents=True, exist_ok=True)
     f.write_text("\n".join(lines), encoding="utf-8")
     return f
+
+
+# --- a folder per player ----------------------------------------------------------
+
+MULTI_FOLDER = {"zh": "多人集锦", "en": "Multi-player reels"}
+_RESERVED = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)), *(f"lpt{i}" for i in range(1, 10))}
+VIDEO_EXT = (".mp4", ".mkv", ".mov")
+
+
+def folder_name(s: str) -> str:
+    """A name that works as a Windows folder."""
+    s = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", str(s)).strip(" .")[:60].strip(" .")
+    if not s or s.lower() in _RESERVED or s == WORK_DIR_NAME:
+        s = (s or "player") + "_"
+    return s
+
+
+def player_folder(prefs: dict, steamid: str, name: str = "") -> str:
+    """The folder for a player's videos: their in-game name the first time, then kept
+    (a new nickname doesn't split their videos; the user can rename the folder)."""
+    folders = prefs.setdefault("player_folders", {})
+    entry = folders.get(steamid)
+    if entry is None:
+        base = folder_name(name or steamid)
+        taken = {e["folder"].lower() for e in folders.values()}
+        folder, n = base, 2
+        while folder.lower() in taken or folder in MULTI_FOLDER.values():
+            folder, n = f"{base} ({n})", n + 1
+        entry = folders[steamid] = {"folder": folder, "name": name or steamid}
+    elif name:
+        entry["name"] = name
+    return entry["folder"]
+
+
+def videos_folder(prefs: dict, item: dict) -> Path | None:
+    """Where a queue item's video goes: the player's folder, or the multi-player folder
+    for a reel of several players (None = the output folder itself)."""
+    if not prefs.get("by_player", True):
+        return None
+    base = Path(prefs["output"])
+    if item.get("kind") == "reel":
+        ids = list(dict.fromkeys(str(i["steamid"]) for i in item.get("reel", [])))
+        if len(ids) != 1:
+            return base / MULTI_FOLDER.get(prefs.get("lang") or "zh", MULTI_FOLDER["zh"])
+        name = next((i.get("name") for i in item["reel"] if i.get("name")), "")
+        return base / player_folder(prefs, ids[0], name)
+    return base / player_folder(prefs, str(item.get("steamid", "")), item.get("name", ""))
+
+
+def _move_into(src: Path, folder: Path) -> Path:
+    """Move a file or folder into ``folder`` without overwriting anything."""
+    folder.mkdir(parents=True, exist_ok=True)
+    dest = folder / src.name
+    if dest.exists():
+        if src.is_dir() and dest.is_dir():
+            for child in list(src.iterdir()):
+                _move_into(child, dest)
+            try:
+                src.rmdir()
+            except OSError:
+                pass
+            return dest
+        stem, suffix, n = src.stem, src.suffix, 2
+        while dest.exists():
+            dest, n = folder / f"{stem} ({n}){suffix}", n + 1
+    src.replace(dest)
+    return dest
+
+
+def _move_video(video: Path, folder: Path) -> None:
+    """A video and the cover and description that share its name."""
+    extras = [video.with_suffix(x) for x in (".jpg", ".txt") if video.with_suffix(x).exists()]
+    dest = _move_into(video, folder)
+    for e in extras:
+        target = dest.with_suffix(e.suffix)
+        if not target.exists():
+            e.replace(target)
+
+
+def rename_player_folder(prefs: dict, steamid: str, new: str) -> None:
+    """Rename a player's folder, on disk too (merging into a folder of that name if there is one)."""
+    folders = prefs.get("player_folders", {})
+    entry = folders.get(steamid)
+    if entry is None:
+        raise ValueError("unknown player")
+    new = folder_name(new)
+    if new == entry["folder"]:
+        return
+    if any(e["folder"].lower() == new.lower() for sid, e in folders.items() if sid != steamid):
+        raise ValueError("taken")
+    base = Path(prefs["output"])
+    src, dst = base / entry["folder"], base / new
+    if src.is_dir():
+        if dst.exists() and src.resolve() != dst.resolve():
+            for child in list(src.iterdir()):
+                _move_into(child, dst)
+            src.rmdir()
+        else:
+            src.replace(dst)              # also a change of upper/lower case only
+    entry["folder"] = new
+
+
+def _video_owners(base: Path) -> dict[str, tuple[str, str]]:
+    """Finished video name -> (steamid, player name), from the jobs that made them."""
+    owners: dict[str, tuple[str, str]] = {}
+    for root in (base / WORK_DIR_NAME, base):
+        if not root.is_dir():
+            continue
+        for rec in root.glob("*/published.json"):
+            try:
+                video = json.loads(rec.read_text(encoding="utf-8")).get("video", "")
+                player = json.loads((rec.parent / "plan.json").read_text(encoding="utf-8"))["player"]
+                if video:
+                    owners[video] = (str(player["steamid"]), str(player["name"]))
+            except Exception:
+                continue
+    return owners
+
+
+def _known_players(base: Path) -> dict[str, str]:
+    """steamid -> name of every player with a job in the work folder."""
+    out: dict[str, str] = {}
+    for root in (base / WORK_DIR_NAME, base):
+        if root.is_dir():
+            for f in root.glob("*/plan.json"):
+                try:
+                    p = json.loads(f.read_text(encoding="utf-8"))["player"]
+                    out[str(p["steamid"])] = str(p["name"])
+                except Exception:
+                    continue
+    return out
+
+
+def organize_existing(prefs: dict) -> str:
+    """Once: sort the videos already in the output folder into player folders.
+
+    If the output folder already is one player's folder (say .../Pro POV/donk with
+    only donk666's videos), it becomes that player's folder and its parent the new
+    output folder, so nothing in it has to move but the work files. Returns a note."""
+    prefs["organized"] = True
+    base = Path(prefs["output"])
+    if not base.is_dir():
+        return ""
+    videos = [v for v in base.iterdir() if v.is_file() and v.suffix.lower() in VIDEO_EXT]
+    owners = _video_owners(base)
+    players = _known_players(base)
+    whose: dict[Path, tuple[str, str]] = {}
+    for v in videos:
+        if v.name in owners:
+            whose[v] = owners[v.name]
+        else:                                          # a reel: named after its player by default
+            for sid, name in sorted(players.items(), key=lambda x: -len(x[1])):
+                if name and v.stem.lower().startswith(name.lower()):
+                    whose[v] = (sid, name)
+                    break
+    ids = {sid for sid, _ in whose.values()}
+    if len(ids) == 1 and len(whose) == len(videos):
+        sid, name = next(iter(whose.values()))
+        here = base.name.lower()
+        if here and (here in name.lower() or name.lower() in here) and base.parent != base:
+            parent = base.parent
+            if (base / WORK_DIR_NAME).is_dir():
+                _move_into(base / WORK_DIR_NAME, parent)
+            prefs.setdefault("player_folders", {})[sid] = {"folder": base.name, "name": name}
+            prefs["output"] = str(parent)
+            print(f"Sorted by player: {base} is now {name}'s folder in {parent}", flush=True)
+            return str(parent)
+    moved = 0
+    for v, (sid, name) in whose.items():
+        _move_video(v, base / player_folder(prefs, sid, name))
+        moved += 1
+    if moved:
+        print(f"Sorted by player: {moved} video(s) moved into player folders in {base}", flush=True)
+    return str(base) if moved else ""
 
 
 # --- work files ------------------------------------------------------------------
@@ -384,7 +563,9 @@ class Job:
             self.state, self.stage, self.started = "running", "read", time.time()
             self.player, self.demo, self.item, self.kind = item["name"], item.get("path", ""), item.get("id", 0), kind
             self.planned = sorted(item.get("rounds") or [])
-        cfg = write_job_config(prefs)
+        videos = videos_folder(prefs, item)
+        save_prefs(prefs)                         # a new player got a folder name
+        cfg = write_job_config(prefs, videos)
         if kind == "reel":
             spec = app_dir() / "reels" / f"reel-{item.get('id', 0)}.json"
             spec.parent.mkdir(parents=True, exist_ok=True)
@@ -509,7 +690,8 @@ class Queue:
         """A highlight reel: items are {demo, steamid, round} in the order they appear;
         ``fx`` the effects chosen for it (see effects.py)."""
         from .. import effects
-        reel = [{"demo": str(i["demo"]), "steamid": str(i["steamid"]), "round": int(i["round"])} for i in items]
+        reel = [{"demo": str(i["demo"]), "steamid": str(i["steamid"]), "round": int(i["round"]),
+                 "name": str(i.get("name") or "")} for i in items]
         if not reel:
             raise ValueError("No rounds in the reel.")
         return self._add({"kind": "reel", "name": title or "Highlights", "reel": reel, "rounds": [],
@@ -921,6 +1103,12 @@ def pick_folder(initial: str) -> str | None:
 class App:
     def __init__(self):
         self.prefs = load_prefs()
+        if self.prefs.get("folders_set") and self.prefs.get("by_player", True) and not self.prefs.get("organized"):
+            try:
+                organize_existing(self.prefs)
+            except Exception as e:
+                print(f"Sorting the videos by player failed: {e}", flush=True)
+            save_prefs(self.prefs)
         self.job = Job()
         self.queue = Queue(self.job, self.prefs)
         self.setup = Setup()
@@ -1078,6 +1266,12 @@ def make_handler(app: App):
                                                                       if f != chosen][:4]
                         save_prefs(app.prefs)
                     return self._json(app.prefs)
+                if url.path == "/api/player-folder":
+                    if app.job.state == "running":
+                        return self._json({"error": "busy"}, 409)
+                    rename_player_folder(app.prefs, str(b.get("steamid", "")), str(b.get("folder", "")))
+                    save_prefs(app.prefs)
+                    return self._json(app.prefs)
                 if url.path == "/api/folders/confirm":
                     app.prefs["folders_set"] = True
                     save_prefs(app.prefs)
@@ -1086,6 +1280,8 @@ def make_handler(app: App):
                     for k in ("intro", "minimap", "keyboard", "show_enemies", "lang", "upload"):
                         if k in b:
                             app.prefs[k] = b[k]
+                    if "by_player" in b:
+                        app.prefs["by_player"] = bool(b["by_player"])
                     if b.get("appearance") in ("auto", "light", "dark"):
                         app.prefs["appearance"] = b["appearance"]
                     if b.get("accent") in ACCENTS:

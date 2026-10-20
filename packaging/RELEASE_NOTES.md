@@ -1,4 +1,15 @@
-**What's new in v0.11.1 / 本次更新**
+**What's new in v0.12.0 / 本次更新**
+
+- Finished videos are sorted into a folder per player (save folder/player/; reels of several players go into "Multi-player reels"). The folder is named after the player's in-game name and can be renamed in Settings; a new nickname keeps the same folder. Videos you already made are sorted once; a folder that already held one player's videos (like ".../Pro POV/donk") simply becomes that player's folder.
+  成片按选手分文件夹（保存位置/选手名/；几个选手的集锦放进「多人集锦」）。文件夹默认用游戏名，可在设置里改名；选手改了游戏名也还放在同一个文件夹。已有的成片会整理一次；原来就只放一个选手视频的文件夹（比如"…/职业选手POV/donk"）直接成为他的文件夹。
+- Whole match and Highlight reel are now two equal choices at the top of the sidebar; for a reel you pick the demos right in the list.
+  侧边栏顶部改成并排的「整场录制」和「高光集锦」两个入口；做集锦时直接在 demo 列表里点选场次。
+- Reel effects now only come from finished videos you import: without one the reel is simply joined; each imported video becomes a named style, you can switch between them or mix item by item. The hand-picked effects and the ready-made looks are gone.
+  集锦效果只来自你导入的成片：不导入就原样拼接；每个导入的成片存成一个有名字的风格，可以来回切换，也能按项混搭。去掉了手动选的特效和"燃""电影感"等现成风格。
+- Fixed: whole-match recordings could stop while drawing the minimap ("box offset can't be negative") with the image library the app now ships.
+  修复：整场录制可能在画小地图时出错停止（"box offset can't be negative"）。
+
+**v0.11.1**
 
 - Fixed: "Play video" and "Show in folder" did nothing when the video's folder or name had Chinese in it (the path reached the app garbled). If a file can't be opened, the app now says why.
   修复：视频所在文件夹或文件名带中文时，"播放视频"和"打开所在文件夹"没有反应（路径传给软件时乱码了）。打不开时现在会提示原因。

@@ -73,15 +73,9 @@ DEFAULTS: dict = {
     "pace": "normal",
 }
 
-# Ready-made looks, offered in the app (and saved ones of the user's own).
-PRESETS: dict[str, dict] = {
-    "plain": {},
-    "hype": {"transition": "flash", "transition_seconds": 0.3, "kill_flash": True, "kill_zoom": True,
-             "kill_shake": True, "grade": "vivid", "outro": "freeze", "pace": "tight"},
-    "cinematic": {"intro": "title", "transition": "black", "transition_seconds": 0.6, "kill_slowmo": True,
-                  "kill_scope": "final", "grade": "cinematic", "letterbox": True, "outro": "fade"},
-    "clean": {"intro": "fade", "transition": "dissolve", "transition_seconds": 0.4, "outro": "fade"},
-}
+# Looks are not made up here: the app only offers "no effects" and the styles the
+# user copied from finished videos (style.py), kept in their settings.
+PRESETS: dict[str, dict] = {"plain": {}}
 
 
 def _num(v, lo: float, hi: float, default: float) -> float:

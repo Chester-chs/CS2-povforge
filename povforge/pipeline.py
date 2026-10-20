@@ -40,6 +40,11 @@ def work_root(cfg: Config) -> Path:
     return cfg.output_dir / cfg.work_dir_name
 
 
+def videos_dir(cfg: Config) -> Path:
+    """Where finished videos go (the output folder, or the player's folder in it)."""
+    return cfg.video_dir or cfg.output_dir
+
+
 def job_dir_for(cfg: Config, demo: Path, player_name: str, suffix: str = "") -> Path:
     return work_root(cfg) / f"{demo.stem}__{safe_filename(player_name)}{'__' + suffix if suffix else ''}"
 
@@ -54,7 +59,7 @@ def publish(cfg: Config, job: Path, made: Path) -> Path:
             name = json.loads(rec.read_text(encoding="utf-8")).get("video", "")
         except Exception:
             name = ""
-    dest = cfg.output_dir / name if name else free_name(cfg.output_dir, made.stem)
+    dest = videos_dir(cfg) / name if name else free_name(videos_dir(cfg), made.stem)
     dest.parent.mkdir(parents=True, exist_ok=True)
     made.replace(dest)
     rec.write_text(json.dumps({"video": dest.name}, ensure_ascii=False), encoding="utf-8")
@@ -245,7 +250,14 @@ def renumber_clips(job: Path, old: list[Segment], new: list[Segment]) -> None:
 
 
 def load_plan(job: Path) -> Plan:
-    return Plan.from_dict(json.loads((job / "plan.json").read_text(encoding="utf-8")))
+    plan = Plan.from_dict(json.loads((job / "plan.json").read_text(encoding="utf-8")))
+    if not Path(plan.demo_path).exists():
+        # the work folder was moved (e.g. when videos were sorted by player): the
+        # unpacked demo is in the "demos" folder next to this job
+        moved = job.parent / "demos" / Path(plan.demo_path).name
+        if moved.exists():
+            plan.demo_path = str(moved.resolve())
+    return plan
 
 
 def load_track(job: Path) -> Track:

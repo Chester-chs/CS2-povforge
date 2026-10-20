@@ -139,7 +139,8 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
         pieces.append(piece)
     listing = out_dir / "list.txt"
     listing.write_text("".join(concat_line(p) for p in pieces), encoding="utf-8")
-    final = free_name(cfg.output_dir, safe_filename(title))
+    pipeline.videos_dir(cfg).mkdir(parents=True, exist_ok=True)
+    final = free_name(pipeline.videos_dir(cfg), safe_filename(title))
     _log("Joining the reel ...")
     subprocess.run([cfg.compose.ffmpeg, "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
                     "-i", str(listing), "-c", "copy", "-movflags", "+faststart", str(final)], check=True)
@@ -166,7 +167,8 @@ def _with_effects(cfg: Config, title: str, order: list, fx: dict) -> Path:
         stats = colour_stats([(m.clip, m.start, m.length) for m in moments], cfg.compose.ffmpeg)
     work = pipeline.work_root(cfg) / "reel pieces" / safe_filename(title)
     shutil.rmtree(work, ignore_errors=True)
-    final = free_name(cfg.output_dir, safe_filename(title))
+    pipeline.videos_dir(cfg).mkdir(parents=True, exist_ok=True)
+    final = free_name(pipeline.videos_dir(cfg), safe_filename(title))
     _log("Joining the reel ...")
     effects.build(moments, fx, final, work, (cfg.record.width, cfg.record.height), cfg.record.fps,
                   cfg.compose, title=title, source_stats=stats)

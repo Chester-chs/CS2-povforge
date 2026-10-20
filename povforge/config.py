@@ -63,6 +63,8 @@ class Config:
     # recordings and other intermediate files, kept for retries and re-renders;
     # only finished videos go straight into output_dir
     work_dir_name: str = "工作文件"
+    # where finished videos go; empty = output_dir (the app sets a per-player folder in it)
+    video_dir: Path | None = None
     plan: PlanOptions = field(default_factory=PlanOptions)
     record: RecordSettings = field(default_factory=RecordSettings)
     overlay: OverlaySettings = field(default_factory=OverlaySettings)
@@ -94,6 +96,8 @@ def load_config(path: str | Path | None) -> Config:
     data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
     if "output" in data and "dir" in data["output"]:
         cfg.output_dir = Path(data["output"]["dir"])
+    if "output" in data and data["output"].get("videos"):
+        cfg.video_dir = Path(data["output"]["videos"])
     for section in ("plan", "record", "overlay", "compose", "intro", "highlights", "upload"):
         if section in data:
             _apply(getattr(cfg, section), data[section], section)
