@@ -101,7 +101,8 @@ def _clip(path: Path, hue: int, seconds: float = 6.0) -> Path:
 
 
 def _durations(path: Path) -> tuple[float, float]:
-    out = subprocess.run([FFMPEG.replace("ffmpeg", "ffprobe"), "-v", "error", "-show_entries",
+    from povforge.media import ffprobe_for
+    out = subprocess.run([ffprobe_for(FFMPEG), "-v", "error", "-show_entries",
                           "stream=codec_type,duration", "-of", "json", str(path)], capture_output=True, text=True)
     st = {s["codec_type"]: float(s["duration"]) for s in json.loads(out.stdout)["streams"]}
     return st["video"], st["audio"]
