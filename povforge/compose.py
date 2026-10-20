@@ -106,6 +106,11 @@ def safe_filename(name: str) -> str:
     return cleaned or "player"
 
 
+def concat_line(p: Path) -> str:
+    """One line of an FFmpeg concat list; quotes in the path are escaped."""
+    return "file '" + Path(p).resolve().as_posix().replace("'", "'\\''") + "'\n"
+
+
 def _ts(seconds: float) -> str:
     s = int(seconds)
     h, m, sec = s // 3600, (s // 60) % 60, s % 60
@@ -171,7 +176,7 @@ def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str,
 
     all_parts = ([intro] if intro else []) + parts
     listing = job_dir / "parts.txt"
-    listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in all_parts), encoding="utf-8")
+    listing.write_text("".join(concat_line(p) for p in all_parts), encoding="utf-8")
     durations = [probe(p, s.ffmpeg).duration for p in parts]
     intro_len = probe(intro, s.ffmpeg).duration if intro else 0.0
     intro_title = "片头" if s.chapter_lang == "zh" else "Intro"

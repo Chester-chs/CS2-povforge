@@ -154,3 +154,9 @@ def test_the_style_of_a_reel_is_read_back(tmp_path):
     assert got["transition_seconds"] == pytest.approx(0.4, abs=0.15)
     assert got["outro"] == "freeze"
     assert got["grade"] == "match" and "sat" in got["grade_match"]
+
+
+def test_join_list_lines_escape_quotes(tmp_path):
+    from povforge.compose import concat_line
+    line = concat_line(tmp_path / "it's" / "a.mp4")
+    assert line.startswith("file '") and line.endswith("'\n") and "it'\\''s" in line

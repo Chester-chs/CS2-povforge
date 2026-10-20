@@ -19,7 +19,7 @@ from pathlib import Path
 import shutil
 
 from . import effects
-from .compose import free_name, safe_filename
+from .compose import concat_line, free_name, safe_filename
 from .config import Config
 from .extras import _cut, kill_windows
 from .hlae import actual_starts, clip_id
@@ -138,7 +138,7 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
         _cut(clip, a, b, piece, cfg.compose)
         pieces.append(piece)
     listing = out_dir / "list.txt"
-    listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in pieces), encoding="utf-8")
+    listing.write_text("".join(concat_line(p) for p in pieces), encoding="utf-8")
     final = free_name(cfg.output_dir, safe_filename(title))
     _log("Joining the reel ...")
     subprocess.run([cfg.compose.ffmpeg, "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",

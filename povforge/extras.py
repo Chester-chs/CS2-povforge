@@ -10,7 +10,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter
 
 from . import highlights
-from .compose import AUDIO_RATE, ComposeSettings, encode_args, safe_filename
+from .compose import AUDIO_RATE, ComposeSettings, concat_line, encode_args, safe_filename
 from .config import Config
 from .hlae import actual_starts, clip_id
 from .intro import pretty_map
@@ -70,7 +70,7 @@ def make_highlight_video(cfg: Config, job: Path, plan: Plan, parts: list[Path],
         _cut(parts[i], a, b, out, s)
         pieces.append(out)
     listing = pieces_dir / "list.txt"
-    listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in ([intro] if intro else []) + pieces),
+    listing.write_text("".join(concat_line(p) for p in ([intro] if intro else []) + pieces),
                        encoding="utf-8")
     final = job / f"{safe_filename(plan.player.name)}_{plan.map_name}_highlights.mp4"
     subprocess.run([s.ffmpeg, "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(listing),

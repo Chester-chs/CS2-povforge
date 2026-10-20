@@ -26,7 +26,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .compose import AUDIO_RATE, ComposeSettings
+from .compose import AUDIO_RATE, ComposeSettings, concat_line
 from .media import ffprobe_for, probe
 
 # --- the choices ----------------------------------------------------------------
@@ -584,7 +584,7 @@ def build(moments: list[Moment], fx: dict, out: Path, work: Path, size: tuple[in
 
     _log("Effects: joining the picture ...")
     listing = work / "list.txt"
-    listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in files), encoding="utf-8")
+    listing.write_text("".join(concat_line(p) for p in files), encoding="utf-8")
     picture = work / "picture.mp4"
     _run([s.ffmpeg, "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(listing),
           "-c", "copy", "-an", str(picture)])
