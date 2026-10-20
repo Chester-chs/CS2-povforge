@@ -161,3 +161,15 @@ def test_join_list_lines_escape_quotes(tmp_path):
     from povforge.compose import concat_line
     line = concat_line(tmp_path / "it's" / "a.mp4")
     assert line.startswith("file '") and line.endswith("'\n") and "it'\\''s" in line
+
+
+@needs_ffmpeg
+def test_upload_copy_is_scaled_up(tmp_path):
+    from povforge.compose import upload_copy
+    from povforge.media import probe
+    clip = _clip(tmp_path / "v.mp4", 0, 2)
+    lines = []
+    out = upload_copy(clip, 540, ComposeSettings(ffmpeg=FFMPEG), lines.append)
+    assert out.name == "v [540p].mp4" and probe(out, FFMPEG).height == 540
+    assert lines[0].startswith("Making the 540p upload copy") and lines[-1].startswith("Upload copy: ")
+    assert upload_copy(clip, 270, ComposeSettings(ffmpeg=FFMPEG)) is None      # already that big

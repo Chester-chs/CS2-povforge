@@ -52,6 +52,9 @@ def load_prefs() -> dict:
              "intro": True, "minimap": True, "keyboard": True, "show_enemies": False, "lang": "",
              "upload": True, "appearance": "auto", "accent": "blue",
              "by_player": True,          # finished videos go into a folder per player
+             "record_res": "auto",       # auto (the screen's) | 1080 | 1440 | 2160
+             "record_fps": 60,           # 60 | 120
+             "upload_4k": True,          # also make a 4K copy for uploading
              "player_folders": {},       # steamid -> {"folder": name on disk, "name": in-game name}
              "folders_set": False}       # first run: the user picks where demos are and where videos go
     if f.exists():
@@ -84,11 +87,75 @@ def write_job_config(prefs: dict, videos: Path | None = None) -> Path:
              f"show_enemies = {str(bool(prefs['show_enemies'])).lower()}", "",
              "[intro]", f"enabled = {str(bool(prefs['intro'])).lower()}", "",
              "[highlights]", "enabled = false", "",      # highlights are made as a reel now
-             "[upload]", f"enabled = {str(bool(prefs.get('upload', True))).lower()}", ""]
+             "[upload]", f"enabled = {str(bool(prefs.get('upload', True))).lower()}"]
+    w, h = record_size(prefs)
+    fps = 120 if int(prefs.get("record_fps") or 60) == 120 else 60
+    if prefs.get("upload_4k", True) and h < 2160:
+        lines.append("upscale = 2160")
+    # quality first: near-lossless while recording, careful encoding when putting it together
+    big = h > 1440 or fps > 60
+    lines += ["", "[record]", f"width = {w}", f"height = {h}", f"fps = {fps}",
+              f'video_options = "-c:v libx264 -pix_fmt yuv420p -preset veryfast -crf {14 if h > 1440 else 12}"',
+              "", "[compose]", "crf = 15", f'preset = "{"fast" if big else "medium"}"', ""]
     f = app_dir() / "last-run.toml"
     app_dir().mkdir(parents=True, exist_ok=True)
     f.write_text("\n".join(lines), encoding="utf-8")
     return f
+
+
+# --- recording size ----------------------------------------------------------------
+
+SIZES = {"1080": (1920, 1080), "1440": (2560, 1440), "2160": (3840, 2160)}
+
+
+def screen_size() -> tuple[int, int] | None:
+    """The main screen's resolution in real pixels (Windows), or None if unknown."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class DEVMODE(ctypes.Structure):
+            _fields_ = [("dmDeviceName", wintypes.WCHAR * 32), ("dmSpecVersion", wintypes.WORD),
+                        ("dmDriverVersion", wintypes.WORD), ("dmSize", wintypes.WORD),
+                        ("dmDriverExtra", wintypes.WORD), ("dmFields", wintypes.DWORD),
+                        ("dmPositionX", wintypes.LONG), ("dmPositionY", wintypes.LONG),
+                        ("dmDisplayOrientation", wintypes.DWORD), ("dmDisplayFixedOutput", wintypes.DWORD),
+                        ("dmColor", ctypes.c_short), ("dmDuplex", ctypes.c_short), ("dmYResolution", ctypes.c_short),
+                        ("dmTTOption", ctypes.c_short), ("dmCollate", ctypes.c_short),
+                        ("dmFormName", wintypes.WCHAR * 32), ("dmLogPixels", wintypes.WORD),
+                        ("dmBitsPerPel", wintypes.DWORD), ("dmPelsWidth", wintypes.DWORD),
+                        ("dmPelsHeight", wintypes.DWORD), ("dmDisplayFlags", wintypes.DWORD),
+                        ("dmDisplayFrequency", wintypes.DWORD)]
+        dm = DEVMODE()
+        dm.dmSize = ctypes.sizeof(DEVMODE)
+        if ctypes.windll.user32.EnumDisplaySettingsW(None, -1, ctypes.byref(dm)):   # ENUM_CURRENT_SETTINGS
+            return int(dm.dmPelsWidth), int(dm.dmPelsHeight)
+    except Exception:
+        pass
+    return None
+
+
+def fitting_sizes(screen: tuple[int, int] | None) -> list[str]:
+    """The 16:9 recording sizes that fit on the screen (CS2 records in a window on it)."""
+    if screen is None:
+        return list(SIZES)
+    sw, sh = screen
+    fit = [k for k, (w, h) in SIZES.items() if w <= sw and h <= sh]
+    return fit or ["1080"]
+
+
+def record_size(prefs: dict, screen: tuple[int, int] | None = None) -> tuple[int, int]:
+    """The size to record at: the chosen one if it fits on the screen, else the biggest that does."""
+    screen = screen if screen is not None else screen_size()
+    fit = fitting_sizes(screen)
+    want = str(prefs.get("record_res") or "auto")
+    if want == "auto":
+        want = fit[-1] if screen is not None else "1080"
+    elif want not in fit:
+        want = fit[-1]
+    return SIZES[want]
 
 
 # --- a folder per player ----------------------------------------------------------
@@ -461,33 +528,20 @@ def inspect_isolated(path: str, work_dir: Path) -> dict:
 
 
 def analyze_isolated(path: str) -> dict:
-    """style.analyze in a child process (it can take a while on a long video)."""
-    src = Path(path)
-    if not src.is_file():
+    """style.analyze in a child process (it can take a while on a long video).
+    ``path`` may also be a link: the child downloads a small copy first."""
+    from ..style import is_link
+    if not is_link(path) and not Path(path).is_file():
         raise ValueError("The video was not found.")
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
-    r = subprocess.run(cli_command("analyze-style", str(src), "--json"), capture_output=True, text=True,
+    r = subprocess.run(cli_command("analyze-style", str(path).strip(), "--json"), capture_output=True, text=True,
                        encoding="utf-8", errors="replace", timeout=1800, env=env, creationflags=flags)
     out = [l for l in r.stdout.splitlines() if l.startswith("{")]
     if r.returncode != 0 or not out:
         tail = (r.stderr or r.stdout).strip().splitlines()
         raise RuntimeError(tail[-1] if tail else f"Reading the video failed (exit code {r.returncode}).")
     return json.loads(out[-1])
-
-
-def music_from_video(path: str) -> str:
-    """The sound of a video, saved as a music file for reels."""
-    from ..style import extract_music
-    from ..tools import find_ffmpeg
-    src = Path(path)
-    out = app_dir() / "music" / (safe_name(src.stem) + ".m4a")
-    extract_music(src, out, find_ffmpeg("") or "ffmpeg")
-    return str(out)
-
-
-def safe_name(s: str) -> str:
-    return re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", s).strip(" .") or "music"
 
 
 # --- recording job -----------------------------------------------------------------
@@ -515,7 +569,7 @@ def rounds_spec(rounds: list[int]) -> str:
 class Job:
     """One `povforge run` child process and what it has reported so far."""
 
-    STAGES = ["read", "record", "overlays", "intro", "compose", "extras", "cut", "done"]
+    STAGES = ["read", "record", "overlays", "intro", "compose", "extras", "cut", "upscale", "done"]
 
     def __init__(self):
         self.lock = threading.Lock()
@@ -640,6 +694,10 @@ class Job:
                 self.stage, self.step = "cut", (int(m.group(1)), int(m.group(2)))
             elif line.startswith(("Joining the reel", "Effects: joining", "Effects: sound")):
                 self.stage, self.step = "cut", (1, 1)
+            elif line.startswith("Making the 4K upload copy"):
+                self.stage, self.step = "upscale", (0, 100)
+            elif m := re.match(r"Upload copy (\d+)/100", line):
+                self.stage, self.step = "upscale", (int(m.group(1)), 100)
             elif line.startswith("Done: "):
                 self.result = line[6:].strip()
             elif line.startswith("Error: "):
@@ -1120,6 +1178,7 @@ class App:
         self.bye_at = 0.0              # the page said it was closing (pagehide)
         self.window = None             # the Edge/Chrome process showing our window, when we can tell
         self.inspecting = 0
+        self.screen = screen_size()
         threading.Thread(target=self._check_update, daemon=True).start()
 
     def _check_update(self) -> None:
@@ -1190,6 +1249,7 @@ def make_handler(app: App):
                     return self._json({"version": __version__, "prefs": app.prefs, "update": app.update,
                                        "setup": app.setup.status(), "job": app.job.snapshot(),
                                        "queue": app.queue.snapshot(),
+                                       "screen": app.screen, "sizes": fitting_sizes(app.screen),
                                        "effects": {"defaults": effects.DEFAULTS, "presets": effects.PRESETS,
                                                    "transitions": list(effects.TRANSITIONS),
                                                    "grades": [g for g in effects.GRADES if g != "match"]}})
@@ -1252,8 +1312,7 @@ def make_handler(app: App):
                     finally:
                         app.inspecting -= 1
                         app.last_seen = time.time()
-                if url.path == "/api/style/music":
-                    return self._json({"path": music_from_video(b.get("path", ""))})
+
                 if url.path == "/api/folder":
                     which = b.get("which")
                     initial = app.prefs["output"] if which == "output" else app.prefs["demo_folders"][0]
@@ -1280,8 +1339,18 @@ def make_handler(app: App):
                     for k in ("intro", "minimap", "keyboard", "show_enemies", "lang", "upload"):
                         if k in b:
                             app.prefs[k] = b[k]
+                    if isinstance(b.get("music_library"), list):
+                        app.prefs["music_library"] = [{"path": str(m.get("path") or ""), "name": str(m.get("name") or "")[:80]}
+                                                      for m in b["music_library"][:50]
+                                                      if isinstance(m, dict) and m.get("path")]
                     if "by_player" in b:
                         app.prefs["by_player"] = bool(b["by_player"])
+                    if b.get("record_res") in ("auto", *SIZES):
+                        app.prefs["record_res"] = b["record_res"]
+                    if b.get("record_fps") in (60, 120, "60", "120"):
+                        app.prefs["record_fps"] = int(b["record_fps"])
+                    if "upload_4k" in b:
+                        app.prefs["upload_4k"] = bool(b["upload_4k"])
                     if b.get("appearance") in ("auto", "light", "dark"):
                         app.prefs["appearance"] = b["appearance"]
                     if b.get("accent") in ACCENTS:

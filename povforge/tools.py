@@ -15,8 +15,10 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -173,3 +175,36 @@ def install_ffmpeg(progress: Progress | None = None) -> Path:
     if not ffmpeg_exe().is_file():
         raise RuntimeError("FFmpeg was downloaded but ffmpeg.exe is missing.")
     return ffmpeg_exe()
+
+
+# --- yt-dlp: fetching a finished video from a link (to read its style) -------------------
+
+YTDLP_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
+YTDLP_REFRESH_DAYS = 7      # sites change often; yt-dlp updates itself this often
+
+
+def ytdlp_exe() -> Path:
+    return tools_dir() / "yt-dlp.exe"
+
+
+def find_ytdlp(progress: Progress | None = None) -> list[str]:
+    """The command to run yt-dlp: the official yt-dlp.exe (downloaded the first time
+    and kept up to date) on Windows; elsewhere one on PATH or the Python package."""
+    if sys.platform == "win32":
+        exe = ytdlp_exe()
+        if not exe.is_file():
+            tools_dir().mkdir(parents=True, exist_ok=True)
+            part = exe.with_suffix(".part")
+            _download(YTDLP_URL, part, "yt-dlp", progress)
+            part.replace(exe)
+        elif time.time() - exe.stat().st_mtime > YTDLP_REFRESH_DAYS * 86400:
+            if progress:
+                progress("Updating yt-dlp", -1)
+            subprocess.run([str(exe), "-U"], capture_output=True, timeout=180,
+                           creationflags=subprocess.CREATE_NO_WINDOW)
+            os.utime(exe)                       # don't try again for a while, even if it failed
+        return [str(exe)]
+    on_path = shutil.which("yt-dlp")
+    if on_path:
+        return [on_path]
+    return [sys.executable, "-m", "yt_dlp"]

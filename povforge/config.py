@@ -55,6 +55,7 @@ class HighlightSettings:
 @dataclass
 class UploadSettings:
     enabled: bool = True
+    upscale: int = 0        # also make a copy this many lines high for uploading (2160 = 4K); 0 = no
 
 
 @dataclass

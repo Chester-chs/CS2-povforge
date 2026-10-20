@@ -150,6 +150,7 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
     except OSError:
         pass
     seconds = sum(w[2] - w[1] for w in order)
+    pipeline.make_upload_copy(cfg, final)
     _log(f"Reel: {len(order)} moments, {seconds:.0f} s")
     _log(f"Done: {final.resolve()}")
     return final
@@ -178,6 +179,7 @@ def _with_effects(cfg: Config, title: str, order: list, fx: dict) -> Path:
     except OSError:
         pass
     seconds = probe(final, cfg.compose.ffmpeg).duration
+    pipeline.make_upload_copy(cfg, final)
     _log(f"Reel: {len(moments)} moments, {seconds:.0f} s")
     _log(f"Done: {final.resolve()}")
     return final

@@ -106,6 +106,37 @@ def safe_filename(name: str) -> str:
     return cleaned or "player"
 
 
+def upload_copy(video: Path, height: int, s: ComposeSettings, log=print) -> Path | None:
+    """A copy of ``video`` scaled up to ``height`` lines (4K = 2160) for uploading:
+    Bilibili and YouTube give larger videos a higher bitrate, so it looks sharper
+    there. Nothing is made if the video is already that big."""
+    from .media import probe
+    info = probe(video, s.ffmpeg)
+    if not height or info.height >= height:
+        return None
+    out = video.with_name(f"{video.stem} [{'4K' if height == 2160 else f'{height}p'}].mp4")
+    log(f"Making the {'4K' if height == 2160 else f'{height}p'} upload copy ...")
+    cmd = [s.ffmpeg, "-y", "-loglevel", "error", "-i", str(video), "-vf", f"scale=-2:{height}:flags=lanczos",
+           "-c:v", "libx264", "-crf", "16", "-preset", "faster", "-pix_fmt", "yuv420p",
+           "-c:a", "copy", "-movflags", "+faststart", "-progress", "pipe:1", "-nostats", str(out)]
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True)
+    last = -1
+    for line in p.stdout:
+        if line.startswith("out_time_us=") and info.duration > 0:
+            try:
+                pct = int(int(line.split("=")[1]) / 1e6 / info.duration * 100)
+            except ValueError:
+                continue
+            if pct >= last + 5:
+                last = pct
+                log(f"Upload copy {min(pct, 100)}/100")
+    if p.wait() != 0:
+        out.unlink(missing_ok=True)
+        raise RuntimeError("the upload copy could not be made")
+    log(f"Upload copy: {out.resolve()}")
+    return out
+
+
 def concat_line(p: Path) -> str:
     """One line of an FFmpeg concat list; quotes in the path are escaped."""
     return "file '" + Path(p).resolve().as_posix().replace("'", "'\\''") + "'\n"

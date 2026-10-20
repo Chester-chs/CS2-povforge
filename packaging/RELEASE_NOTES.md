@@ -1,4 +1,15 @@
-**What's new in v0.12.0 / 本次更新**
+**What's new in v0.13.0 / 本次更新**
+
+- Recording quality: choose the recording size (screen size, 1080p, 1440p, 4K; up to your screen's) and frame rate (60 or 120 fps, smooth slow motion) in Settings. Recordings and finished videos are encoded for quality first (bigger files).
+  录制画质：在设置里选录制分辨率（跟屏幕一样、1080p、1440p、4K，不超过屏幕）和帧率（60 或 120 帧，慢动作更顺滑）。录制和成片改为画质优先编码（文件更大）。
+- A 4K upload copy is saved next to each finished video and reel ("name [4K].mp4"): Bilibili and YouTube give 4K uploads more bitrate, so they look sharper there. Can be turned off in Settings.
+  每个成片和集锦旁边另存一份放大到 4K 的上传版（"名字 [4K].mp4"），传 B 站、YouTube 时网站给的码率更高、更清楚。可在设置里关掉。
+- Import a finished video from a link: paste a Bilibili, YouTube or other video link (or a direct .mp4); a small copy is fetched with yt-dlp, read and deleted.
+  用链接导入成片：粘贴 B 站、YouTube 等视频链接（或直接的 .mp4 地址），软件用 yt-dlp 取一份低清晰度的，读完即删。
+- Background music: add your own music files; they stay in a list to pick from next time. Game sound can be kept, lowered or muted.
+  背景音乐：上传你自己的音乐文件，上传过的留在列表里下次直接选；游戏声音可以保留、调低或静音。
+
+**v0.12.0**
 
 - Finished videos are sorted into a folder per player (save folder/player/; reels of several players go into "Multi-player reels"). The folder is named after the player's in-game name and can be renamed in Settings; a new nickname keeps the same folder. Videos you already made are sorted once; a folder that already held one player's videos (like ".../Pro POV/donk") simply becomes that player's folder.
   成片按选手分文件夹（保存位置/选手名/；几个选手的集锦放进「多人集锦」）。文件夹默认用游戏名，可在设置里改名；选手改了游戏名也还放在同一个文件夹。已有的成片会整理一次；原来就只放一个选手视频的文件夹（比如"…/职业选手POV/donk"）直接成为他的文件夹。

@@ -76,15 +76,33 @@ def _cmd_reel(args, cfg) -> None:
 
 
 def _cmd_analyze_style(args, cfg) -> None:
-    """Work out a finished video's effects (what the app's "copy a video's style" does)."""
+    """Work out a finished video's effects (what the app's "import a finished video" does).
+    ``video`` may be a link (Bilibili, YouTube, a direct .mp4 ...): a small copy is
+    downloaded with yt-dlp, read and deleted."""
     import json
+    import shutil
+    import tempfile
     from . import style
+    video, title, tmp = args.video, "", None
+    if style.is_link(video):
+        tmp = Path(tempfile.mkdtemp(prefix="povforge-ref-"))
+        print("Downloading the video ...", flush=True)
+        try:
+            video, title = style.fetch(args.video, tmp, cfg.compose.ffmpeg)
+        except Exception:
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise
+    try:
+        r = style.analyze(video, cfg.compose.ffmpeg)
+    finally:
+        if tmp is not None:
+            shutil.rmtree(tmp, ignore_errors=True)
+    r["video"]["title"] = title or Path(str(video)).stem
     if args.json:
-        print(json.dumps(style.analyze(args.video, cfg.compose.ffmpeg), ensure_ascii=False), flush=True)
+        print(json.dumps(r, ensure_ascii=False), flush=True)
         return
-    r = style.analyze(args.video, cfg.compose.ffmpeg)
     v = r["video"]
-    print(f"{Path(args.video).name}: {v['seconds']} s, {v['width']}x{v['height']}, {v['fps']} fps")
+    print(f"{v['title']}: {v['seconds']} s, {v['width']}x{v['height']}, {v['fps']} fps")
     for line in r["report"]:
         print("  " + ", ".join(f"{k}={val}" for k, val in line.items()))
     print("Effects: " + json.dumps(r["effects"], ensure_ascii=False))
@@ -316,7 +334,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=_cmd_reel)
 
     s = sub.add_parser("analyze-style", help="work out the effects of a finished highlight video")
-    s.add_argument("video")
+    s.add_argument("video", help="a video file, or a link to one (Bilibili, YouTube, a direct .mp4 ...)")
     s.add_argument("--json", action="store_true", help="print the result as JSON")
     s.set_defaults(func=_cmd_analyze_style)
 

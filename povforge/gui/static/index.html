@@ -398,14 +398,21 @@
     <!-- style copied from finished videos; nothing imported = the rounds are simply joined -->
     <div class="group-title with-control">
       <h3 x-text="t('styleTitle')"></h3>
-      <button class="btn small" @click="copyStyle()" :disabled="styleRef.state === 'working'"><svg><use href="#i-film"/></svg><span x-text="t('fxCopy')"></span></button>
+      <span class="title-tools">
+        <button class="btn small" @click="linkOpen = !linkOpen" :disabled="styleRef.state === 'working'" x-text="t('linkPaste')"></button>
+        <button class="btn small" @click="copyStyle()" :disabled="styleRef.state === 'working'"><svg><use href="#i-film"/></svg><span x-text="t('fxCopy')"></span></button>
+      </span>
     </div>
     <p class="hint below" x-text="t('styleHelp')"></p>
+    <div class="group fx-save link-row" x-show="linkOpen" x-cloak>
+      <input class="text-input" x-model="linkText" :placeholder="t('linkHint')" @keydown.enter="readLink()" :aria-label="t('linkPaste')">
+      <button class="btn primary small" @click="readLink()" :disabled="!linkText.trim()" x-text="t('linkRead')"></button>
+    </div>
 
     <div class="group fx-ref" x-show="styleRef.state !== 'idle'">
       <div class="row" x-show="styleRef.state === 'working'">
         <span class="spinner small"></span>
-        <span class="row-main"><b x-text="t('analyzing', { name: styleRef.name })"></b><small x-text="t('analyzingHelp')"></small></span>
+        <span class="row-main"><b x-text="t(styleRef.link ? 'analyzingLink' : 'analyzing', { name: styleRef.name })"></b><small x-text="t(styleRef.link ? 'analyzingLinkHelp' : 'analyzingHelp')"></small></span>
       </div>
       <div class="row" x-show="styleRef.state === 'error'">
         <svg class="row-ic warn"><use href="#i-circle-alert"/></svg>
@@ -424,9 +431,6 @@
               <div class="fx-found-row"><dt x-text="r.label"></dt><dd :class="{ none: r.none }" x-text="r.value"></dd></div>
             </template>
           </dl>
-          <div class="fx-report-actions" x-show="styleRef.music && styleRef.music.music">
-            <button class="btn small" @click="useRefMusic()" :disabled="styleRef.musicUsed" x-text="styleRef.musicUsed ? t('musicUsed') : t('useMusic')"></button>
-          </div>
           <div class="fx-name" x-show="!styleRef.savedAs">
             <label for="ref-name" x-text="t('presetNameLabel')"></label>
             <div class="fx-name-row">
@@ -482,6 +486,40 @@
             </div>
           </div>
         </template>
+      </div>
+    </template>
+
+    <!-- background music: the user's own files, remembered for next time -->
+    <template x-if="fx">
+      <div>
+        <div class="group-title with-control">
+          <h3 x-text="t('fxMusic')"></h3>
+          <button class="btn small" @click="addMusic()"><svg><use href="#i-plus"/></svg><span x-text="t('musicAdd')"></span></button>
+        </div>
+        <p class="hint below" x-text="t('musicHelp')"></p>
+        <ul class="group music-list" role="radiogroup" :aria-label="t('fxMusic')">
+          <li class="row pickable" role="radio" :aria-checked="!fx.music" @click="selectMusic('')">
+            <span class="radio"></span>
+            <span class="row-main"><b x-text="t('musicOff')"></b></span>
+          </li>
+          <template x-for="m in musicLibrary" :key="m.path">
+            <li class="row pickable" role="radio" :aria-checked="fx.music === m.path" @click="selectMusic(m.path)">
+              <span class="radio"></span>
+              <span class="row-main"><b x-text="m.name"></b><small x-text="m.path.split(/[\\/]/).pop()"></small></span>
+              <button class="icon-btn" @click.stop="removeMusic(m.path)" :title="t('remove')" :aria-label="t('remove')"><svg><use href="#i-x"/></svg></button>
+            </li>
+          </template>
+          <li class="row sub" x-show="fx.music">
+            <span class="row-main"><small x-text="t('musicVol', { v: Math.round(fx.music_volume * 100) })"></small></span>
+            <input type="range" class="range" min="0" max="1.5" step="0.05" x-model.number="fx.music_volume" @change="fxChanged()" :aria-label="t('fxMusic')">
+          </li>
+          <li class="row sub" x-show="fx.music">
+            <span class="row-main"><small x-text="t('gameAudio')"></small></span>
+            <div class="segmented tiny" role="radiogroup" :aria-label="t('gameAudio')">
+              <template x-for="o in ['keep', 'low', 'mute']" :key="o"><button role="radio" :aria-checked="fx.game_audio === o" @click="fx.game_audio = o; fxChanged()" x-text="t('game_' + o)"></button></template>
+            </div>
+          </li>
+        </ul>
       </div>
     </template>
 
@@ -620,12 +658,34 @@
         <button class="btn" @click="chooseFolder('output').then(() => openSettings())" x-text="t('change')"></button>
       </li>
       <li class="row">
+        <span class="row-main"><b x-text="t('recRes')"></b><small x-text="screen ? t('recScreen', { w: screen[0], h: screen[1] }) : t('recResHelp')"></small></span>
+        <div class="segmented tiny" role="radiogroup" :aria-label="t('recRes')">
+          <template x-for="o in ['auto', '1080', '1440', '2160']" :key="o">
+            <button role="radio" :aria-checked="(prefs.record_res || 'auto') === o" :disabled="o !== 'auto' && !(sizes || []).includes(o)"
+                    :title="o !== 'auto' && !(sizes || []).includes(o) ? t('recTooBig') : ''"
+                    @click="prefs.record_res = o; savePrefs()" x-text="t('res_' + o)"></button>
+          </template>
+        </div>
+      </li>
+      <li class="row">
+        <span class="row-main"><b x-text="t('recFps')"></b><small x-text="t('recFpsHelp')"></small></span>
+        <div class="segmented tiny" role="radiogroup" :aria-label="t('recFps')">
+          <template x-for="o in [60, 120]" :key="o">
+            <button role="radio" :aria-checked="(prefs.record_fps || 60) === o" @click="prefs.record_fps = o; savePrefs()" x-text="t('fpsN', { n: o })"></button>
+          </template>
+        </div>
+      </li>
+      <li class="row">
+        <label class="row-main" for="up-4k"><b x-text="t('up4k')"></b><small x-text="t('up4kHelp')"></small></label>
+        <input type="checkbox" class="switch" id="up-4k" :checked="prefs.upload_4k !== false" @change="prefs.upload_4k = $event.target.checked; savePrefs()">
+      </li>
+      <li class="row">
         <label class="row-main" for="by-player"><b x-text="t('byPlayer')"></b><small x-text="t('byPlayerHelp')"></small></label>
         <input type="checkbox" class="switch" id="by-player" :checked="prefs.by_player !== false" @change="prefs.by_player = $event.target.checked; savePrefs()">
       </li>
       <template x-for="[sid, f] in playerFolderList" :key="sid">
-        <li class="row sub">
-          <span class="row-main"><small x-text="t('folderOf', { name: f.name })"></small></span>
+        <li class="row sub folder-row">
+          <span class="folder-who" x-text="t('folderOf', { name: f.name })"></span>
           <input class="text-input inline folder-name" :value="f.folder" @change="renamePlayerFolder(sid, $event.target.value, $event.target)" :aria-label="t('folderOf', { name: f.name })">
         </li>
       </template>

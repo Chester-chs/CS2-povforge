@@ -455,7 +455,19 @@ def make_video(cfg: Config, job: Path, clips: list[Path]) -> Path:
                     static_images=static_images(cfg, job), titles=titles)
     final = publish(cfg, job, final)
     make_extras(cfg, job, plan, clips, final, intro)
+    make_upload_copy(cfg, final)
     return final
+
+
+def make_upload_copy(cfg: Config, final: Path) -> None:
+    """The scaled-up copy for uploading, if asked for; a failure never loses the video."""
+    if not cfg.upload.upscale:
+        return
+    from .compose import upload_copy
+    try:
+        upload_copy(final, cfg.upload.upscale, cfg.compose, _log)
+    except Exception as e:
+        _log(f"Note: upload copy failed ({e})")
 
 
 def make_extras(cfg: Config, job: Path, plan: Plan, clips: list[Path], final: Path,

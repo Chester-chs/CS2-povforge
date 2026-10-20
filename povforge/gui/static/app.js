@@ -4,6 +4,13 @@ const TEXT = {
   zh: {
     byPlayer: "按选手分文件夹", byPlayerHelp: "成片放进 保存位置/选手名/，几个选手的集锦放进「多人集锦」。文件夹名可以在下面改。",
     folderOf: "{name} 的文件夹", folderTaken: "已经有这个名字的文件夹了。", folderBusy: "正在录制，录完再改名。",
+    linkPaste: "粘贴链接", linkRead: "读取", linkHint: "B 站、YouTube 等视频页的链接，或直接的 .mp4 地址", linkBad: "请粘贴以 http 开头的链接。",
+    analyzingLink: "正在下载并分析 {name}…", analyzingLinkHelp: "只下载低清晰度的一份，读完就删，通常不到一分钟。",
+    recRes: "录制分辨率", recResHelp: "不能超过屏幕大小", recScreen: "你的屏幕是 {w}×{h}，不能超过它", recTooBig: "超过你的屏幕大小",
+    res_auto: "跟屏幕一样", res_1080: "1080p", res_1440: "1440p", res_2160: "4K",
+    recFps: "录制帧率", recFpsHelp: "120 帧慢动作更顺滑，录制时间和文件大约翻倍", fpsN: "{n} 帧",
+    up4k: "另存一份 4K 上传版", up4kHelp: "放大到 4K 再存一份，传 B 站、YouTube 时网站给的码率更高、更清楚；要多花一些时间", stage_upscale: "制作 4K 上传版",
+    musicAdd: "上传音乐…", musicOff: "不加音乐", musicHelp: "用你自己的音乐文件，从集锦开头放到结尾（不够长会循环），最后几秒淡出。上传过的会留在这里，下次直接选。",
     modesLabel: "做什么", modeMatch: "整场录制", demosForReel: "点选要用的 demo", reelPickLeft: "在左边的 demo 列表里点选要用的场次，可以选好几场。",
     styleTitle: "成片风格", styleHelp: "不导入成片时，集锦原样拼接、不加任何效果。导入一个做好的集锦，软件读出它的开头、转场、击杀特效和结尾，存成你命名的风格，做集锦时照着加。",
     stylePlain: "不加效果", styleUnsaved: "{name}（未命名）", styleMix: "混搭", mixHelp: "也可以按项挑：每一项都来自你导入过的成片。",
@@ -30,7 +37,7 @@ const TEXT = {
     repNote: "做出来是同样的风格和节奏，不是逐帧复制。下面还可以再改。",
     rep_intro: "开头：{kind}（约 {s} 秒）", rep_transition: "转场：{kind}，约 {s} 秒（{n} 处）", rep_cuts: "转场：硬切（{n} 处）", rep_mixed: "；也有 {list}",
     rep_pace: "每段约 {s} 秒（{kind}）", rep_kill: "击杀特效：{kind}（{n} 处）", rep_colour: "调色：{kind}，会照着它调", rep_letterbox: "有电影黑边",
-    rep_outro: "结尾：{kind}（约 {s} 秒）", rep_music: "有背景音乐（约 {bpm} BPM）", useMusic: "用这段视频的声音做背景音乐", musicUsed: "已用作背景音乐",
+    rep_outro: "结尾：{kind}（约 {s} 秒）", rep_music: "有背景音乐（约 {bpm} BPM）",
     look_natural: "自然", look_vivid: "鲜艳", look_muted: "偏淡", look_warm: "偏暖", look_cool: "偏冷", look_bw: "黑白",
     reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "挑出最精彩的回合拼在一起。每个回合从第一个击杀前几秒连续到最后一个击杀后，中间不剪。只用游戏画面，不加小地图；导入做好的成片，可以照着它的风格加效果。",
     reelName: "名称", reelSources: "素材", reelSourcesHelp: "在左边点选，可以多选", reelPlayer: "选手",
@@ -104,6 +111,13 @@ const TEXT = {
   en: {
     byPlayer: "A folder per player", byPlayerHelp: "Videos go into save folder/player name/; reels of several players into \u201cMulti-player reels\u201d. Rename the folders below.",
     folderOf: "{name}'s folder", folderTaken: "There is already a folder with this name.", folderBusy: "A recording is running; rename it when it's done.",
+    linkPaste: "Paste a link", linkRead: "Read", linkHint: "A Bilibili, YouTube or other video page, or a direct .mp4 address", linkBad: "Paste a link starting with http.",
+    analyzingLink: "Downloading and reading {name}…", analyzingLinkHelp: "Only a small copy is downloaded and deleted afterwards; usually under a minute.",
+    recRes: "Recording size", recResHelp: "Can't be bigger than your screen", recScreen: "Your screen is {w}×{h}; recordings can't be bigger", recTooBig: "Bigger than your screen",
+    res_auto: "Screen size", res_1080: "1080p", res_1440: "1440p", res_2160: "4K",
+    recFps: "Frame rate", recFpsHelp: "120 fps makes slow motion smooth; recording takes about twice as long and files are about twice as big", fpsN: "{n} fps",
+    up4k: "Also save a 4K upload copy", up4kHelp: "A copy scaled up to 4K: Bilibili and YouTube give it more bitrate, so it looks sharper there. Takes extra time.", stage_upscale: "Make the 4K upload copy",
+    musicAdd: "Add music…", musicOff: "No music", musicHelp: "Your own music file plays from the start of the reel to the end (looped if it's shorter) and fades out. Songs you add stay here for next time.",
     modesLabel: "What to make", modeMatch: "Whole match", demosForReel: "Pick demos for the reel", reelPickLeft: "Pick the demos to use in the list on the left; several are fine.",
     styleTitle: "Style", styleHelp: "Without a finished video the rounds are simply joined, no effects. Import a finished highlight video and PovForge reads its opening, transitions, kill effects and ending, keeps them as a style you name, and adds them to your reel.",
     stylePlain: "No effects", styleUnsaved: "{name} (unnamed)", styleMix: "Mixed", mixHelp: "Or pick item by item; every choice comes from a video you imported.",
@@ -130,7 +144,7 @@ const TEXT = {
     repNote: "You get the same style and pace, not a frame-by-frame copy. You can still change everything below.",
     rep_intro: "Opening: {kind} (about {s} s)", rep_transition: "Transition: {kind}, about {s} s ({n}×)", rep_cuts: "Transition: cut ({n}×)", rep_mixed: "; also {list}",
     rep_pace: "About {s} s per moment ({kind})", rep_kill: "Kill effect: {kind} ({n}×)", rep_colour: "Colour: {kind}; yours will be matched to it", rep_letterbox: "Cinema bars",
-    rep_outro: "Ending: {kind} (about {s} s)", rep_music: "Background music (about {bpm} BPM)", useMusic: "Use this video's sound as the music", musicUsed: "Used as the music",
+    rep_outro: "Ending: {kind} (about {s} s)", rep_music: "Background music (about {bpm} BPM)",
     look_natural: "natural", look_vivid: "vivid", look_muted: "muted", look_warm: "warm", look_cool: "cool", look_bw: "black and white",
     reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "The best rounds joined together. Each round runs unbroken from a few seconds before its first kill to just after its last. Game picture only, no minimap; import a finished video to give it that video's style.",
     reelName: "Name", reelSources: "Demos", reelSourcesHelp: "Pick them on the left; several are fine", reelPlayer: "Player",
@@ -211,8 +225,9 @@ document.addEventListener("alpine:init", () => {
     player: null, chosenRounds: [], lastRun: null, setupOpen: false, customRounds: false, lastPath: "",
     settingsOpen: false, reelOpen: false, dragFrom: null, work: { bytes: null, path: "", confirm: false, cleaning: false },
     reel: { title: "", titleEdited: false, mode: "same", steamid: "", sources: [], items: [], reordered: false },
+    linkOpen: false, linkText: "", screen: null, sizes: [],
     fx: null, fxMeta: { defaults: {}, presets: {}, transitions: [], grades: [] }, fxPreset: "plain", fxSaveOpen: false, fxSaveName: "",
-    styleRef: { state: "idle", name: "", path: "", report: [], music: null, effects: null, musicUsed: false, error: "", presetName: "", savedAs: "" },
+    styleRef: { state: "idle", name: "", path: "", report: [], music: null, effects: null, error: "", presetName: "", savedAs: "" },
     accents: ["blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"],
     options: [
       { key: "intro", label: "optIntro" }, { key: "minimap", label: "optMinimap" }, { key: "keyboard", label: "optKeyboard" },
@@ -314,6 +329,25 @@ document.addEventListener("alpine:init", () => {
     setAppearance(v) { this.prefs.appearance = v; this.applyTheme(); this.savePrefs(); },
     setAccent(v) { this.prefs.accent = v; this.applyTheme(); this.savePrefs(); },
 
+    // --- background music: the user's own files ---
+    get musicLibrary() { return this.prefs.music_library || []; },
+    async addMusic() {
+      const r = await this.post("/api/pick", { kind: "audio" });
+      if (!r.path) return;
+      const name = r.path.split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
+      const list = this.musicLibrary.filter(m => m.path !== r.path).concat([{ path: r.path, name }]);
+      this.prefs = await this.post("/api/prefs", { music_library: list });
+      this.selectMusic(r.path);
+    },
+    async removeMusic(path) {
+      this.prefs = await this.post("/api/prefs", { music_library: this.musicLibrary.filter(m => m.path !== path) });
+      if (this.fx.music === path) this.selectMusic("");
+    },
+    selectMusic(path) {
+      this.fx.music = path;
+      if (path && this.fx.game_audio === "keep") this.fx.game_audio = "low";
+      this.saveFx();
+    },
     // --- a folder per player ---
     get playerFolderList() {
       if (this.prefs.by_player === false) return [];
@@ -475,7 +509,8 @@ document.addEventListener("alpine:init", () => {
     applyPreset(key) {
       const mine = (this.prefs.fx_presets || []).find(p => "my:" + p.name === key);
       const own = this.keepOwn();
-      const texts = { intro_text: own.intro_text, intro_sub: own.intro_sub, outro_text: own.outro_text };
+      const texts = { intro_text: own.intro_text, intro_sub: own.intro_sub, outro_text: own.outro_text,
+                      music: own.music, music_volume: own.music_volume, music_start: own.music_start, game_audio: own.game_audio };
       this.fx = mine ? { ...this.fxDefaults(), ...mine.fx, ...texts } : { ...this.fxDefaults(), ...texts };
       this.fxPreset = mine ? key : "plain"; this.saveFx();
     },
@@ -486,7 +521,6 @@ document.addEventListener("alpine:init", () => {
       { key: "grade", label: "fxGrade", fields: ["grade", "grade_match", "letterbox"] },
       { key: "outro", label: "fxOutro", fields: ["outro", "outro_seconds"] },
       { key: "pace", label: "fxPace", fields: ["pace"] },
-      { key: "music", label: "fxMusic", fields: ["music", "music_volume", "music_start", "game_audio"] },
     ],
     partOf(key, fx) {
       const c = this.fxParts.find(c => c.key === key), full = { ...this.fxDefaults(), ...fx };
@@ -508,7 +542,6 @@ document.addEventListener("alpine:init", () => {
         case "grade": return (fx.grade === "match" ? this.t("gradeLike") : this.t("g_" + fx.grade)) + (fx.letterbox ? (zh ? " + " : " + ") + this.t("fxBars") : "");
         case "outro": return this.t("o_" + fx.outro) + (["freeze", "card"].includes(fx.outro) ? " " + this.t("sec", { s: fx.outro_seconds }) : "");
         case "pace": return this.t("pace_" + fx.pace);
-        case "music": return fx.music ? fx.music.split(/[\\/]/).pop() : this.t("vNone");
       }
       return "";
     },
@@ -539,7 +572,9 @@ document.addEventListener("alpine:init", () => {
       this.fxChanged();
     },
     applyRef() {
-      this.fx = { ...this.fxDefaults(), ...this.keepOwn(), ...this.styleRef.effects };
+      const look = { ...this.styleRef.effects };
+      for (const k of ["music", "music_volume", "music_start", "game_audio"]) delete look[k];
+      this.fx = { ...this.fxDefaults(), ...look, ...this.keepOwn() };
       this.fxPreset = "ref"; this.saveFx();
     },
     fxChanged() { this.fxPreset = this.presetOf(this.fx); this.saveFx(); },
@@ -568,23 +603,27 @@ document.addEventListener("alpine:init", () => {
     clearMusic() { this.fx.music = ""; this.fxChanged(); },
     async copyStyle() {
       const r = await this.post("/api/pick", { kind: "video" });
-      if (!r.path) return;
-      const name = r.path.split(/[\\/]/).pop();
-      this.styleRef = { state: "working", name, path: r.path, report: [], music: null, effects: null, musicUsed: false, error: "",
+      if (r.path) this.readStyle(r.path, r.path.split(/[\\/]/).pop());
+    },
+    readLink() {
+      const url = (this.linkText || "").trim();
+      if (!/^https?:\/\//i.test(url)) { this.toast(this.t("linkBad")); return; }
+      this.linkOpen = false;
+      this.readStyle(url, url.replace(/^https?:\/\//i, "").slice(0, 60), true);
+    },
+    async readStyle(source, name, link = false) {
+      this.styleRef = { state: "working", name, path: source, link, report: [], music: null, effects: null, error: "",
                         presetName: name.replace(/\.[^.]+$/, "").slice(0, 40), savedAs: "" };
       try {
-        const a = await this.post("/api/style/analyze", { path: r.path });
-        this.styleRef = { ...this.styleRef, state: "done", report: a.report || [], music: a.music, effects: a.effects || {} };
+        const a = await this.post("/api/style/analyze", { path: source });
+        const title = a.video?.title;
+        this.styleRef = { ...this.styleRef, state: "done", report: a.report || [], music: a.music, effects: a.effects || {},
+                          name: link && title ? title : this.styleRef.name,
+                          presetName: (link && title ? title : this.styleRef.presetName).slice(0, 40) };
         this.applyRef();
       } catch (e) {
         this.styleRef = { ...this.styleRef, state: "error", error: e.message };
       }
-    },
-    async useRefMusic() {
-      try {
-        const r = await this.post("/api/style/music", { path: this.styleRef.path });
-        this.fx.music = r.path; this.styleRef.musicUsed = true; this.fxChanged();
-      } catch (e) { this.toast(e.message); }
     },
     // --- what was found in a reference video, and keeping it as a preset ---
     repOf(what) { return (this.styleRef.report || []).find(r => r.what === what); },
@@ -633,10 +672,10 @@ document.addEventListener("alpine:init", () => {
       const name = (this.styleRef.presetName || "").trim().slice(0, 40);
       if (!name) return;
       const fx = { ...this.fxDefaults(), ...this.styleRef.effects };
-      if (this.styleRef.musicUsed) { fx.music = this.fx.music; fx.game_audio = this.fx.game_audio; }
+      for (const k of ["music", "music_volume", "music_start", "game_audio"]) delete fx[k];   // music is chosen on its own
       const list = (this.prefs.fx_presets || []).filter(p => p.name !== name).concat([{ name, fx, source: this.styleRef.name }]);
       this.prefs = await this.post("/api/prefs", { fx_presets: list });
-      this.fx = { ...this.keepOwn(), ...fx };
+      this.fx = { ...fx, ...this.keepOwn() };
       this.fxPreset = "my:" + name; this.styleRef.savedAs = name; this.saveFx();
     },
     // one line saying what a set of effects does
@@ -704,7 +743,7 @@ document.addEventListener("alpine:init", () => {
       const s = await this.get("/api/state");
       if (s.error) throw new Error(s.error);
       this.version = s.version; this.prefs = s.prefs; this.setup = s.setup; this.job = s.job;
-      this.queue = s.queue; this.update = s.update;
+      this.queue = s.queue; this.update = s.update; this.screen = s.screen; this.sizes = s.sizes;
       if (s.effects) this.fxMeta = s.effects;
       if (!this.fx && s.effects) {             // once: the effects used last time
         this.fx = { ...this.fxDefaults(), ...(this.prefs.reel_fx || {}) };
@@ -826,18 +865,25 @@ document.addEventListener("alpine:init", () => {
       return t[0].score > t[1].score ? 0 : 1;
     },
     // rough overall progress; recording rounds is most of the time
-    get stages() { return this.job.kind === "reel" ? ["read", "record", "cut"] : ["read", "record", "overlays", "intro", "compose", "extras"]; },
+    get upscaling() { return this.prefs.upload_4k !== false && this.prefs.record_res !== "2160"; },
+    get stages() {
+      const base = this.job.kind === "reel" ? ["read", "record", "cut"] : ["read", "record", "overlays", "intro", "compose", "extras"];
+      return this.upscaling || this.job.stage === "upscale" ? base.concat(["upscale"]) : base;
+    },
     get progressPct() {
       const j = this.job;
       if (j.state === "done") return 100;
       const [a, b] = j.step || [0, 0], f = b ? Math.min(a / b, 1) : 0;
       if (j.kind === "reel") {     // each demo: read then record; then cutting at the end
-        if (j.stage === "cut") return Math.round(85 + 15 * f);
+        if (j.stage === "upscale") return Math.round(92 + 8 * f);
+        if (j.stage === "cut") return Math.round(85 + (this.upscaling ? 7 : 15) * f);
         const [si, sn] = j.source?.[1] ? j.source : [1, 1];
         const within = j.stage === "record" ? 0.15 + 0.85 * f : 0.05;
         return Math.round(85 * ((si - 1 + within) / sn));
       }
-      const span = { read: [2, 5], record: [5, 70], overlays: [70, 80], intro: [80, 83], compose: [83, 95], extras: [95, 100] }[j.stage] || [0, 0];
+      const up = this.upscaling;
+      const span = { read: [2, 5], record: [5, 66], overlays: [66, 76], intro: [76, 79], compose: [79, up ? 88 : 95],
+                     extras: [up ? 88 : 95, up ? 90 : 100], upscale: [90, 100] }[j.stage] || [0, 0];
       return Math.round(span[0] + (span[1] - span[0]) * f);
     },
     get viewingItem() { return this.viewId !== null && this.viewId !== this.job.item; },
