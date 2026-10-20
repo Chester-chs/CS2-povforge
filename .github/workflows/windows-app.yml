@@ -9,6 +9,11 @@ on:
         description: "Publish as a release with this tag (e.g. v0.7.0); leave empty to only build"
         required: false
         default: ""
+      refresh_ffmpeg:
+        description: "Take a new FFmpeg build from BtbN instead of the kept one"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -35,40 +40,81 @@ jobs:
         working-directory: packaging
         run: pyinstaller --noconfirm povforge.spec
 
-      # FFmpeg ships inside the app (unmodified BtbN GPL shared build, stable branch),
-      # with its licence and a note on where the matching source is.
+      # FFmpeg ships inside the app (unmodified BtbN GPL shared build), with its licence
+      # and a note on where the matching source is. The same files are reused from build
+      # to build (kept as the "ffmpeg-bundle" pre-release), so in-app updates don't fetch
+      # FFmpeg again; BtbN's daily build changes every day. refresh_ffmpeg takes a new one.
       - name: Bundle FFmpeg
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REFRESH: ${{ inputs.refresh_ffmpeg }}
+          RELEASING: ${{ inputs.release }}
         run: |
-          $base = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
-          $names = @("ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip", "ffmpeg-master-latest-win64-gpl-shared.zip")
-          $got = $null
-          foreach ($n in $names) {
-            try { Invoke-WebRequest "$base/$n" -OutFile ffmpeg.zip -UseBasicParsing; $got = $n; break } catch { Write-Host "not found: $n" }
-          }
-          if (-not $got) { throw "no FFmpeg build found" }
-          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-src
-          $top = (Get-ChildItem ffmpeg-src -Directory)[0].FullName
           $dest = "packaging/dist/PovForge/ffmpeg"
           New-Item -ItemType Directory -Force $dest | Out-Null
-          Copy-Item "$top/bin/*" $dest -Exclude ffplay.exe
-          Copy-Item "$top/LICENSE.txt" "$dest/LICENSE.txt"
+          $repo = "${{ github.repository }}"
+          $got = $false
+          if ($env:REFRESH -ne "true") {
+            gh release download ffmpeg-bundle --repo $repo --pattern ffmpeg-bundle.zip --dir ffb 2>$null
+            if (Test-Path ffb/ffmpeg-bundle.zip) {
+              Expand-Archive ffb/ffmpeg-bundle.zip -DestinationPath $dest -Force
+              Write-Host "FFmpeg: the kept bundle"; $got = $true
+            }
+          }
+          if (-not $got -and $env:REFRESH -ne "true") {
+            # first time: the FFmpeg of the latest PovForge release, so updates from it stay small
+            gh release download --repo $repo --pattern PovForge-windows.zip --dir prev 2>$null
+            if (Test-Path prev/PovForge-windows.zip) {
+              Expand-Archive prev/PovForge-windows.zip -DestinationPath prev/x
+              if (Test-Path prev/x/PovForge/ffmpeg/ffmpeg.exe) {
+                Copy-Item prev/x/PovForge/ffmpeg/* $dest -Recurse -Force
+                Write-Host "FFmpeg: taken from the latest release"; $got = $true
+              }
+            }
+          }
+          if (-not $got) {
+            $base = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
+            $names = @("ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip", "ffmpeg-master-latest-win64-gpl-shared.zip")
+            $name = $null
+            foreach ($n in $names) {
+              try { Invoke-WebRequest "$base/$n" -OutFile ffmpeg.zip -UseBasicParsing; $name = $n; break } catch { Write-Host "not found: $n" }
+            }
+            if (-not $name) { throw "no FFmpeg build found" }
+            Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-src
+            $top = (Get-ChildItem ffmpeg-src -Directory)[0].FullName
+            Copy-Item "$top/bin/*" $dest -Exclude ffplay.exe
+            Copy-Item "$top/LICENSE.txt" "$dest/LICENSE.txt"
+            $ver = (& "$dest/ffmpeg.exe" -hide_banner -version | Select-Object -First 1)
+            $hash = if ($ver -match "-g([0-9a-f]{7,})") { $Matches[1] } else { "" }
+            @(
+              "FFmpeg in this folder is an unmodified build from BtbN/FFmpeg-Builds ($name),",
+              "licensed under the GNU GPL version 3 (see LICENSE.txt). PovForge runs it as a separate program.",
+              "",
+              "Version: $ver",
+              "FFmpeg source: https://git.ffmpeg.org/gitweb/ffmpeg.git/commit/$hash  (also https://github.com/FFmpeg/FFmpeg/commit/$hash)",
+              "Build scripts and the sources of the bundled libraries: https://github.com/BtbN/FFmpeg-Builds",
+              "If you cannot get the source from those links, open an issue at https://github.com/Chester-chs/CS2-povforge/issues and we will provide it."
+            ) | Set-Content "$dest/SOURCE.txt" -Encoding utf8
+            Write-Host "FFmpeg: new BtbN build"
+          }
+          Remove-Item "$dest/ffplay.exe" -ErrorAction SilentlyContinue
           $ver = (& "$dest/ffmpeg.exe" -hide_banner -version | Select-Object -First 1)
           if (-not ($ver -match "ffmpeg version")) { throw "bundled ffmpeg does not run" }
           $enc = (& "$dest/ffmpeg.exe" -hide_banner -encoders | Select-String libx264)
           if (-not $enc) { throw "bundled ffmpeg has no libx264" }
-          $hash = if ($ver -match "-g([0-9a-f]{7,})") { $Matches[1] } else { "" }
-          @(
-            "FFmpeg in this folder is an unmodified build from BtbN/FFmpeg-Builds ($got),",
-            "licensed under the GNU GPL version 3 (see LICENSE.txt). PovForge runs it as a separate program.",
-            "",
-            "Version: $ver",
-            "FFmpeg source: https://git.ffmpeg.org/gitweb/ffmpeg.git/commit/$hash  (also https://github.com/FFmpeg/FFmpeg/commit/$hash)",
-            "Build scripts and the sources of the bundled libraries: https://github.com/BtbN/FFmpeg-Builds",
-            "If you cannot get the source from those links, open an issue at https://github.com/Chester-chs/CS2-povforge/issues and we will provide it."
-          ) | Set-Content "$dest/SOURCE.txt" -Encoding utf8
+          if (-not (Test-Path "$dest/LICENSE.txt") -or -not (Test-Path "$dest/SOURCE.txt")) { throw "FFmpeg licence or source note missing" }
           Get-Content "$dest/SOURCE.txt"
           Get-ChildItem $dest | Format-Table Name, Length
+          # keep these exact files for the next builds (when publishing)
+          $kept = (gh release view ffmpeg-bundle --repo $repo --json tagName 2>$null)
+          if ($env:RELEASING -and (-not $kept -or $env:REFRESH -eq "true")) {
+            Compress-Archive -Path "$dest/*" -DestinationPath ffmpeg-bundle.zip -Force
+            if ($kept) { gh release delete ffmpeg-bundle --repo $repo --yes --cleanup-tag }
+            $notes = "The FFmpeg that PovForge ships in its installer, kept so every build uses the same files (in-app updates then don't download FFmpeg again). Not a PovForge release. Unmodified build from BtbN/FFmpeg-Builds, GPL v3; LICENSE.txt and SOURCE.txt (where the matching source is) are in the zip.`n`nPovForge 安装包自带的 FFmpeg，保存在这里让每次构建用相同的文件（软件内更新就不用重复下载 FFmpeg）。这不是 PovForge 的版本发布。"
+            gh release create ffmpeg-bundle ffmpeg-bundle.zip --repo $repo --target "${{ github.sha }}" --prerelease --title "FFmpeg bundled with PovForge" --notes $notes
+          }
+          exit 0
 
       - name: Smoke test
         shell: pwsh
