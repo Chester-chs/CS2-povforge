@@ -547,8 +547,12 @@
 <div class="sheet-backdrop" x-show="updateOpen && !offline" x-cloak @keydown.escape.window="closeUpdate()">
   <div class="sheet update-sheet" role="dialog" aria-modal="true" :aria-label="t('checkUpdate')">
     <img src="/static/icon.png" alt="">
-    <template x-if="upd.state === 'checking' || upd.state === 'idle'">
-      <div class="sheet-body"><span class="spinner small"></span><h2 x-text="t('upChecking')"></h2></div>
+    <template x-if="upd.state === 'checking' || upd.state === 'starting'">
+      <div class="sheet-body">
+        <span class="spinner small"></span>
+        <h2 x-text="upd.state === 'starting' ? t('upStarting') : t('upChecking')"></h2>
+        <div class="sheet-actions" x-show="upd.state === 'checking'"><button class="btn" @click="closeUpdate()" x-text="t('cancel')"></button></div>
+      </div>
     </template>
     <template x-if="upd.state === 'current'">
       <div class="sheet-body">

@@ -657,7 +657,15 @@ class Updater:
 
     def install(self) -> dict:
         with self.lock:
+            fresh = self.state not in ("available", "downloading", "installing")
+        if fresh:                       # not looked up by this updater yet (or a while ago): do it now
+            self.check()
+        with self.lock:
+            if self.state in ("downloading", "installing"):
+                return self.status_unlocked()
             if self.state != "available" or not self.info or not self.info.get("setup"):
+                if self.state == "available":
+                    self.state, self.error = "error", "This release has no installer to download."
                 return self.status_unlocked()
             if self.busy():
                 self.error = "busy"
@@ -884,7 +892,9 @@ class App:
         threading.Thread(target=self._check_update, daemon=True).start()
 
     def _check_update(self) -> None:
-        self.update = check_update(__version__)
+        # through the updater, so "Update" works straight away from what this found
+        st = self.updater.check()
+        self.update = st["info"] if st["state"] == "available" else None
 
     def busy(self) -> bool:
         return (self.job.state == "running" or bool(self.setup.installing) or self.inspecting > 0

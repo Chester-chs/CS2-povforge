@@ -23,7 +23,8 @@ const TEXT = {
     upAvailable: "PovForge {v} 可以更新了", upYouHave: "你现在用的是 {v}。", upInstall: "更新并重新打开", upOpenPage: "去下载页面",
     upDownloading: "正在下载 PovForge {v}（只下载有变化的文件）", upMb: "{a} / {b} MB", upInstalling: "正在安装…",
     upInstallingBody: "PovForge 会关闭，装好后自动重新打开，设置都会保留。", upError: "更新没有完成", upBusy: "正在录制，录完再更新。",
-    later: "以后再说", ok: "好", close: "关闭",
+    later: "以后再说", ok: "好", close: "关闭", cancel: "取消", upStarting: "正在准备更新…",
+    upTimeout: "连接 GitHub 超时。检查一下网络后重试。", upNotStarted: "更新没能开始，请重试。",
     povOf: "{name} 的第一人称视角",
     finishSetup: "完成准备工作", hintCs2: "没找到 CS2", hintTools: "需要下载录制组件", hintAc: "请先退出反作弊客户端",
     someRounds: "选择回合", won: "胜", change: "更改…", failedTitle: "录制没有完成", notDemo: "这不是 CS2 的 demo 文件（.dem、.dem.zst、.dem.gz）。",
@@ -91,7 +92,8 @@ const TEXT = {
     upAvailable: "PovForge {v} is available", upYouHave: "You have {v}.", upInstall: "Update and reopen", upOpenPage: "Open download page",
     upDownloading: "Downloading PovForge {v} (only the files that changed)", upMb: "{a} of {b} MB", upInstalling: "Installing…",
     upInstallingBody: "PovForge will close and open again when the update is installed. Your settings are kept.", upError: "The update didn't finish", upBusy: "A recording is running; update when it's done.",
-    later: "Later", ok: "OK", close: "Close",
+    later: "Later", ok: "OK", close: "Close", cancel: "Cancel", upStarting: "Getting the update ready…",
+    upTimeout: "GitHub didn't answer in time. Check the connection and try again.", upNotStarted: "The update didn't start. Try again.",
     povOf: "{name}'s first-person view",
     finishSetup: "Finish setting up", hintCs2: "CS2 not found", hintTools: "Recording add-on needed", hintAc: "Quit the anti-cheat client",
     someRounds: "Pick rounds", won: "Won", change: "Change…", failedTitle: "The recording didn't finish", notDemo: "Not a CS2 demo file (.dem, .dem.zst, .dem.gz).",
@@ -191,17 +193,24 @@ document.addEventListener("alpine:init", () => {
       this.updateOpen = true;
       if (check || !this.update) {
         this.upd = { state: "checking" };
-        try { this.upd = await this.post("/api/update/check"); }
-        catch (e) { this.upd = { state: "error", error: e.message }; }
+        try { this.upd = await this.post("/api/update/check", {}, 25000); }
+        catch (e) { this.upd = { state: "error", error: e.name === "AbortError" ? this.t("upTimeout") : e.message }; }
         if (this.upd.state === "available") this.update = this.upd.info;
       } else {
         this.upd = { state: "available", info: this.update, can_install: true };
-        this.get("/api/update").then(s => { if (s.state === "available" || s.state === "idle") this.upd = { ...s, state: "available", info: s.info || this.update }; });
+        this.get("/api/update").then(s => { if (this.upd.state === "available") this.upd.can_install = s.can_install; }).catch(() => {});
       }
     },
     async installUpdate() {
-      try { this.upd = await this.post("/api/update/install"); }
-      catch (e) { this.upd = { state: "error", error: e.message }; }
+      this.upd = { ...this.upd, state: "starting" };
+      try {
+        const s = await this.post("/api/update/install", {}, 45000);
+        // anything but progress or a clear answer is a failure to start, never an endless spinner
+        this.upd = ["downloading", "installing", "current", "error"].includes(s.state) ? s
+          : { ...s, state: "error", error: s.error === "busy" ? this.t("upBusy") : this.t("upNotStarted") };
+      } catch (e) {
+        this.upd = { ...this.upd, state: "error", error: e.name === "AbortError" ? this.t("upTimeout") : e.message };
+      }
     },
     closeUpdate() { if (!["downloading", "installing"].includes(this.upd.state)) this.updateOpen = false; },
     // the release notes are written in both languages, a line each; show the reader's
@@ -360,8 +369,13 @@ document.addEventListener("alpine:init", () => {
     setCustom(on) { this.customRounds = on; if (!on) this.allRounds(); },
 
     async get(url) { const r = await fetch(url); return r.json(); },
-    async post(url, body = {}) {
-      const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    async post(url, body = {}, timeoutMs = 0) {
+      const ctl = timeoutMs ? new AbortController() : null;
+      const timer = ctl ? setTimeout(() => ctl.abort(), timeoutMs) : null;
+      let r;
+      try {
+        r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: ctl?.signal });
+      } finally { if (timer) clearTimeout(timer); }
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || r.statusText);
       return data;

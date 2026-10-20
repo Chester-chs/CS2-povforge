@@ -237,7 +237,9 @@ class _Proc:
 
 def _app(monkeypatch, tmp_path):
     monkeypatch.setenv("POVFORGE_STATE", str(tmp_path))
-    monkeypatch.setattr(server, "check_update", lambda v: None)
+    def offline():
+        raise RuntimeError("offline")
+    monkeypatch.setattr(server, "latest_release", offline)     # no network in tests
     return server.App()
 
 
@@ -316,3 +318,35 @@ def test_updater_prefers_the_incremental_update_and_falls_back(monkeypatch):
     up2.install()
     _wait(up2, ("installing", "error"), also=lambda: bool(quit_))
     assert ran and not applied                                   # fell back to the full installer
+
+
+def test_update_works_without_a_check_through_the_updater_first(monkeypatch):
+    """The bug in 0.10.1: the startup check lit the Update button, but the updater
+    itself had never checked, so Update did nothing and the page spun forever."""
+    _release_api(monkeypatch, server.DOWNLOADS + "v9.9.9/PovForge-Setup.exe")
+    ran, quit_ = [], []
+    monkeypatch.setattr(server, "can_self_update", lambda: True)
+    monkeypatch.setattr(server, "run_installer", lambda p: ran.append(p))
+    monkeypatch.setattr(server.time, "sleep", lambda s: None)
+    up = server.Updater("0.8.4", busy=lambda: False, quit_app=lambda: quit_.append(1))
+    assert up.status()["state"] == "idle"
+    st = up.install()                                   # straight from "idle"
+    assert st["state"] in ("downloading", "installing")
+    _wait(up, ("installing", "error"), also=lambda: bool(quit_))
+    assert ran
+
+
+def test_app_startup_check_readies_the_updater(monkeypatch, tmp_path):
+    monkeypatch.setenv("POVFORGE_STATE", str(tmp_path))
+    _release_api(monkeypatch, server.DOWNLOADS + "v9.9.9/PovForge-Setup.exe")
+    app = server.App()
+    for _ in range(100):
+        if app.update:
+            break
+        threading_wait(0.02)
+    assert app.update["version"] == "9.9.9" and app.updater.status()["state"] == "available"
+
+
+def threading_wait(s):
+    import threading
+    threading.Event().wait(s)

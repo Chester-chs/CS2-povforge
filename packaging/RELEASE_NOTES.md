@@ -1,4 +1,9 @@
-**What's new in v0.10.2 / 本次更新**
+**What's new in v0.10.3 / 本次更新**
+
+- Fixed: "Update and reopen" did nothing and the window kept spinning on "Checking for updates…". The update check made at startup now readies the updater, the update window has a Cancel button and time limits, and it shows what went wrong instead of spinning.
+  修复："更新并重新打开"没有反应、一直显示"正在检查更新…"。现在启动时的检查会直接让更新可用；更新窗口有"取消"按钮和超时，出错会说明原因，不会一直转圈。
+
+**v0.10.2**
 
 - The update window says it downloads only the files that changed. (A small update, mainly to check that updates now stay small.)
   更新窗口会注明只下载有变化的文件。（这是一个小更新，主要用来确认之后的更新确实很小。）
