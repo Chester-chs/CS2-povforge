@@ -88,6 +88,39 @@ class Files(unittest.TestCase):
         self.assertEqual(sorted(streams.split()), ["audio", "video"])
 
 
+@unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "needs ffmpeg and ffprobe")
+def test_mux_short_audio_preserves_every_video_frame(tmp_path):
+    take = tmp_path / "take0000"
+    take.mkdir()
+    video = take / "video.mp4"
+    source = tmp_path / "source.mp4"
+    subprocess.run([
+        "ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=s=96x54:r=60",
+        "-frames:v", "71", "-c:v", "libx264", "-preset", "ultrafast", str(source),
+    ], check=True)
+    # HLAE's final video packet can be a fraction of a millisecond short.
+    subprocess.run([
+        "ffmpeg", "-v", "error", "-i", str(source), "-c:v", "copy",
+        "-bsf:v", "setts=duration=DURATION-5", str(video),
+    ], check=True)
+    subprocess.run([
+        "ffmpeg", "-v", "error", "-f", "lavfi",
+        "-i", "sine=frequency=440:sample_rate=48000:duration=1.05",
+        "-c:a", "pcm_s16le", str(take / "audio.wav"),
+    ], check=True)
+
+    out = tmp_path / "clip.mp4"
+    hlae.mux_take(take, out, "ffmpeg")
+    result = subprocess.run([
+        "ffprobe", "-v", "error", "-count_frames", "-show_entries",
+        "stream=codec_type,nb_read_frames,duration", "-of", "json", str(out),
+    ], check=True, capture_output=True, text=True)
+    streams = {s["codec_type"]: s for s in json.loads(result.stdout)["streams"]}
+
+    assert int(streams["video"]["nb_read_frames"]) == 71
+    assert float(streams["audio"]["duration"]) >= float(streams["video"]["duration"])
+
+
 @unittest.skipUnless(shutil.which("node"), "needs node")
 class DirectorSimulation(unittest.TestCase):
     def test_simulation(self):

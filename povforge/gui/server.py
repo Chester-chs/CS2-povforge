@@ -662,6 +662,10 @@ class Job:
             self.lines.append(line)
             if m := re.match(r"Starting CS2 .* record (\d+) clips", line):
                 self.stage, self.step = "record", (0, int(m.group(1)))
+            elif m := re.match(r"Camera recording \d+/\d+: (\d+) extra shots", line):
+                self.stage, self.step = "record", (0, int(m.group(1)))
+            elif m := re.match(r"Recorded shot_[A-Za-z0-9_-]+ \((\d+)/(\d+)\)", line):
+                self.stage, self.step = "record", (int(m.group(1)), int(m.group(2)))
             elif m := re.match(r"Recorded r(\d+) \((\d+)/(\d+)\)", line):
                 self.stage = "record"
                 self.recorded.append(int(m.group(1)))
@@ -690,7 +694,7 @@ class Job:
                 self.stage, self.step = "read", (0, 0)
                 self.source = (int(m.group(1)), int(m.group(2)))
                 self.recorded = []
-            elif m := re.match(r"(?:Cutting the reel|Effects: moment) (\d+)/(\d+)", line):
+            elif m := re.match(r"(?:Cutting the reel|Effects: moment|Camera editing) (\d+)/(\d+)", line):
                 self.stage, self.step = "cut", (int(m.group(1)), int(m.group(2)))
             elif line.startswith(("Joining the reel", "Effects: joining", "Effects: sound")):
                 self.stage, self.step = "cut", (1, 1)
@@ -709,20 +713,45 @@ class Job:
             if self.state != "running" or not self.proc:
                 return
             self.state = "cancelled"
-        if sys.platform == "win32":
-            # close the recording CS2 first, without letting it save settings
-            subprocess.run(["taskkill", "/im", "cs2.exe", "/f"], capture_output=True)
-            subprocess.run(["taskkill", "/pid", str(self.proc.pid), "/t", "/f"], capture_output=True)
-        else:
-            self.proc.terminate()
+        try:
+            if sys.platform == "win32":
+                # Stop preparation first, so it cannot launch a game after the
+                # ownership check. A historical backup does not authorize this job.
+                flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                subprocess.run(["taskkill", "/pid", str(self.proc.pid), "/t", "/f"],
+                               capture_output=True, creationflags=flags)
+                if settings_guard.owned_by(self.proc.pid):
+                    subprocess.run(["taskkill", "/im", "cs2.exe", "/f"], capture_output=True, creationflags=flags)
+            else:
+                self.proc.terminate()
+        except OSError as e:
+            self._take(f"Could not stop the recording process: {e}")
+        owns_game = settings_guard.owned_by(self.proc.pid)
         for _ in range(20):
-            if "cs2.exe" not in hlae.running_processes():
+            if (not owns_game or "cs2.exe" not in hlae.running_processes()) and self.proc.poll() is not None:
                 break
             time.sleep(0.5)
+        if (owns_game and "cs2.exe" in hlae.running_processes()) or self.proc.poll() is None:
+            self._take("Error: The recording process or CS2 is still open. Your settings backup is kept. "
+                       "Close both, then run: povforge restore-settings")
+            return
+        if not owns_game:
+            if settings_guard.pending():
+                self._take("Error: An earlier CS2 settings backup is still pending. "
+                           "Close CS2, then run: povforge restore-settings")
+            else:
+                self._take("Cancelled before recording; no CS2 settings were changed.")
+            return
         try:
-            settings_guard.restore()
-        except Exception:
-            pass
+            changed = settings_guard.restore()
+            if settings_guard.pending():
+                self._take("Error: Your CS2 settings could not be fully restored. "
+                           "Run: povforge restore-settings")
+            else:
+                self._take(f"Your CS2 settings are back as before ({changed} file(s) put back).")
+        except Exception as e:
+            self._take(f"Error: Could not restore your CS2 settings ({e}). "
+                       "Run: povforge restore-settings")
 
 
 class Queue:

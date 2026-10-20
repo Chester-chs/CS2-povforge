@@ -14,6 +14,7 @@ Files covered:
 - Steam/userdata/<account>/730/local/cfg/*  (convars, key binds, video settings)
 - Steam/userdata/<account>/730/remote/cfg/* (Steam Cloud copy, if any)
 - <CS2>/game/csgo/cfg/*.vcfg
+- <CS2>/game/csgo/cfg/povforge_job.cfg (including recovery after a forced stop)
 """
 
 from __future__ import annotations
@@ -42,6 +43,7 @@ def settings_folders(steam: Path | None, csgo: Path | None) -> list[tuple[Path, 
             out += [(d, "*") for d in sorted((steam / "userdata").glob(f"*/730/{part}/cfg")) if d.is_dir()]
     if csgo is not None and (csgo / "cfg").is_dir():
         out.append((csgo / "cfg", "*.vcfg"))
+        out.append((csgo / "cfg", "povforge_job.cfg"))
     return out
 
 
@@ -51,6 +53,17 @@ def _files(folders: list[tuple[Path, str]]) -> list[Path]:
 
 def pending() -> bool:
     return _manifest().exists()
+
+
+def owned_by(pid: int) -> bool:
+    """Only a matching recording child may force-close CS2 for this backup."""
+    if type(pid) is not int or pid <= 0:
+        return False
+    try:
+        data = json.loads(_manifest().read_text(encoding="utf-8"))
+        return type(data.get("owner_pid")) is int and data["owner_pid"] == pid
+    except (OSError, ValueError, TypeError, AttributeError):
+        return False
 
 
 def backup(steam: Path | None, csgo: Path | None) -> int:
@@ -71,7 +84,8 @@ def backup(steam: Path | None, csgo: Path | None) -> int:
         b = root / "files" / f"{i:04d}_{f.name}"
         shutil.copy2(f, b)
         entries.append({"path": str(f), "backup": b.name})
-    data = {"time": time.time(), "folders": [[str(d), pat] for d, pat in folders], "files": entries}
+    data = {"time": time.time(), "owner_pid": os.getpid(),
+            "folders": [[str(d), pat] for d, pat in folders], "files": entries}
     _manifest().write_text(json.dumps(data, indent=2), encoding="utf-8")
     return len(entries)
 

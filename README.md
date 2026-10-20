@@ -41,6 +41,29 @@ To update, click **Check for updates** at the bottom left: the app downloads the
 
 ## How it works
 
+### First-person highlights with optional victim replays
+
+The main reel always uses the selected player's first-person view. Reference
+videos can still supply editing styles (pace, transitions, grading and effects),
+but camera imitation and third-person views have been removed. Legacy camera
+preferences are ignored.
+
+**Append victim views after the reel** is an independent option, off by default.
+All main highlights play first. The victims' first-person views before their
+deaths then follow in the same kill order. These replays never interrupt the
+main reel or move its kill effects. Importing, switching or mixing styles keeps
+your replay choice.
+
+Victims come from actual demo death events. Replays require an additional CS2
+session per demo, shared across selected players; completed recordings are
+reused when their source and recording settings match. Missing or insufficient
+footage is skipped rather than presenting another player's view. Replay sound
+uses the corresponding original demo time.
+
+Settings backup and restoration cover recording, setup failures, cancellation
+and the temporary recording CFG. `--placeholder` does not start CS2 and skips
+victim recording.
+
 ```
 demo ──► plan ──► record (CS2 via HLAE) ──► overlays ──► compose ──► final.mp4
          which ticks    one clip per round       minimap +     overlay + join

@@ -18,9 +18,10 @@ function runScenario(name, opts) {
 
 	const game = {
 		tick: -1, playing: false, paused: false, lastTick: opts.lastTick || 5000,
-		observed: 2, recording: null, takes: [], log: [], cmds: [], quit: false,
+		observed: opts.observed || 2, recording: null, takes: [], log: [], cmds: [], quit: false,
 		seekWorks: opts.seekWorks !== false, stage: opts.stage === undefined ? 12 : opts.stage,
 		loadFrames: 0,
+		mode: opts.mode || 2, hud: 1, recordId: null, views: [], viewListener: null, cameraReadTicks: [],
 	};
 	// entity 7 is donk's controller; 2 and 3 are other players
 	const controllers = { 2: '111', 3: '222', 7: job.steamid };
@@ -30,6 +31,13 @@ function runScenario(name, opts) {
 		getPlayerPawnHandle: () => (i === 99 ? 100 : 1000 + i),
 		getObserverTargetHandle: () => 1000 + game.observed,
 		getPlayerControllerHandle: () => i - 1000,
+		getObserverMode: opts.noObserverMode ? undefined : () => game.mode,
+		getRenderEyeOrigin: () => {
+			game.cameraReadTicks.push(game.tick);
+			if (opts.failCameraAt !== undefined && game.tick >= opts.failCameraAt) throw new Error('camera unavailable');
+			return opts.eye ? opts.eye(game.tick) : [game.tick / 20, i, 64];
+		},
+		getRenderEyeAngles: () => opts.angles || [0, 45, 0],
 	});
 	let listener = null;
 	const mirv = {
@@ -39,8 +47,13 @@ function runScenario(name, opts) {
 			let m;
 			if ((m = c.match(/^playdemo "(.*)"$/))) { game.loadFrames = 20; }
 			else if ((m = c.match(/^demo_gototick (\d+)$/))) { if (game.seekWorks) game.tick = Number(m[1]); }
-			else if ((m = c.match(/^spec_player (\d+)$/))) { game.observed = Number(m[1]); }
-			else if (c === 'mirv_streams record start') { game.recording = { start: game.tick, frames: 0 }; }
+			else if ((m = c.match(/^spec_player (\d+)$/))) {
+				if (game.tick >= (opts.rejectSpecBefore || 0)) game.observed = Number(m[1]);
+			}
+			else if ((m = c.match(/^spec_mode (\d+)$/))) { game.mode = Number(m[1]); }
+			else if ((m = c.match(/^cl_drawhud (\d+)$/))) { game.hud = Number(m[1]); }
+			else if ((m = c.match(/^mirv_streams record name ".*\/([^/]+)"$/))) { game.recordId = m[1]; }
+			else if (c === 'mirv_streams record start') { game.recording = { id: game.recordId, start: game.tick, frames: 0, views: [] }; }
 			else if (c === 'mirv_streams record end') { if (game.recording) game.takes.push(game.recording); game.recording = null; }
 			else if (c === 'quit') { game.quit = true; }
 			else if (c === 'demo_resume') { game.paused = false; }
@@ -50,10 +63,13 @@ function runScenario(name, opts) {
 		isPlayingDemo: () => game.playing,
 		isDemoPaused: () => game.paused,
 		getHighestEntityIndex: () => 64,
-		getEntityFromIndex: (i) => (i in controllers || i >= 1000 ? ent(i) : null),
+		getEntityFromIndex: (i) => (i === 100 || i in controllers || i >= 1000 ? ent(i) : null),
 		getEntityFromSplitScreenPlayer: () => ent(99),
 		getHandleEntryIndex: (h) => h,
-		events: { clientFrameStageNotify: { on: (n, cb) => { listener = cb; } } },
+		events: {
+			clientFrameStageNotify: { on: (n, cb) => { listener = cb; } },
+			...(!opts.noViewApi ? { cViewRenderSetupView: { on: (n, cb) => { game.viewListener = cb; } } } : {}),
+		},
 	};
 
 	const src = fs.readFileSync(path.join(__dirname, '..', 'povforge', 'director.js'), 'utf8')
@@ -61,15 +77,26 @@ function runScenario(name, opts) {
 	new Function('mirv', src)(mirv);
 
 	for (let f = 0; f < 20000 && !game.quit; f++) {
+		if (opts.loseTargetAt !== undefined && game.tick === opts.loseTargetAt) game.observed = 2;
 		// several stages per frame, like the real game
 		for (const st of [0, 5, game.stage]) listener({ isBefore: true, curStage: st });
 		for (const st of [0, 5, game.stage]) listener({ isBefore: false, curStage: st });
+		if (game.viewListener) {
+			const event = { curTime: game.tick / 64 + (opts.timeOffset || 0), result: undefined,
+				gameView:{x:100,y:900,z:80,rX:0,rY:75,rZ:0,fov:90} };
+			const view = game.viewListener(event);
+			if (game.recording && view) game.recording.views.push(view);
+		}
 		if (game.loadFrames > 0 && --game.loadFrames === 0) { game.playing = true; game.tick = 1; }
 		else if (game.playing && !game.paused) {
 			game.tick++;
 			if (game.recording) {
 				game.recording.frames++;
-				if (game.observed !== 7) game.recording.wrongCam = (game.recording.wrongCam || 0) + 1;
+				const clip = job.clips.find((c) => c.id === game.recording.id);
+				const target = Object.keys(controllers).find((i) => controllers[i] === (clip.steamid || job.steamid));
+				if (game.observed !== Number(target)) game.recording.wrongCam = (game.recording.wrongCam || 0) + 1;
+				if (clip.cam && clip.cam !== 'pov' && (game.hud !== 0 || game.mode !== 3)) game.recording.wrongMode = true;
+				if ((!clip.cam || clip.cam === 'pov') && (game.hud !== 1 || game.mode !== 2)) game.recording.wrongMode = true;
 			}
 			if (game.tick >= game.lastTick) { game.tick = game.lastTick; game.paused = true; }
 		}
@@ -126,4 +153,35 @@ function check(name, cond, info) {
 	check('empty: quits', game.quit, game.log);
 }
 
-process.exit(failed ? 1 : 0);
+// 6. Main and victim clips use native first person with no view override.
+{
+    const clips = [{id:'main',start:1000,end:1100},
+        {id:'victim1',start:1200,end:1280,cam:'pov',steamid:'111'},
+        {id:'victim2',start:1400,end:1480,cam:'pov',steamid:'222'}];
+    const {game} = runScenario('replays', {job:{clips, specMode:'3'}, noViewApi:true, failCameraAt:0});
+    check('replays: all requested players recorded in first person',
+        game.takes.length === 3 && game.takes.every(t => !t.wrongCam && !t.wrongMode), game.log);
+    check('replays: never reads custom camera or hides HUD',
+        game.cameraReadTicks.length === 0 && !game.cmds.includes('cl_drawhud 0') && !game.cmds.includes('spec_mode 3'), game.cmds);
+}
+for (const cam of ['follow','orbit','wide']) {
+    const {game} = runScenario('legacy camera', {job:{clips:[{id:'old',start:1000,end:1100,cam}]}});
+    check('legacy ' + cam + ': rejected before loading demo', game.quit && game.takes.length === 0 &&
+        !game.cmds.some(c => c.startsWith('playdemo')) && game.log.some(l => l.includes('ERROR')), game.log);
+}
+{
+    const {game} = runScenario('missing victim', {job:{clips:[{id:'victim',start:1000,end:1100,cam:'pov',steamid:'999'}]}});
+    check('missing victim: never records the wrong player', game.quit && game.takes.length === 0, game.log);
+}
+{
+    const {game} = runScenario('target changes', {loseTargetAt:1040});
+    check('target change: fails instead of capturing another player',
+        game.quit && game.takes.length === 1 && game.takes[0].frames === 40 &&
+        game.log.some(l => l.includes('why=camera_error')), game.log);
+}
+{
+    const {game} = runScenario('already following in chase mode', {observed:7, mode:3, noObserverMode:true});
+    check('first person is requested even without observer-mode API',
+        game.takes.length === 2 && game.takes.every(t => !t.wrongMode), game.log);
+}
+process.exitCode = failed ? 1 : 0;

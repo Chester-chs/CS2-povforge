@@ -176,6 +176,9 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     kills = [[d.tick, d.headshot] for d in demo.deaths
              if d.attacker_steamid == player.steamid and d.victim_steamid != player.steamid]
     (job / "kills.json").write_text(json.dumps(kills), encoding="utf-8")
+    victims = [[d.tick, d.victim_steamid] for d in demo.deaths
+               if d.attacker_steamid == player.steamid and d.victim_steamid != player.steamid]
+    (job / "victims.json").write_text(json.dumps(victims), encoding="utf-8")
     highlights.save(job / "highlights.json", highlights.analyse(demo, player.steamid, track))
     try:
         teams = load_scoreboard(demo_path, len(demo.rounds))
@@ -258,6 +261,19 @@ def load_plan(job: Path) -> Plan:
         if moved.exists():
             plan.demo_path = str(moved.resolve())
     return plan
+
+
+def load_victims(job: Path) -> list[tuple[int, str]]:
+    """Kill tick and victim ID, loading old jobs from the demo once when needed."""
+    path = job / "victims.json"
+    if path.exists():
+        return [(int(tick), str(steamid)) for tick, steamid in json.loads(path.read_text(encoding="utf-8"))]
+    plan = load_plan(job)
+    demo = load_demo(plan.demo_path)
+    victims = [(d.tick, d.victim_steamid) for d in demo.deaths
+               if d.attacker_steamid == plan.player.steamid and d.victim_steamid != plan.player.steamid]
+    path.write_text(json.dumps(victims), encoding="utf-8")
+    return victims
 
 
 def load_track(job: Path) -> Track:

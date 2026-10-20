@@ -1,7 +1,8 @@
 # PyInstaller build: one folder with PovForge.exe (app window) and povforge.exe
 # (command line, povforge-cli.exe), sharing the same libraries. The names must
-# differ by more than case: Windows file names ignore case. Run from the repo root:
-#   pyinstaller packaging/povforge.spec
+# differ by more than case: Windows file names ignore case. Run inside packaging:
+#   pyinstaller --noconfirm povforge.spec
+from pathlib import Path
 from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_dynamic_libs
 
 datas = collect_data_files("povforge", includes=["director.js", "gui/static/**/*"])
@@ -20,7 +21,8 @@ for pkg in ("polars", "_polars_runtime_32", "_polars_runtime_64", "_polars_runti
     binaries += b
     hidden += [m for m in h if ".tests" not in m]
 
-common = dict(pathex=["."], binaries=binaries, datas=datas, hiddenimports=hidden,
+# Read the checkout even when development dependencies were installed editable.
+common = dict(pathex=[str(Path(SPECPATH).parent)], binaries=binaries, datas=datas, hiddenimports=hidden,
               excludes=["matplotlib", "IPython", "pytest", "scipy", "pyarrow.tests"],
               # code as separate .pyc files instead of one archive inside each .exe: a code
               # change then alters only the files it touches, so updates stay tiny

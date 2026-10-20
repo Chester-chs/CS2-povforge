@@ -35,6 +35,15 @@ def test_plain_means_the_old_quick_join():
     assert not E.is_plain({"music": "song.mp3"})
 
 
+@pytest.mark.parametrize("mode", ["pov", "reference"])
+def test_victim_append_is_active_without_reference_camera_frequency(mode):
+    fx = {"camera": {"mode": mode, "victim": True, "frequency": 0}}
+    assert not E.is_plain(fx)
+    assert any("victim" in line and "after" in line for line in E.describe(fx))
+    fx["camera"]["victim"] = False
+    assert E.is_plain(fx)
+
+
 def test_presets_are_valid_settings():
     for name, p in E.PRESETS.items():
         fx = E.normalize(p)
@@ -81,6 +90,15 @@ def test_which_kills_get_effects():
     assert E.chosen_kills(ms, "all") == [[2, 5], [1, 7, 9]]
     assert E.chosen_kills(ms, "last") == [[5], [9]]
     assert E.chosen_kills(ms, "final") == [[], [9]]
+
+
+def test_final_kill_effect_stays_on_main_highlight_before_ending_replays():
+    moments = [E.Moment(Path("main1"), 0, 4, [1, 3]),
+               E.Moment(Path("main2"), 0, 3, [2]),
+               E.Moment(Path("replay1"), 0, 1.2, []),
+               E.Moment(Path("replay2"), 0, 1.2, [9])]
+    assert E.chosen_kills(moments, "final") == [[], [2], [], []]
+    assert E.chosen_kills(moments[2:], "final") == [[], []]
 
 
 def test_grade_match_moves_towards_the_reference():

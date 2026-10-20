@@ -18,7 +18,7 @@ from pathlib import Path
 
 import shutil
 
-from . import effects
+from . import effects, camera, hlae
 from .compose import concat_line, free_name, safe_filename
 from .config import Config
 from .extras import _cut, kill_windows
@@ -99,6 +99,7 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
         sources.setdefault((it.demo, it.steamid), set()).add(it.round)
 
     windows: dict[tuple[str, str, int], list[tuple[Path, float, float, list[float]]]] = {}
+    contexts: dict[tuple[str, str, int], tuple[Path, Plan]] = {}
     for n, ((demo, steamid), rounds) in enumerate(sources.items(), 1):
         _log(f"Reel source {n}/{len(sources)}: {Path(demo).name}")
         # rounds already recorded for the whole-match video are cut from there:
@@ -110,6 +111,7 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
                 _log(f"Using the whole-match recording for round(s) {', '.join(map(str, sorted(got)))}")
                 for r, spans in got.items():
                     windows[(demo, steamid, r)] = spans
+                    contexts[(demo, steamid, r)] = (full, pipeline.load_plan(full))
                 rounds = rounds - set(got)
         if not rounds:
             continue
@@ -117,16 +119,99 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
         clips = pipeline.make_recording(cfg, job, placeholder)
         for r, spans in _cut_points(cfg, job, rounds, plan, clips, pace=pace).items():
             windows[(demo, steamid, r)] = spans
+            contexts[(demo, steamid, r)] = (job, plan)
 
     missing = [it for it in items if (it.demo, it.steamid, it.round) not in windows]
     for it in missing:
         _log(f"Note: round {it.round} of {Path(it.demo).name} was skipped (the player wasn't in it).")
-    order = [w for it in items for w in windows.get((it.demo, it.steamid, it.round), [])]
-    if not order:
+    if not windows:
         raise RuntimeError("None of the chosen rounds could be used.")
-    if not effects.is_plain(fx):
-        return _with_effects(cfg, title, order, fx)
+    camera_work = pipeline.work_root(cfg) / "camera pieces" / safe_filename(title)
+    try:
+        order = _camera_order(cfg, title, items, windows, contexts, fx, placeholder)
+        if not effects.is_plain(fx):
+            return _with_effects(cfg, title, order, fx)
+        return _plain_join(cfg, title, order)
+    finally:
+        # Only temporary composites; reusable camera takes stay in each job/shots.
+        if camera_work.is_dir():
+            shutil.rmtree(camera_work)
 
+
+def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
+                  contexts: dict, fx: dict, placeholder: bool = False) -> list:
+    """Plan around actual kills, batch extra views per demo, then preserve POV audio."""
+    order = [w for it in items for w in windows.get((it.demo, it.steamid, it.round), [])]
+    choice = camera.normalize_camera(fx.get("camera"))
+    if not choice["victim"]:
+        return order
+    if placeholder:
+        _log("Camera shots skipped in placeholder mode (no CS2).")
+        return order
+
+    requests, groups = [], {}
+    context_cache = {}
+    for it in items:
+        source = (it.demo, it.steamid, it.round)
+        spans = windows.get(source, [])
+        if not spans:
+            continue
+        job, plan = contexts[source]
+        if job not in context_cache:
+            context_cache[job] = (actual_starts(job), pipeline.load_victims(job) if choice["victim"] else [])
+        starts, victims = context_cache[job]
+        seg = next(sg for sg in plan.segments if sg.round_number == it.round)
+        actual = starts.get(clip_id(seg), float(seg.start_tick))
+        demo_key = str(Path(plan.demo_path).resolve()).casefold()
+        for span in spans:
+            clip, a, b, kills = span
+            start_tick = actual + a * plan.tickrate
+            shots = camera.plan_shots(
+                start_tick=start_tick, end_tick=actual + b * plan.tickrate,
+                kill_ticks=[round(start_tick + k * plan.tickrate) for k in kills],
+                victims=victims, steamid=it.steamid, tickrate=plan.tickrate,
+                camera=choice, key=f"{demo_key}:{it.steamid}:{it.round}",
+                index=len(requests),
+            )
+            requests.append((span, shots, demo_key, plan.tickrate))
+            if shots:
+                group = groups.setdefault(demo_key, {"job": job, "plan": plan, "shots": {}})
+                for shot in shots:
+                    group["shots"][shot["id"]] = shot
+
+    for n, group in enumerate(groups.values(), 1):
+        shots = list(group["shots"].values())
+        _log(f"Camera recording {n}/{len(groups)}: {len(shots)} extra shots "
+             "(one CS2 session for this demo; existing shots are reused).")
+        paths = hlae.record(group["plan"], group["job"], cfg.record, cfg.compose.ffmpeg,
+                            extra_shots=shots, shots_only=True)
+        group["paths"] = {shot["id"]: path for shot, path in zip(shots, paths)}
+        group["starts"] = actual_starts(group["job"])
+
+    work = pipeline.work_root(cfg) / "camera pieces" / safe_filename(title)
+    result, replays = [], []
+    for i, (span, shots, demo_key, tickrate) in enumerate(requests):
+        if not shots:
+            result.append(span)
+            continue
+        group = groups[demo_key]
+        clip, a, b, kills = span
+        _log(f"Camera editing {i + 1}/{len(requests)}")
+        result.append(span)
+        for j, shot in enumerate(s for s in shots if s["kind"] == "victim"):
+            replay = camera.render_replay(
+                clip=clip, start=a, end=b, shot=shot,
+                shot_paths=group["paths"], actual_starts=group["starts"], tickrate=tickrate,
+                out=work / f"replay_{i:03d}_{j:03d}.mp4", size=(cfg.record.width, cfg.record.height),
+                fps=cfg.record.fps, compose=cfg.compose,
+            )
+            if replay is not None:
+                replays.append(replay)
+    return result + replays
+
+
+def _plain_join(cfg: Config, title: str, order: list) -> Path:
+    """Keep the original quick join path when there are no visual/audio effects."""
     out_dir = pipeline.work_root(cfg) / "reel pieces" / safe_filename(title)
     out_dir.mkdir(parents=True, exist_ok=True)
     for f in out_dir.glob("piece_*.mp4"):

@@ -489,6 +489,20 @@
       </div>
     </template>
 
+    <template x-if="fx && fx.camera">
+      <div>
+        <div class="group-title"><h3 x-text="t('fxCamera')"></h3></div>
+        <p class="hint below" x-text="t('cameraHelp')"></p>
+        <div class="group">
+          <label class="row">
+            <span class="row-main"><b x-text="t('cameraVictimAppend')"></b></span>
+            <input class="switch" type="checkbox" x-model="fx.camera.victim" @change="fxChanged()" :aria-label="t('cameraVictimAppend')">
+          </label>
+        </div>
+        <p class="hint below" x-text="t('cameraVictimHelp')"></p>
+      </div>
+    </template>
+
     <!-- background music: the user's own files, remembered for next time -->
     <template x-if="fx">
       <div>

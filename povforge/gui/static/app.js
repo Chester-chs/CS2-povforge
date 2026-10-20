@@ -15,6 +15,9 @@ const TEXT = {
     styleTitle: "成片风格", styleHelp: "不导入成片时，集锦原样拼接、不加任何效果。导入一个做好的集锦，软件读出它的开头、转场、击杀特效和结尾，存成你命名的风格，做集锦时照着加。",
     stylePlain: "不加效果", styleUnsaved: "{name}（未命名）", styleMix: "混搭", mixHelp: "也可以按项挑：每一项都来自你导入过的成片。",
     fromList: "来自 {list}",
+    fxCamera: "第一人称集锦",
+    cameraHelp: "主集锦始终使用所选玩家的第一人称视角。",
+    cameraVictimAppend: "在片尾追加被击杀者视角", cameraVictimHelp: "全部主集锦播完后，按其中的击杀顺序拼接对方阵亡前的第一人称视角，中途不插入。需要额外录制，默认关闭；切换风格不会改变这个选择。",
     presetNameLabel: "给这组效果起个名字，存成你的预设", presetSaveRef: "存成预设", presetSaved: "已存为预设「{name}」，以后在上面的预设里直接选。",
     presetReplace: "已有同名预设，保存会替换它。", fromFile: "来自 {name}", vNone: "无", vYes: "有", vNo: "没有", vAbout: "约 {s} 秒", vTimes: "{n} 处",
     vAlso: "也有 {list}", vMatch: "{kind}，会照着它调", vPace: "每段约 {s} 秒，{kind}", vMusic: "有，约 {bpm} BPM", nowLabel: "当前效果：{text}", nowPlain: "当前：原样拼接，不加效果",
@@ -122,6 +125,9 @@ const TEXT = {
     styleTitle: "Style", styleHelp: "Without a finished video the rounds are simply joined, no effects. Import a finished highlight video and PovForge reads its opening, transitions, kill effects and ending, keeps them as a style you name, and adds them to your reel.",
     stylePlain: "No effects", styleUnsaved: "{name} (unnamed)", styleMix: "Mixed", mixHelp: "Or pick item by item; every choice comes from a video you imported.",
     fromList: "from {list}",
+    fxCamera: "First-person highlights",
+    cameraHelp: "The main reel always uses the selected player's first-person view.",
+    cameraVictimAppend: "Append victim views after the reel", cameraVictimHelp: "After all main highlights, join the victims' first-person views before their deaths in the same kill order. Requires extra recording and is off by default. Changing styles preserves this choice.",
     presetNameLabel: "Name these effects to keep them as your preset", presetSaveRef: "Save preset", presetSaved: "Saved as \u201c{name}\u201d; pick it from the presets above any time.",
     presetReplace: "A preset with this name exists; saving replaces it.", fromFile: "from {name}", vNone: "None", vYes: "Yes", vNo: "No", vAbout: "about {s} s", vTimes: "{n}×",
     vAlso: "also {list}", vMatch: "{kind}; yours will be matched to it", vPace: "about {s} s per moment, {kind}", vMusic: "yes, about {bpm} BPM", nowLabel: "Now: {text}", nowPlain: "Now: plain join, no effects",
@@ -488,9 +494,14 @@ document.addEventListener("alpine:init", () => {
     },
     // --- reel effects ---
     fxDefaults() { return JSON.parse(JSON.stringify(this.fxMeta.defaults || {})); },
+    cameraSettings(raw) {
+      const duration = raw?.durations?.victim;
+      return { mode: "pov", victim: raw?.victim === true,
+        durations: { victim: typeof duration === "number" && Number.isFinite(duration) ? Math.min(1.5, Math.max(0.5, duration)) : 1.2 } };
+    },
     // the parts of the effects that make a look (not the music file or the texts)
     fxLook(fx) {
-      const skip = new Set(["music", "music_volume", "music_start", "game_audio", "intro_text", "intro_sub", "outro_text", "grade_match"]);
+      const skip = new Set(["music", "music_volume", "music_start", "game_audio", "intro_text", "intro_sub", "outro_text", "grade_match", "camera"]);
       const full = { ...this.fxDefaults(), ...fx };
       return JSON.stringify(Object.keys(full).filter(k => !skip.has(k)).sort().map(k => [k, full[k]]));
     },
@@ -507,11 +518,13 @@ document.addEventListener("alpine:init", () => {
                intro_text: f.intro_text || "", intro_sub: f.intro_sub || "", outro_text: f.outro_text || "" };
     },
     applyPreset(key) {
+      const { victim } = this.cameraSettings(this.fx?.camera);
       const mine = (this.prefs.fx_presets || []).find(p => "my:" + p.name === key);
       const own = this.keepOwn();
       const texts = { intro_text: own.intro_text, intro_sub: own.intro_sub, outro_text: own.outro_text,
                       music: own.music, music_volume: own.music_volume, music_start: own.music_start, game_audio: own.game_audio };
       this.fx = mine ? { ...this.fxDefaults(), ...mine.fx, ...texts } : { ...this.fxDefaults(), ...texts };
+      this.fx.camera = { ...this.cameraSettings(this.fx.camera), victim };
       this.fxPreset = mine ? key : "plain"; this.saveFx();
     },
     fxParts: [
@@ -556,7 +569,7 @@ document.addEventListener("alpine:init", () => {
         opts.push({ value: src.value, sig, text: this.partText(key, src.fx), names: [src.name] });
       }
       const sep = this.lang === "zh" ? "、" : ", ";
-      return opts.map(o => ({ value: o.value, label: o.value ? o.text + (this.lang === "zh" ? "（" : " (") + this.t("fromList", { list: o.names.join(sep) }) + (this.lang === "zh" ? "）" : ")") : o.label }));
+      return opts.map(o => ({ value: o.value, label: o.label || (o.text + (this.lang === "zh" ? "（" : " (") + this.t("fromList", { list: o.names.join(sep) }) + (this.lang === "zh" ? "）" : ")")) }));
     },
     partNow(key) {
       const sig = this.partOf(key, this.fx || {});
@@ -565,20 +578,25 @@ document.addEventListener("alpine:init", () => {
       return src ? src.value : "";
     },
     pickPart(key, value) {
+      if (value === "custom") return;
       const c = this.fxParts.find(c => c.key === key);
+      if (!c) return;
       const from = value ? this.partSources().find(x => x.value === value)?.fx : {};
       const full = { ...this.fxDefaults(), ...(from || {}) };
       for (const f of c.fields) this.fx[f] = JSON.parse(JSON.stringify(full[f]));
       this.fxChanged();
     },
     applyRef() {
+      const { victim } = this.cameraSettings(this.fx?.camera);
       const look = { ...this.styleRef.effects };
       for (const k of ["music", "music_volume", "music_start", "game_audio"]) delete look[k];
       this.fx = { ...this.fxDefaults(), ...look, ...this.keepOwn() };
+      this.fx.camera = { ...this.cameraSettings(this.fx.camera), victim };
       this.fxPreset = "ref"; this.saveFx();
     },
     fxChanged() { this.fxPreset = this.presetOf(this.fx); this.saveFx(); },
     saveFx() {
+      if (this.fx) this.fx.camera = this.cameraSettings(this.fx.camera);
       clearTimeout(this.fxTimer);
       this.fxTimer = setTimeout(() => this.post("/api/prefs", { reel_fx: this.fx }).then(p => { this.prefs = p; }).catch(() => {}), 500);
     },
@@ -669,6 +687,7 @@ document.addEventListener("alpine:init", () => {
     },
     presetTaken(name) { const n = (name || "").trim(); return !!n && (this.prefs.fx_presets || []).some(p => p.name === n); },
     async saveRefPreset() {
+      const { victim } = this.cameraSettings(this.fx?.camera);
       const name = (this.styleRef.presetName || "").trim().slice(0, 40);
       if (!name) return;
       const fx = { ...this.fxDefaults(), ...this.styleRef.effects };
@@ -676,6 +695,7 @@ document.addEventListener("alpine:init", () => {
       const list = (this.prefs.fx_presets || []).filter(p => p.name !== name).concat([{ name, fx, source: this.styleRef.name }]);
       this.prefs = await this.post("/api/prefs", { fx_presets: list });
       this.fx = { ...fx, ...this.keepOwn() };
+      this.fx.camera = { ...this.cameraSettings(this.fx.camera), victim };
       this.fxPreset = "my:" + name; this.styleRef.savedAs = name; this.saveFx();
     },
     // one line saying what a set of effects does
@@ -690,6 +710,7 @@ document.addEventListener("alpine:init", () => {
       if (fx.letterbox) parts.push(this.t("fxBars"));
       if (fx.outro !== "none") parts.push(item(this.t("fxOutro"), this.t("o_" + fx.outro)));
       if (fx.music) parts.push(this.t("fxMusic"));
+      if (this.cameraSettings(fx.camera).victim) parts.push(this.t("cameraVictimAppend"));
       return parts.join(" · ");
     },
     presetTip(p) { return this.fxSummary(p.fx) + (p.source ? "\n" + this.t("fromFile", { name: p.source }) : ""); },
@@ -747,9 +768,10 @@ document.addEventListener("alpine:init", () => {
       if (s.effects) this.fxMeta = s.effects;
       if (!this.fx && s.effects) {             // once: the effects used last time
         this.fx = { ...this.fxDefaults(), ...(this.prefs.reel_fx || {}) };
+        this.fx.camera = this.cameraSettings(this.fx.camera);
         // effects that don't come from an imported video can't be seen or changed any more
         const ok = this.fxParts.every(c => this.partOf(c.key, this.fx) === this.partOf(c.key, {}) || this.partNow(c.key));
-        if (!ok) { this.fx = { ...this.fxDefaults() }; this.saveFx(); }
+        if (!ok) { this.fx = { ...this.fxDefaults(), camera: this.fx.camera }; this.saveFx(); }
         this.fxPreset = this.presetOf(this.fx);
       }
     },

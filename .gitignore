@@ -4,6 +4,8 @@ __pycache__/
 build/
 dist/
 .venv/
+.test-tmp/
+.pytest_cache/
 povforge-output/
 povforge.toml
 *.dem

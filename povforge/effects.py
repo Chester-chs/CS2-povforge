@@ -28,6 +28,7 @@ from pathlib import Path
 
 from .compose import AUDIO_RATE, ComposeSettings, concat_line
 from .media import ffprobe_for, probe
+from .camera import normalize_camera
 
 # --- the choices ----------------------------------------------------------------
 
@@ -71,6 +72,7 @@ DEFAULTS: dict = {
     "outro": "none", "outro_text": "", "outro_seconds": 2.0,
     "music": "", "music_volume": 0.8, "music_start": 0.0, "game_audio": "keep",
     "pace": "normal",
+    "camera": normalize_camera(None),
 }
 
 # Looks are not made up here: the app only offers "no effects" and the styles the
@@ -99,6 +101,7 @@ def normalize(fx: dict | None) -> dict:
     out["grade"] = pick("grade", GRADES)
     out["kill_scope"], out["game_audio"] = pick("kill_scope", KILL_SCOPES), pick("game_audio", GAME_AUDIO)
     out["pace"] = pick("pace", PACES)
+    out["camera"] = normalize_camera(out["camera"])
     out["transitions"] = {str(int(k)): v for k, v in dict(out["transitions"] or {}).items()
                           if str(k).lstrip("-").isdigit() and v in TRANSITIONS}
     for k in ("kill_slowmo", "kill_zoom", "kill_flash", "kill_shake", "letterbox"):
@@ -123,6 +126,9 @@ def is_plain(fx: dict | None) -> bool:
     """Nothing chosen (the pace aside): the reel is joined the quick way, as before."""
     fx = normalize(fx)
     fx["pace"] = DEFAULTS["pace"]
+    camera = fx["camera"]
+    if not camera["victim"]:
+        fx["camera"] = normalize_camera(None)
     return fx == normalize({})
 
 
@@ -147,14 +153,12 @@ class Moment:
 
 def chosen_kills(moments: list[Moment], scope: str) -> list[list[float]]:
     """The kills each moment's kill effects are applied to."""
-    out = []
-    for i, m in enumerate(moments):
-        ks = sorted(k for k in m.kills if 0 <= k <= m.length)
-        if scope == "last" or (scope == "final" and i == len(moments) - 1):
-            ks = ks[-1:]
-        elif scope == "final":
-            ks = []
-        out.append(ks)
+    out = [sorted(k for k in m.kills if 0 <= k <= m.length) for m in moments]
+    if scope == "final":
+        final = next((i for i in range(len(out) - 1, -1, -1) if out[i]), -1)
+        return [ks[-1:] if i == final else [] for i, ks in enumerate(out)]
+    if scope == "last":
+        return [ks[-1:] for ks in out]
     return out
 
 
@@ -657,6 +661,9 @@ def describe(fx: dict) -> list[str]:
         out.append(f"ending {fx['outro']}")
     if fx["music"]:
         out.append(f"music {Path(fx['music']).name}")
+    camera = fx["camera"]
+    if camera["victim"]:
+        out.append("victim views after the main reel, in kill order")
     return out
 
 

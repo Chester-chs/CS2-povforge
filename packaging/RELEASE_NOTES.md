@@ -1,4 +1,15 @@
-**What's new in v0.13.0 / 本次更新**
+**What's new in v0.14.0 / 本次更新**
+
+- Highlight reels now always use the selected player's first-person view. Camera imitation, follow/orbit/wide views and map-geometry downloads have been removed; old camera preferences cannot re-enable them.
+  高光集锦固定为所选玩家第一人称，移除镜头复刻、跟随/环绕/远景与地图几何下载；旧设置不会重新启用这些功能。
+- Optional victim views are off by default. All main highlights play first, followed by victims' first-person replays in the same kill order. Importing, changing or mixing styles preserves this independent choice.
+  受害者视角默认关闭；全部主集锦播放完毕后，再按击杀顺序追加受害者第一人称片段。导入、切换和混搭风格不会改变这个独立开关。
+- Victim recordings are batched per demo and cached with their settings. Replay sound follows the recorded demo time; small frame-boundary gaps trim to real footage. Short HLAE audio no longer truncates recorded video.
+  受害者片段按 Demo 合并补录并缓存，声音对齐对应 Demo 时间，录制边界只保留真实视频帧；修复短音轨截断画面的问题。
+- Settings protection covers setup failures, cancellation and temporary recording files. Failed takes cannot be reused as successful recordings.
+  设置保护覆盖初始化失败、取消及临时录制文件，失败片段不会被当作成功录制复用。
+
+**v0.13.0**
 
 - Recording quality: choose the recording size (screen size, 1080p, 1440p, 4K; up to your screen's) and frame rate (60 or 120 fps, smooth slow motion) in Settings. Recordings and finished videos are encoded for quality first (bigger files).
   录制画质：在设置里选录制分辨率（跟屏幕一样、1080p、1440p、4K，不超过屏幕）和帧率（60 或 120 帧，慢动作更顺滑）。录制和成片改为画质优先编码（文件更大）。

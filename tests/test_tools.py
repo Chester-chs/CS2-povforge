@@ -29,6 +29,7 @@ def test_extract_refuses_paths_outside_the_folder(tmp_path):
 def test_downloaded_ffmpeg_is_used_when_none_on_path(tmp_path, monkeypatch):
     monkeypatch.setenv("POVFORGE_STATE", str(tmp_path))
     monkeypatch.setattr(tools.shutil, "which", lambda name: None)
+    monkeypatch.setattr(tools, "_usual_ffmpeg_places", lambda: [])
     assert tools.find_ffmpeg() is None
     tools.ffmpeg_exe().parent.mkdir(parents=True)
     tools.ffmpeg_exe().write_text("")
