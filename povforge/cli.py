@@ -72,7 +72,22 @@ def _cmd_reel(args, cfg) -> None:
     from . import reel
 
     title, items = reel.load_spec(Path(args.spec))
-    reel.run(cfg, args.title or title, items, placeholder=args.placeholder)
+    reel.run(cfg, args.title or title, items, placeholder=args.placeholder, fx=reel.load_effects(Path(args.spec)))
+
+
+def _cmd_analyze_style(args, cfg) -> None:
+    """Work out a finished video's effects (what the app's "copy a video's style" does)."""
+    import json
+    from . import style
+    if args.json:
+        print(json.dumps(style.analyze(args.video, cfg.compose.ffmpeg), ensure_ascii=False), flush=True)
+        return
+    r = style.analyze(args.video, cfg.compose.ffmpeg)
+    v = r["video"]
+    print(f"{Path(args.video).name}: {v['seconds']} s, {v['width']}x{v['height']}, {v['fps']} fps")
+    for line in r["report"]:
+        print("  " + ", ".join(f"{k}={val}" for k, val in line.items()))
+    print("Effects: " + json.dumps(r["effects"], ensure_ascii=False))
 
 
 def _cmd_self_update(args, cfg) -> None:
@@ -299,6 +314,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--title", help="file name for the reel (default: the title in the spec)")
     s.add_argument("--placeholder", action="store_true", help="grey test clips instead of recording in CS2")
     s.set_defaults(func=_cmd_reel)
+
+    s = sub.add_parser("analyze-style", help="work out the effects of a finished highlight video")
+    s.add_argument("video")
+    s.add_argument("--json", action="store_true", help="print the result as JSON")
+    s.set_defaults(func=_cmd_analyze_style)
 
     s = sub.add_parser("self-update", help="update an install from a release zip (or write a build's file list)")
     s.add_argument("--app", required=True, help="the PovForge folder")

@@ -15,7 +15,8 @@ A personal, non-commercial tool that turns Counter-Strike 2 demos into full-matc
 - Keyboard/mouse display (Shift, Ctrl, W A S D, Space, mouse buttons) just above the HUD's kill icons
 - Intro: "<player> POV" written over the FACEIT match room. The screenshot is taken automatically from the demo's match id (headless Edge/Chrome, no login, cookie banner hidden, nothing accepted). The intro also shows the match start time in your time zone. Other demos get the final scoreboard
 - Writes chapter markers per round (embedded in the video and as a YouTube-ready `chapters.txt`), named after what happened: "Round 18 · ACE", "Round 7 · 3K · 1v2 clutch"
-- Highlight reel (its own entry in the app): the best rounds of one or more demos and players (3+ kills or a won clutch, picked for you and editable), each round kept unbroken from 4 s before its first kill to 1.5 s after its last and joined in the order you choose, best last by default. Game picture and HUD only, no overlays or intro. Only the needed seconds are recorded
+- Highlight reel (its own entry in the app): the best rounds of one or more demos and players (3+ kills or a won clutch, picked for you and editable), each round kept unbroken from a few seconds before its first kill to just after its last and joined in the order you choose, best last by default. Game picture and HUD only (no minimap or keys); an opening, transitions and other effects are optional, see below. Only the needed seconds are recorded
+- Reel effects, chosen before recording: an opening (fade in, title card), transitions (cut, flash, dip to black, dissolve, push, wipe, zoom, blur, pixelate), kill effects (slow motion, zoom, flash, shake), colour looks, cinema bars, an ending (fade, freeze frame, end card), pace and background music. Ready-made looks and your own saved presets. **Copy a video's style**: give it a finished highlight video and it reads that video's effects and fills them in (the same style and pace, not a frame-by-frame copy).
 - Upload kit: `cover.jpg` (the best moment, name, map, score, K/D/A) and `description.txt` (a title, match info and the chapters)
 
 A 28-minute FACEIT demo becomes a ~16-minute POV video.
@@ -75,7 +76,8 @@ povforge run match.dem.zst donk --rounds 1-2 --placeholder   # quick test, no CS
 povforge run match.dem.zst donk                # the real thing
 povforge run match.dem.zst donk --intro-image latest   # intro from your own screenshot instead
 povforge faceit match.dem.zst --show       # test the FACEIT intro screenshot on its own
-povforge reel reel.json                    # highlight reel; reel.json: {"title": ..., "items": [{"demo": ..., "steamid": ..., "round": 18}, ...]}
+povforge reel reel.json                    # highlight reel; reel.json: {"title": ..., "items": [{"demo": ..., "steamid": ..., "round": 18}, ...], "effects": {...}}
+povforge analyze-style video.mp4           # the effects a finished highlight video uses
 ```
 
 - Demos can be `.dem`, or FACEIT's `.dem.zst` / `.dem.gz` as downloaded. HLTV demos come as `.rar`: extract the `.dem` first.

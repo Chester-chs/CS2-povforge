@@ -1,4 +1,11 @@
-**What's new in v0.10.3 / 本次更新**
+**What's new in v0.11.0 / 本次更新**
+
+- Highlight reels can now have effects, all chosen in the reel page before recording and added when the reel is put together: an opening (fade in or a title card), transitions between the moments (flash, dip to black, dissolve, push, wipe, zoom, blur, pixelate, with their length), effects on the kills (slow motion, zoom, flash, shake; on every kill, the last kill of each moment or only the final kill), colour looks, cinema bars, an ending (fade out, freeze frame or an end card), the pace around the kills, and background music with its volume and how loud the game stays. Ready-made looks (Plain, Hype, Cinematic, Clean) are one click, and you can save your own. With nothing chosen the reel is joined exactly as before.
+  高光集锦可以加效果了，全部在集锦页里录制前选好，合成时加上：开头（黑场渐入或标题卡）、段与段之间的转场（闪白、黑场、叠化、推移、擦除、缩放、模糊、像素化，可选时长）、击杀特效（慢动作、放大、闪白、震动；可加在每个击杀、每段最后一杀或只在全片最后一杀）、调色、电影黑边、结尾（渐黑、定格或结尾卡）、击杀前后的节奏，以及背景音乐（音量、游戏声音保留/调低/静音）。现成的"原样""燃""电影感""简洁"一键套用，也能把自己调好的存成预设。什么都不选时，集锦和以前一样原样拼接。
+- Copy a video's style: choose a finished highlight video and PovForge reads its effects (opening, transitions and their length, kill effects, colour, cinema bars, ending, pace, whether it has music) and fills them in for your reel, with a short report. Its sound can be used as your reel's music. You get the same style and pace, not a frame-by-frame copy.
+  照着成片做：选一个做好的集锦视频，PovForge 会读出它用了哪些效果（开头、转场和时长、击杀特效、调色、黑边、结尾、节奏、有没有背景音乐），填进你的集锦设置，并列出读到了什么；还可以直接用它的声音做背景音乐。做出来是同样的风格和节奏，不是逐帧复制。
+
+**v0.10.3**
 
 - Fixed: "Update and reopen" did nothing and the window kept spinning on "Checking for updates…". The update check made at startup now readies the updater, the update window has a Cancel button and time limits, and it shows what went wrong instead of spinning.
   修复："更新并重新打开"没有反应、一直显示"正在检查更新…"。现在启动时的检查会直接让更新可用；更新窗口有"取消"按钮和超时，出错会说明原因，不会一直转圈。

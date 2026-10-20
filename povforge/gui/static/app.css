@@ -435,3 +435,42 @@ svg { width: 16px; height: 16px; flex: none; fill: none; }
 .note-row::before { display: none; }
 .note-row small { color: var(--label-2); font-size: 12px; line-height: 1.5; }
 .settings-sheet .row .btn { flex: none; }
+
+/* reel effects */
+.btn.small { height: 26px; padding: 0 10px; font-size: 12.5px; gap: 5px; }
+.btn.small svg { width: 13px; height: 13px; }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 2px 10px; }
+.chip {
+  display: inline-flex; align-items: center; height: 26px; padding: 0 12px; border: 0; border-radius: 999px;
+  background: var(--fill); color: var(--label); font: 500 12.5px var(--font); cursor: default; white-space: nowrap;
+}
+.chip:hover { background: var(--fill-strong); }
+.chip[aria-checked="true"] { background: var(--accent); color: var(--on-accent); }
+.chip.mine { padding: 0 4px 0 0; gap: 0; }
+.chip.mine > button { border: 0; background: none; color: inherit; font: inherit; height: 26px; padding: 0 6px 0 12px; cursor: default; }
+.chip.mine > .chip-x { padding: 0; width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; opacity: 0.6; }
+.chip.mine > .chip-x:hover { opacity: 1; background: rgb(0 0 0 / 0.08); }
+.chip-x svg { width: 11px; height: 11px; }
+.fx-save { display: flex; align-items: center; gap: 8px; padding-right: 10px; margin-bottom: 10px; }
+.fx .row { gap: 10px; }
+.fx .row.sub { min-height: 40px; padding-top: 6px; padding-bottom: 8px; }
+.fx .row.sub::before { display: none; }
+.fx .row.sub .row-main small { color: var(--label-2); }
+.text-input.inline { padding: 7px 10px; font-size: 13.5px; background: var(--fill); border-radius: 8px; }
+.toggles { display: inline-flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+.toggle {
+  height: 26px; padding: 0 10px; border: 0; border-radius: 7px; background: var(--fill); color: var(--label);
+  font: 500 12.5px var(--font); cursor: default;
+}
+.toggle:hover { background: var(--fill-strong); }
+.toggle[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.range { width: 180px; accent-color: var(--accent); }
+.fx-ref { margin-bottom: 12px; }
+.fx-report { padding: 12px 16px 12px; }
+.fx-report-head { display: flex; align-items: center; gap: 8px; }
+.fx-report-head b { flex: 1; font-weight: 600; font-size: 13.5px; }
+.fx-lines { margin: 8px 0 8px 24px; padding: 0; display: grid; gap: 3px; font-size: 13px; }
+.fx-lines li { list-style: "·  "; color: var(--label); }
+.fx-report-actions { margin: 4px 0 8px 24px; }
+.fx-report .hint { margin-left: 24px; color: var(--label-2); }
+.row-ic.warn { color: var(--orange); }

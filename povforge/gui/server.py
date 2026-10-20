@@ -281,6 +281,36 @@ def inspect_isolated(path: str, work_dir: Path) -> dict:
     return info
 
 
+def analyze_isolated(path: str) -> dict:
+    """style.analyze in a child process (it can take a while on a long video)."""
+    src = Path(path)
+    if not src.is_file():
+        raise ValueError("The video was not found.")
+    flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    r = subprocess.run(cli_command("analyze-style", str(src), "--json"), capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=1800, env=env, creationflags=flags)
+    out = [l for l in r.stdout.splitlines() if l.startswith("{")]
+    if r.returncode != 0 or not out:
+        tail = (r.stderr or r.stdout).strip().splitlines()
+        raise RuntimeError(tail[-1] if tail else f"Reading the video failed (exit code {r.returncode}).")
+    return json.loads(out[-1])
+
+
+def music_from_video(path: str) -> str:
+    """The sound of a video, saved as a music file for reels."""
+    from ..style import extract_music
+    from ..tools import find_ffmpeg
+    src = Path(path)
+    out = app_dir() / "music" / (safe_name(src.stem) + ".m4a")
+    extract_music(src, out, find_ffmpeg("") or "ffmpeg")
+    return str(out)
+
+
+def safe_name(s: str) -> str:
+    return re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", s).strip(" .") or "music"
+
+
 # --- recording job -----------------------------------------------------------------
 
 def cli_command(*args: str) -> list[str]:
@@ -358,7 +388,8 @@ class Job:
         if kind == "reel":
             spec = app_dir() / "reels" / f"reel-{item.get('id', 0)}.json"
             spec.parent.mkdir(parents=True, exist_ok=True)
-            spec.write_text(json.dumps({"title": item["name"], "items": item["reel"]}, ensure_ascii=False),
+            spec.write_text(json.dumps({"title": item["name"], "items": item["reel"],
+                                        "effects": item.get("effects") or {}}, ensure_ascii=False),
                             encoding="utf-8")
             args = ["--config", str(cfg), "reel", str(spec)]
         else:
@@ -424,9 +455,9 @@ class Job:
                 self.stage, self.step = "read", (0, 0)
                 self.source = (int(m.group(1)), int(m.group(2)))
                 self.recorded = []
-            elif m := re.match(r"Cutting the reel (\d+)/(\d+)", line):
+            elif m := re.match(r"(?:Cutting the reel|Effects: moment) (\d+)/(\d+)", line):
                 self.stage, self.step = "cut", (int(m.group(1)), int(m.group(2)))
-            elif line.startswith("Joining the reel"):
+            elif line.startswith(("Joining the reel", "Effects: joining", "Effects: sound")):
                 self.stage, self.step = "cut", (1, 1)
             elif line.startswith("Done: "):
                 self.result = line[6:].strip()
@@ -474,13 +505,15 @@ class Queue:
         return self._add({"kind": "match", "path": path, "steamid": steamid, "name": name, "rounds": rounds,
                           "map": map_pretty})
 
-    def add_reel(self, title: str, items: list[dict], summary: str = "") -> dict:
-        """A highlight reel: items are {demo, steamid, round} in the order they appear."""
+    def add_reel(self, title: str, items: list[dict], summary: str = "", fx: dict | None = None) -> dict:
+        """A highlight reel: items are {demo, steamid, round} in the order they appear;
+        ``fx`` the effects chosen for it (see effects.py)."""
+        from .. import effects
         reel = [{"demo": str(i["demo"]), "steamid": str(i["steamid"]), "round": int(i["round"])} for i in items]
         if not reel:
             raise ValueError("No rounds in the reel.")
         return self._add({"kind": "reel", "name": title or "Highlights", "reel": reel, "rounds": [],
-                          "path": "", "steamid": "", "map": summary})
+                          "path": "", "steamid": "", "map": summary, "effects": effects.normalize(fx)})
 
     def _add(self, fields: dict) -> dict:
         with self.lock:
@@ -828,9 +861,17 @@ def open_path(path: str, select: bool = False) -> None:
         subprocess.Popen(["xdg-open", str(p.parent if select else p)])
 
 
-def pick_file(initial: str) -> str | None:
+FILE_KINDS = {
+    "demo": ("CS2 demo", "*.dem *.zst *.gz *.bz2"),
+    "video": ("Video", "*.mp4 *.mov *.mkv *.webm *.avi *.flv *.m4v"),
+    "audio": ("Music", "*.mp3 *.m4a *.aac *.wav *.flac *.ogg *.opus *.mp4"),
+}
+
+
+def pick_file(initial: str, kind: str = "demo") -> str | None:
     """Native file dialog (tkinter); runs on its own thread so the server keeps going."""
     result: list[str | None] = [None]
+    label, pattern = FILE_KINDS.get(kind, FILE_KINDS["demo"])
 
     def ask() -> None:
         try:
@@ -840,8 +881,8 @@ def pick_file(initial: str) -> str | None:
             root.withdraw()
             root.attributes("-topmost", True)
             result[0] = filedialog.askopenfilename(
-                title="CS2 demo", initialdir=initial,
-                filetypes=[("CS2 demo", "*.dem *.zst *.gz *.bz2"), ("All files", "*.*")]) or None
+                title=label, initialdir=initial,
+                filetypes=[(label, pattern), ("All files", "*.*")]) or None
             root.destroy()
         except Exception:
             result[0] = None
@@ -955,9 +996,13 @@ def make_handler(app: App):
                 if url.path.startswith("/api/"):
                     app.last_seen = time.time()
                 if url.path == "/api/state":
+                    from .. import effects
                     return self._json({"version": __version__, "prefs": app.prefs, "update": app.update,
                                        "setup": app.setup.status(), "job": app.job.snapshot(),
-                                       "queue": app.queue.snapshot()})
+                                       "queue": app.queue.snapshot(),
+                                       "effects": {"defaults": effects.DEFAULTS, "presets": effects.PRESETS,
+                                                   "transitions": list(effects.TRANSITIONS),
+                                                   "grades": [g for g in effects.GRADES if g != "match"]}})
                 if url.path == "/api/job":
                     return self._json({**app.job.snapshot(), "queue": app.queue.snapshot()})
                 if url.path == "/api/workfiles":
@@ -1004,6 +1049,21 @@ def make_handler(app: App):
                 if url.path == "/api/browse":
                     folder = (app.prefs["demo_folders"] or [str(Path.home())])[0]
                     return self._json({"path": pick_file(folder)})
+                if url.path == "/api/pick":
+                    kind = b.get("kind") if b.get("kind") in FILE_KINDS else "video"
+                    start = str(Path(app.prefs["output"]) if kind == "video" else Path.home() / "Music")
+                    if not Path(start).is_dir():
+                        start = str(Path.home())
+                    return self._json({"path": pick_file(start, kind)})
+                if url.path == "/api/style/analyze":
+                    app.inspecting += 1
+                    try:
+                        return self._json(analyze_isolated(b.get("path", "")))
+                    finally:
+                        app.inspecting -= 1
+                        app.last_seen = time.time()
+                if url.path == "/api/style/music":
+                    return self._json({"path": music_from_video(b.get("path", ""))})
                 if url.path == "/api/folder":
                     which = b.get("which")
                     initial = app.prefs["output"] if which == "output" else app.prefs["demo_folders"][0]
@@ -1028,6 +1088,14 @@ def make_handler(app: App):
                         app.prefs["appearance"] = b["appearance"]
                     if b.get("accent") in ACCENTS:
                         app.prefs["accent"] = b["accent"]
+                    if "reel_fx" in b:
+                        from .. import effects
+                        app.prefs["reel_fx"] = effects.normalize(b["reel_fx"])
+                    if isinstance(b.get("fx_presets"), list):
+                        from .. import effects
+                        app.prefs["fx_presets"] = [{"name": str(x.get("name") or "")[:40],
+                                                    "fx": effects.normalize(x.get("fx"))}
+                                                   for x in b["fx_presets"][:30] if isinstance(x, dict)]
                     save_prefs(app.prefs)
                     return self._json(app.prefs)
                 if url.path in ("/api/run", "/api/queue/add"):
@@ -1035,7 +1103,8 @@ def make_handler(app: App):
                                   [int(r) for r in b.get("rounds") or []], b.get("map", ""))
                     return self._json({**app.job.snapshot(), "queue": app.queue.snapshot()})
                 if url.path == "/api/queue/add-reel":
-                    app.queue.add_reel(b.get("title", ""), b.get("items") or [], b.get("summary", ""))
+                    app.queue.add_reel(b.get("title", ""), b.get("items") or [], b.get("summary", ""),
+                                       b.get("effects"))
                     return self._json({**app.job.snapshot(), "queue": app.queue.snapshot()})
                 if url.path == "/api/queue/remove":
                     app.queue.remove(int(b.get("id", 0)))

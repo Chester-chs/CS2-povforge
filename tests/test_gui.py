@@ -192,6 +192,23 @@ def test_reel_items_go_through_the_queue():
     assert [i["round"] for i in job.last["reel"]] == [18, 3]      # the user's order is kept
 
 
+def test_reel_effects_go_with_it():
+    job = FakeJob()
+    q = server.Queue(job, {})
+    q.add_reel("r", [{"demo": "a.dem", "steamid": "1", "round": 2}], fx={"transition": "flash", "junk": 1})
+    fx = job.last["effects"]
+    assert fx["transition"] == "flash" and "junk" not in fx and fx["outro"] == "none"
+
+
+def test_job_reads_effects_progress():
+    j = server.Job()
+    for line in ["Effects: moment 2/5", "Effects: joining the picture ..."]:
+        j._take(line)
+        if line.startswith("Effects: moment"):
+            assert j.snapshot()["step"] == [2, 5]
+    assert j.snapshot()["stage"] == "cut"
+
+
 def test_job_reads_reel_progress():
     j = server.Job()
     for line in ["Reel source 2/3: x.dem", "Cutting the reel 4/7", "Done: C:/v/r.mp4"]:

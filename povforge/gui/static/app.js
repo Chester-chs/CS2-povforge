@@ -2,7 +2,28 @@
 
 const TEXT = {
   zh: {
-    reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "挑出最精彩的回合拼在一起。每个回合从第一个击杀前 4 秒连续到最后一个击杀后 1.5 秒，中间不剪。只用游戏画面，不加小地图和片头。",
+    fxTitle: "效果", fxHelp: "录制前选好，合成集锦时加上。不选就是原样拼接。", fxCopy: "照着成片做…",
+    preset_plain: "原样", preset_hype: "燃", preset_cinematic: "电影感", preset_clean: "简洁", presetRef: "照参考视频", presetCustom: "自定义",
+    fxSave: "存为我的预设", fxSaveName: "给这组效果起个名字", save: "保存",
+    fxIntro: "开头", intro_none: "无", intro_fade: "黑场渐入", intro_title: "标题卡", introText: "标题", introSub: "副标题",
+    fxTransition: "转场", fxTransitionHelp: "段与段之间怎么切", fxLength: "时长", sec: "{s} 秒",
+    tr_cut: "硬切", tr_flash: "闪白", tr_black: "黑场", tr_dissolve: "叠化", tr_slide: "推移", tr_wipe: "擦除", tr_zoom: "缩放", tr_blur: "模糊", tr_pixel: "像素化",
+    fxKills: "击杀特效", fxKillsHelp: "击杀那一刻加上", k_slowmo: "慢动作", k_zoom: "放大", k_flash: "闪白", k_shake: "震动",
+    fxScope: "加在哪些击杀上", scope_all: "每个击杀", scope_last: "每段最后一杀", scope_final: "只在全片最后一杀", slowAt: "{x} 倍速",
+    fxGrade: "调色", g_none: "原色", g_vivid: "鲜艳", g_cinematic: "电影感", g_cool: "冷色", g_warm: "暖色", g_bw: "黑白", g_match: "照参考视频",
+    fxBars: "电影黑边", fxBarsHelp: "上下加黑边（2.35:1）",
+    fxOutro: "结尾", o_none: "无", o_fade: "渐黑", o_freeze: "定格", o_card: "结尾卡", outroText: "结尾文字", outroTextDefault: "感谢观看",
+    fxPace: "节奏", fxPaceHelp: "每段在击杀前后留多久", pace_tight: "紧凑", pace_normal: "标准", pace_long: "舒缓",
+    fxMusic: "背景音乐", musicNone: "不加", musicPick: "选择音乐…", musicVol: "音乐音量 {v}%", gameAudio: "游戏声音",
+    game_keep: "保留", game_low: "调低", game_mute: "静音",
+    analyzing: "正在分析 {name}…", analyzingHelp: "视频越长越久，通常一分钟内。", analyzeFailed: "没能分析这个视频",
+    repTitle: "从 {name} 读到的效果，已填进下面的设置", repNothing: "没找到明显的特效：硬切、原色。",
+    repNote: "做出来是同样的风格和节奏，不是逐帧复制。下面还可以再改。",
+    rep_intro: "开头：{kind}（约 {s} 秒）", rep_transition: "转场：{kind}，约 {s} 秒（{n} 处）", rep_cuts: "转场：硬切（{n} 处）", rep_mixed: "；也有 {list}",
+    rep_pace: "每段约 {s} 秒（{kind}）", rep_kill: "击杀特效：{kind}（{n} 处）", rep_colour: "调色：{kind}，会照着它调", rep_letterbox: "有电影黑边",
+    rep_outro: "结尾：{kind}（约 {s} 秒）", rep_music: "有背景音乐（约 {bpm} BPM）", useMusic: "用这段视频的声音做背景音乐", musicUsed: "已用作背景音乐",
+    look_natural: "自然", look_vivid: "鲜艳", look_muted: "偏淡", look_warm: "偏暖", look_cool: "偏冷", look_bw: "黑白",
+    reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "挑出最精彩的回合拼在一起。每个回合从第一个击杀前几秒连续到最后一个击杀后，中间不剪。只用游戏画面，不加小地图；开头、转场、特效和音乐在下面选。",
     reelName: "名称", reelSources: "素材", reelSourcesHelp: "勾选要用的 demo，可以多选", reelPlayer: "选手",
     reelSame: "同一个人", reelEach: "每场分别选", reelEachHelp: "在上面每场 demo 的右边选这场用哪位选手。", reelPlayerIn: "{name}（{n} 场）", reelNotIn: "这场没有这名选手", reelPick: "选择选手",
     reelItems: "集锦内容", reelItemsHelp: "已自动挑出 3 杀以上和残局获胜的回合，按精彩程度排好，最强的放最后。拖动或用箭头调整顺序。",
@@ -71,7 +92,28 @@ const TEXT = {
     keep: "CS2 会在录完后自己关闭，期间别用电脑玩游戏。",
   },
   en: {
-    reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "The best rounds joined together. Each round runs unbroken from 4 s before its first kill to 1.5 s after its last. Game picture only: no minimap, no intro.",
+    fxTitle: "Effects", fxHelp: "Chosen before recording, added when the reel is put together. None: the rounds are simply joined.", fxCopy: "Copy a video's style…",
+    preset_plain: "Plain", preset_hype: "Hype", preset_cinematic: "Cinematic", preset_clean: "Clean", presetRef: "Like the reference", presetCustom: "Custom",
+    fxSave: "Save as my preset", fxSaveName: "Name these effects", save: "Save",
+    fxIntro: "Opening", intro_none: "None", intro_fade: "Fade in", intro_title: "Title card", introText: "Title", introSub: "Subtitle",
+    fxTransition: "Transition", fxTransitionHelp: "Between the moments", fxLength: "Length", sec: "{s} s",
+    tr_cut: "Cut", tr_flash: "Flash", tr_black: "Dip to black", tr_dissolve: "Dissolve", tr_slide: "Push", tr_wipe: "Wipe", tr_zoom: "Zoom", tr_blur: "Blur", tr_pixel: "Pixelate",
+    fxKills: "Kill effects", fxKillsHelp: "On the moment of the kill", k_slowmo: "Slow motion", k_zoom: "Zoom", k_flash: "Flash", k_shake: "Shake",
+    fxScope: "On which kills", scope_all: "Every kill", scope_last: "Last kill of each moment", scope_final: "Only the final kill", slowAt: "{x}× speed",
+    fxGrade: "Colour", g_none: "Original", g_vivid: "Vivid", g_cinematic: "Cinematic", g_cool: "Cool", g_warm: "Warm", g_bw: "Black and white", g_match: "Like the reference",
+    fxBars: "Cinema bars", fxBarsHelp: "Black bars top and bottom (2.35:1)",
+    fxOutro: "Ending", o_none: "None", o_fade: "Fade out", o_freeze: "Freeze frame", o_card: "End card", outroText: "End card text", outroTextDefault: "Thanks for watching",
+    fxPace: "Pace", fxPaceHelp: "Time kept around the kills", pace_tight: "Tight", pace_normal: "Normal", pace_long: "Relaxed",
+    fxMusic: "Music", musicNone: "None", musicPick: "Choose music…", musicVol: "Music volume {v}%", gameAudio: "Game sound",
+    game_keep: "Keep", game_low: "Lower", game_mute: "Mute",
+    analyzing: "Reading {name}…", analyzingHelp: "Longer videos take longer; usually under a minute.", analyzeFailed: "Couldn't read this video",
+    repTitle: "Found in {name}, filled in below", repNothing: "No clear effects found: straight cuts, original colour.",
+    repNote: "You get the same style and pace, not a frame-by-frame copy. You can still change everything below.",
+    rep_intro: "Opening: {kind} (about {s} s)", rep_transition: "Transition: {kind}, about {s} s ({n}×)", rep_cuts: "Transition: cut ({n}×)", rep_mixed: "; also {list}",
+    rep_pace: "About {s} s per moment ({kind})", rep_kill: "Kill effect: {kind} ({n}×)", rep_colour: "Colour: {kind}; yours will be matched to it", rep_letterbox: "Cinema bars",
+    rep_outro: "Ending: {kind} (about {s} s)", rep_music: "Background music (about {bpm} BPM)", useMusic: "Use this video's sound as the music", musicUsed: "Used as the music",
+    look_natural: "natural", look_vivid: "vivid", look_muted: "muted", look_warm: "warm", look_cool: "cool", look_bw: "black and white",
+    reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "The best rounds joined together. Each round runs unbroken from a few seconds before its first kill to just after its last. Game picture only, no minimap; pick an opening, transitions, effects and music below.",
     reelName: "Name", reelSources: "Demos", reelSourcesHelp: "Tick the demos to use; several are fine", reelPlayer: "Player",
     reelSame: "Same player", reelEach: "Per demo", reelEachHelp: "Choose the player for each demo on its row above.", reelPlayerIn: "{name} ({n} demos)", reelNotIn: "This player isn't in this demo", reelPick: "Choose a player",
     reelItems: "In the reel", reelItemsHelp: "Rounds with 3+ kills and won clutches are picked for you, best last. Drag or use the arrows to change the order.",
@@ -149,6 +191,8 @@ document.addEventListener("alpine:init", () => {
     player: null, chosenRounds: [], lastRun: null, setupOpen: false, customRounds: false, lastPath: "",
     settingsOpen: false, reelOpen: false, dragFrom: null, work: { bytes: null, path: "", confirm: false, cleaning: false },
     reel: { title: "", titleEdited: false, mode: "same", steamid: "", sources: [], items: [], reordered: false },
+    fx: null, fxMeta: { defaults: {}, presets: {}, transitions: [], grades: [] }, fxPreset: "plain", fxSaveOpen: false, fxSaveName: "",
+    styleRef: { state: "idle", name: "", path: "", report: [], music: null, effects: null, musicUsed: false, error: "" },
     accents: ["blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"],
     options: [
       { key: "intro", label: "optIntro" }, { key: "minimap", label: "optMinimap" }, { key: "keyboard", label: "optKeyboard" },
@@ -352,12 +396,104 @@ document.addEventListener("alpine:init", () => {
     },
     async startReel(watch) {
       const wasRunning = this.job.state === "running";
+      const effects = { ...this.fx };
+      if (effects.intro === "title" && !effects.intro_sub) effects.intro_sub = this.reelPlayersLine;
+      if (effects.outro === "card" && !effects.outro_text) effects.outro_text = this.t("outroTextDefault");
       const body = { title: this.reel.title.trim() || this.t("reelDefaultMany"), summary: this.t("reelSummary", { n: this.reel.items.length }),
-                     items: this.reel.items.map(c => ({ demo: c.path, steamid: c.steamid, round: c.round })) };
+                     items: this.reel.items.map(c => ({ demo: c.path, steamid: c.steamid, round: c.round })), effects };
       const j = await this.post("/api/queue/add-reel", body);
       this.queue = j.queue; this.job = j;
       if (watch && !wasRunning) { this.viewId = null; this.reelOpen = false; this.showRun = true; }
       else this.toast(this.t("queuedNote", { name: body.title }));
+    },
+    // --- reel effects ---
+    fxDefaults() { return JSON.parse(JSON.stringify(this.fxMeta.defaults || {})); },
+    // the parts of the effects that make a look (not the music file or the texts)
+    fxLook(fx) {
+      const skip = new Set(["music", "music_volume", "music_start", "game_audio", "intro_text", "intro_sub", "outro_text", "grade_match"]);
+      const full = { ...this.fxDefaults(), ...fx };
+      return JSON.stringify(Object.keys(full).filter(k => !skip.has(k)).sort().map(k => [k, full[k]]));
+    },
+    presetOf(fx) {
+      const me = this.fxLook(fx);
+      for (const [k, p] of Object.entries(this.fxMeta.presets || {})) if (this.fxLook(p) === me) return k;
+      for (const p of this.prefs.fx_presets || []) if (this.fxLook(p.fx) === me) return "my:" + p.name;
+      if (this.styleRef.effects && this.fxLook(this.styleRef.effects) === me) return "ref";
+      return "custom";
+    },
+    keepOwn() {
+      const f = this.fx || {};
+      return { music: f.music || "", music_volume: f.music_volume ?? 0.8, music_start: f.music_start || 0, game_audio: f.game_audio || "keep",
+               intro_text: f.intro_text || "", intro_sub: f.intro_sub || "", outro_text: f.outro_text || "" };
+    },
+    applyPreset(key) {
+      const mine = (this.prefs.fx_presets || []).find(p => "my:" + p.name === key);
+      // built-in looks keep your music and texts; your own presets bring theirs
+      this.fx = mine ? { ...this.fxDefaults(), ...mine.fx } : { ...this.fxDefaults(), ...(this.fxMeta.presets[key] || {}), ...this.keepOwn() };
+      this.fxPreset = key; this.saveFx();
+    },
+    applyRef() {
+      this.fx = { ...this.fxDefaults(), ...this.keepOwn(), ...this.styleRef.effects };
+      this.fxPreset = "ref"; this.saveFx();
+    },
+    fxChanged() { this.fxPreset = this.presetOf(this.fx); this.saveFx(); },
+    saveFx() {
+      clearTimeout(this.fxTimer);
+      this.fxTimer = setTimeout(() => this.post("/api/prefs", { reel_fx: this.fx }).then(p => { this.prefs = p; }).catch(() => {}), 500);
+    },
+    async savePreset() {
+      const name = this.fxSaveName.trim();
+      if (!name) return;
+      const list = (this.prefs.fx_presets || []).filter(p => p.name !== name).concat([{ name, fx: { ...this.fx } }]);
+      this.prefs = await this.post("/api/prefs", { fx_presets: list });
+      this.fxPreset = "my:" + name; this.fxSaveOpen = false; this.fxSaveName = "";
+    },
+    async deletePreset(name) {
+      this.prefs = await this.post("/api/prefs", { fx_presets: (this.prefs.fx_presets || []).filter(p => p.name !== name) });
+      this.fxPreset = this.presetOf(this.fx);
+    },
+    secondsChoices(cur, list) { return list.includes(cur) ? list : list.concat([cur]).sort((a, b) => a - b); },
+    get musicName() { return (this.fx?.music || "").split(/[\\/]/).pop(); },
+    get reelPlayersLine() { return [...new Set(this.reel.items.map(c => c.name))].join(" · "); },
+    async pickMusic() {
+      const r = await this.post("/api/pick", { kind: "audio" });
+      if (r.path) { this.fx.music = r.path; this.fxChanged(); }
+    },
+    clearMusic() { this.fx.music = ""; this.fxChanged(); },
+    async copyStyle() {
+      const r = await this.post("/api/pick", { kind: "video" });
+      if (!r.path) return;
+      this.styleRef = { state: "working", name: r.path.split(/[\\/]/).pop(), path: r.path, report: [], music: null, effects: null, musicUsed: false, error: "" };
+      try {
+        const a = await this.post("/api/style/analyze", { path: r.path });
+        this.styleRef = { ...this.styleRef, state: "done", report: a.report || [], music: a.music, effects: a.effects || {} };
+        this.applyRef();
+      } catch (e) {
+        this.styleRef = { ...this.styleRef, state: "error", error: e.message };
+      }
+    },
+    async useRefMusic() {
+      try {
+        const r = await this.post("/api/style/music", { path: this.styleRef.path });
+        this.fx.music = r.path; this.styleRef.musicUsed = true; this.fxChanged();
+      } catch (e) { this.toast(e.message); }
+    },
+    reportLine(r) {
+      switch (r.what) {
+        case "intro": return this.t("rep_intro", { kind: this.t("intro_" + r.kind), s: r.seconds });
+        case "transition": {
+          if (r.kind === "cut") return this.t("rep_cuts", { n: r.count });
+          const others = Object.entries(r.all || {}).filter(([k]) => k !== r.kind).map(([k, c]) => this.t("tr_" + k) + " ×" + c);
+          return this.t("rep_transition", { kind: this.t("tr_" + r.kind), s: r.seconds, n: r.count }) + (others.length ? this.t("rep_mixed", { list: others.join(this.lang === "zh" ? "、" : ", ") }) : "");
+        }
+        case "pace": return this.t("rep_pace", { s: r.seconds, kind: this.t("pace_" + r.kind) });
+        case "kill": return this.t("rep_kill", { kind: this.t("k_" + r.kind), n: r.count });
+        case "colour": return this.t("rep_colour", { kind: this.t("look_" + r.kind) });
+        case "letterbox": return this.t("rep_letterbox");
+        case "outro": return this.t("rep_outro", { kind: this.t("o_" + r.kind), s: r.seconds });
+        case "music": return this.t("rep_music", { bpm: r.bpm });
+      }
+      return "";
     },
     get setupHint() {
       if (!this.prefs.folders_set) return this.t("hintFolders");
@@ -385,6 +521,11 @@ document.addEventListener("alpine:init", () => {
       if (s.error) throw new Error(s.error);
       this.version = s.version; this.prefs = s.prefs; this.setup = s.setup; this.job = s.job;
       this.queue = s.queue; this.update = s.update;
+      if (s.effects) this.fxMeta = s.effects;
+      if (!this.fx && s.effects) {             // once: the effects used last time
+        this.fx = { ...this.fxDefaults(), ...(this.prefs.reel_fx || {}) };
+        this.fxPreset = this.presetOf(this.fx);
+      }
     },
     async loadDemos() { this.demos = await this.get("/api/demos"); this.demosLoaded = true; },
 

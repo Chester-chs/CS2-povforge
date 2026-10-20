@@ -15,7 +15,8 @@
 - 键鼠显示（Shift、Ctrl、W A S D、空格、鼠标左右键），位于底部 HUD 击杀图标正上方
 - 片头：在 FACEIT 比赛房间画面上写 "选手名 POV"。程序根据 demo 文件名里的比赛 ID 自动截图（后台无界面打开 Edge/Chrome，无需登录，隐藏 cookie 弹窗、不点同意）。片头同时写上比赛开始的具体时间（按你电脑的时区）。非 FACEIT demo 使用全场战绩卡
 - 按回合生成章节标记（嵌入视频，并输出可直接粘贴到 YouTube/B 站的 `chapters.txt`），章节名写明这回合发生了什么，比如"第18回合 · ACE""第7回合 · 三杀 · 1v2 残局"
-- 高光集锦（软件里的单独入口）：从一场或多场 demo、一位或多位选手里，自动挑出 3 杀以上和残局获胜的回合（可以手动增减），每个回合从第一个击杀前 4 秒连续到最后一个击杀后 1.5 秒，中间不剪，按你定的顺序拼起来，默认最强的放最后。只用游戏画面和游戏自带 HUD，不加小地图、键鼠和片头；录制时只录需要的那几秒。
+- 高光集锦（软件里的单独入口）：从一场或多场 demo、一位或多位选手里，自动挑出 3 杀以上和残局获胜的回合（可以手动增减），每个回合从第一个击杀前几秒连续到最后一个击杀后，中间不剪，按你定的顺序拼起来，默认最强的放最后。只用游戏画面和游戏自带 HUD，不加小地图和键鼠；开头、转场等效果可选（见下一条）；录制时只录需要的那几秒。
+- 集锦效果，录制前选好：开头（黑场渐入、标题卡）、转场（硬切、闪白、黑场、叠化、推移、擦除、缩放、模糊、像素化）、击杀特效（慢动作、放大、闪白、震动）、调色、电影黑边、结尾（渐黑、定格、结尾卡）、节奏和背景音乐；有现成风格，也能存自己的预设。**照着成片做**：给它一个做好的集锦视频，自动读出它用的效果并填好（同样的风格和节奏，不是逐帧复制）。
 - 投稿素材：`cover.jpg` 封面（最精彩的瞬间、选手名、地图、比分、击杀/死亡/助攻）和 `description.txt`（标题、比赛信息和章节）
 
 一场 28 分钟的 FACEIT demo 会生成约 16 分钟的 POV 视频。
@@ -75,7 +76,8 @@ povforge run match.dem.zst donk --rounds 1-2 --placeholder   # 快速测试，�
 povforge run match.dem.zst donk                # 正式录制
 povforge run match.dem.zst donk --intro-image latest   # 改用你自己最新的一张截图做片头
 povforge faceit match.dem.zst --show       # 单独测试 FACEIT 片头截图
-povforge reel reel.json                    # 高光集锦；reel.json 写明 demo、选手 steamid 和回合
+povforge reel reel.json                    # 高光集锦；reel.json 写明 demo、选手 steamid、回合和效果（effects）
+povforge analyze-style video.mp4           # 读出一个做好的集锦视频用了哪些效果
 ```
 
 - 支持 `.dem`，以及 FACEIT 直接下载的 `.dem.zst` / `.dem.gz`。HLTV 的 demo 是 `.rar`，需先解压出 `.dem`。
