@@ -367,3 +367,15 @@ def test_app_startup_check_readies_the_updater(monkeypatch, tmp_path):
 def threading_wait(s):
     import threading
     threading.Event().wait(s)
+
+
+def test_cli_output_reaches_the_app_as_utf8():
+    from pathlib import Path
+    """The app reads the command-line program's output as UTF-8; on Chinese Windows
+    a path like 职业选手POV arrived garbled and Play/Show in folder found nothing."""
+    import os, subprocess, sys
+    env = dict(os.environ, PYTHONIOENCODING="gbk")       # what Windows would use otherwise
+    code = "from povforge.cli import _utf8_output; _utf8_output(); print('Done: C:/职业选手POV/donk666 高光集锦.mp4')"
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, env=env,
+                       cwd=str(Path(__file__).resolve().parents[1]))
+    assert r.stdout.decode("utf-8").strip() == "Done: C:/职业选手POV/donk666 高光集锦.mp4"

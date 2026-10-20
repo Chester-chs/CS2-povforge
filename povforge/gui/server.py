@@ -853,10 +853,12 @@ class Setup:
 def open_path(path: str, select: bool = False) -> None:
     p = Path(path)
     if sys.platform == "win32":
+        # Explorer does the opening (with the default app): it is always running, so
+        # the start isn't lost when this request's thread ends straight afterwards
         if select:
             subprocess.Popen(["explorer", "/select,", str(p)])
         else:
-            os.startfile(str(p))  # noqa: S606 - opens with the user's default app
+            subprocess.Popen(["explorer", str(p)])
     else:
         subprocess.Popen(["xdg-open", str(p.parent if select else p)])
 
@@ -1094,8 +1096,10 @@ def make_handler(app: App):
                     if isinstance(b.get("fx_presets"), list):
                         from .. import effects
                         app.prefs["fx_presets"] = [{"name": str(x.get("name") or "")[:40],
-                                                    "fx": effects.normalize(x.get("fx"))}
-                                                   for x in b["fx_presets"][:30] if isinstance(x, dict)]
+                                                    "fx": effects.normalize(x.get("fx")),
+                                                    "source": str(x.get("source") or "")[:200]}
+                                                   for x in b["fx_presets"][:30]
+                                                   if isinstance(x, dict) and str(x.get("name") or "").strip()]
                     save_prefs(app.prefs)
                     return self._json(app.prefs)
                 if url.path in ("/api/run", "/api/queue/add"):
@@ -1151,8 +1155,13 @@ def make_handler(app: App):
                 if url.path == "/api/open":
                     p = b.get("path", "")
                     if not p or not Path(p).exists():
+                        print(f"Open: not found: {p!r}", flush=True)
                         return self._json({"error": "missing"}, 404)
-                    open_path(p, bool(b.get("select")))
+                    try:
+                        open_path(p, bool(b.get("select")))
+                    except Exception as e:
+                        print(f"Open: {p!r} failed: {e}", flush=True)
+                        raise
                     return self._json({"ok": True})
                 self._send(404, b"not found", "text/plain")
             except Exception as e:

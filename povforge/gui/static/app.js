@@ -2,6 +2,9 @@
 
 const TEXT = {
   zh: {
+    presetNameLabel: "给这组效果起个名字，存成你的预设", presetSaveRef: "存成预设", presetSaved: "已存为预设「{name}」，以后在上面的预设里直接选。",
+    presetReplace: "已有同名预设，保存会替换它。", fromFile: "来自 {name}", vNone: "无", vYes: "有", vNo: "没有", vAbout: "约 {s} 秒", vTimes: "{n} 处",
+    vAlso: "也有 {list}", vMatch: "{kind}，会照着它调", vPace: "每段约 {s} 秒，{kind}", vMusic: "有，约 {bpm} BPM", nowLabel: "当前效果：{text}", nowPlain: "当前：原样拼接，不加效果",
     fxTitle: "效果", fxHelp: "录制前选好，合成集锦时加上。不选就是原样拼接。", fxCopy: "照着成片做…",
     preset_plain: "原样", preset_hype: "燃", preset_cinematic: "电影感", preset_clean: "简洁", presetRef: "照参考视频", presetCustom: "自定义",
     fxSave: "存为我的预设", fxSaveName: "给这组效果起个名字", save: "保存",
@@ -85,6 +88,7 @@ const TEXT = {
     recording: "正在录制 {name}", recorded: "录好了", failed: "没能完成", stopped: "已停止",
     stage_read: "读取 demo", stage_record: "在 CS2 里录制回合", stage_overlays: "生成小地图和键鼠画面",
     stage_intro: "制作片头", stage_compose: "合成视频",
+    openMissing: "找不到这个文件，可能已被移动或删除。", openFailed: "没能打开：{e}",
     play: "播放视频", showFolder: "打开所在文件夹", another: "再录一个", retry: "重试", back: "返回",
     stop: "停止录制", details: "详细信息", cancelled: "录制已停止。你的 CS2 设置已还原。",
     retryHint: "重试时已录好的回合会直接复用。",
@@ -92,6 +96,9 @@ const TEXT = {
     keep: "CS2 会在录完后自己关闭，期间别用电脑玩游戏。",
   },
   en: {
+    presetNameLabel: "Name these effects to keep them as your preset", presetSaveRef: "Save preset", presetSaved: "Saved as \u201c{name}\u201d; pick it from the presets above any time.",
+    presetReplace: "A preset with this name exists; saving replaces it.", fromFile: "from {name}", vNone: "None", vYes: "Yes", vNo: "No", vAbout: "about {s} s", vTimes: "{n}×",
+    vAlso: "also {list}", vMatch: "{kind}; yours will be matched to it", vPace: "about {s} s per moment, {kind}", vMusic: "yes, about {bpm} BPM", nowLabel: "Now: {text}", nowPlain: "Now: plain join, no effects",
     fxTitle: "Effects", fxHelp: "Chosen before recording, added when the reel is put together. None: the rounds are simply joined.", fxCopy: "Copy a video's style…",
     preset_plain: "Plain", preset_hype: "Hype", preset_cinematic: "Cinematic", preset_clean: "Clean", presetRef: "Like the reference", presetCustom: "Custom",
     fxSave: "Save as my preset", fxSaveName: "Name these effects", save: "Save",
@@ -175,6 +182,7 @@ const TEXT = {
     recording: "Recording {name}", recorded: "Done", failed: "Didn't finish", stopped: "Stopped",
     stage_read: "Read the demo", stage_record: "Record rounds in CS2", stage_overlays: "Draw minimap and keys",
     stage_intro: "Make the intro", stage_compose: "Put the video together",
+    openMissing: "This file wasn't found; it may have been moved or deleted.", openFailed: "Couldn't open it: {e}",
     play: "Play video", showFolder: "Show in folder", another: "Record another", retry: "Try again", back: "Back",
     stop: "Stop recording", details: "Details", cancelled: "Recording stopped. Your CS2 settings are restored.",
     retryHint: "Rounds already recorded are reused when you try again.",
@@ -192,7 +200,7 @@ document.addEventListener("alpine:init", () => {
     settingsOpen: false, reelOpen: false, dragFrom: null, work: { bytes: null, path: "", confirm: false, cleaning: false },
     reel: { title: "", titleEdited: false, mode: "same", steamid: "", sources: [], items: [], reordered: false },
     fx: null, fxMeta: { defaults: {}, presets: {}, transitions: [], grades: [] }, fxPreset: "plain", fxSaveOpen: false, fxSaveName: "",
-    styleRef: { state: "idle", name: "", path: "", report: [], music: null, effects: null, musicUsed: false, error: "" },
+    styleRef: { state: "idle", name: "", path: "", report: [], music: null, effects: null, musicUsed: false, error: "", presetName: "", savedAs: "" },
     accents: ["blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"],
     options: [
       { key: "intro", label: "optIntro" }, { key: "minimap", label: "optMinimap" }, { key: "keyboard", label: "optKeyboard" },
@@ -463,7 +471,9 @@ document.addEventListener("alpine:init", () => {
     async copyStyle() {
       const r = await this.post("/api/pick", { kind: "video" });
       if (!r.path) return;
-      this.styleRef = { state: "working", name: r.path.split(/[\\/]/).pop(), path: r.path, report: [], music: null, effects: null, musicUsed: false, error: "" };
+      const name = r.path.split(/[\\/]/).pop();
+      this.styleRef = { state: "working", name, path: r.path, report: [], music: null, effects: null, musicUsed: false, error: "",
+                        presetName: name.replace(/\.[^.]+$/, "").slice(0, 40), savedAs: "" };
       try {
         const a = await this.post("/api/style/analyze", { path: r.path });
         this.styleRef = { ...this.styleRef, state: "done", report: a.report || [], music: a.music, effects: a.effects || {} };
@@ -477,6 +487,82 @@ document.addEventListener("alpine:init", () => {
         const r = await this.post("/api/style/music", { path: this.styleRef.path });
         this.fx.music = r.path; this.styleRef.musicUsed = true; this.fxChanged();
       } catch (e) { this.toast(e.message); }
+    },
+    // --- what was found in a reference video, and keeping it as a preset ---
+    repOf(what) { return (this.styleRef.report || []).find(r => r.what === what); },
+    killText(fx, counts) {
+      const on = ["slowmo", "zoom", "flash", "shake"].filter(k => fx["kill_" + k]);
+      if (!on.length) return "";
+      const sep = this.lang === "zh" ? "、" : ", ";
+      const names = on.map(k => this.t("k_" + k) + (k === "slowmo" ? " " + this.t("slowAt", { x: fx.slowmo_speed }) : "")
+        + (counts && counts[k] ? (this.lang === "zh" ? "（" : " (") + this.t("vTimes", { n: counts[k] }) + (this.lang === "zh" ? "）" : ")") : ""));
+      return names.join(sep) + (this.lang === "zh" ? "；" : "; ") + this.t("scope_" + fx.kill_scope);
+    },
+    get refRows() {
+      const fx = { ...this.fxDefaults(), ...(this.styleRef.effects || {}) };
+      const zh = this.lang === "zh", sep = zh ? "、" : ", ", paren = v => zh ? "（" + v + "）" : " (" + v + ")";
+      const rows = [];
+      const intro = this.repOf("intro");
+      rows.push({ label: this.t("fxIntro"), none: fx.intro === "none",
+                  value: fx.intro === "none" ? this.t("vNone") : this.t("intro_" + fx.intro) + (intro ? paren(this.t("vAbout", { s: intro.seconds })) : "") });
+      const tr = this.repOf("transition");
+      let trv = this.t("tr_" + fx.transition);
+      if (fx.transition !== "cut") trv += " " + this.t("vAbout", { s: fx.transition_seconds });
+      if (tr) {
+        trv += paren(this.t("vTimes", { n: tr.count }));
+        const others = Object.entries(tr.all || {}).filter(([k]) => k !== tr.kind).map(([k, c]) => this.t("tr_" + k) + " " + this.t("vTimes", { n: c }));
+        if (others.length) trv += zh ? "，" + this.t("vAlso", { list: others.join(sep) }) : "; " + this.t("vAlso", { list: others.join(sep) });
+      }
+      rows.push({ label: this.t("fxTransition"), value: trv, none: fx.transition === "cut" });
+      const counts = {};
+      for (const r of this.styleRef.report || []) if (r.what === "kill") counts[r.kind] = r.count;
+      const kills = this.killText(fx, counts);
+      rows.push({ label: this.t("fxKills"), value: kills || this.t("vNone"), none: !kills });
+      const col = this.repOf("colour");
+      rows.push({ label: this.t("fxGrade"), value: col ? this.t("vMatch", { kind: this.t("look_" + col.kind) }) : this.t("g_" + fx.grade), none: !col && fx.grade === "none" });
+      rows.push({ label: this.t("fxBars"), value: fx.letterbox ? this.t("vYes") : this.t("vNo"), none: !fx.letterbox });
+      const out = this.repOf("outro");
+      rows.push({ label: this.t("fxOutro"), none: fx.outro === "none",
+                  value: fx.outro === "none" ? this.t("vNone") : this.t("o_" + fx.outro) + (out ? paren(this.t("vAbout", { s: out.seconds })) : "") });
+      const pace = this.repOf("pace");
+      if (pace) rows.push({ label: this.t("fxPace"), value: this.t("vPace", { s: pace.seconds, kind: this.t("pace_" + pace.kind) }) });
+      const mus = this.repOf("music");
+      rows.push({ label: this.t("fxMusic"), value: mus ? this.t("vMusic", { bpm: mus.bpm }) : this.t("vNo"), none: !mus });
+      return rows;
+    },
+    presetTaken(name) { const n = (name || "").trim(); return !!n && (this.prefs.fx_presets || []).some(p => p.name === n); },
+    async saveRefPreset() {
+      const name = (this.styleRef.presetName || "").trim().slice(0, 40);
+      if (!name) return;
+      const fx = { ...this.fxDefaults(), ...this.styleRef.effects };
+      if (this.styleRef.musicUsed) { fx.music = this.fx.music; fx.game_audio = this.fx.game_audio; }
+      const list = (this.prefs.fx_presets || []).filter(p => p.name !== name).concat([{ name, fx, source: this.styleRef.name }]);
+      this.prefs = await this.post("/api/prefs", { fx_presets: list });
+      this.fx = { ...this.keepOwn(), ...fx };
+      this.fxPreset = "my:" + name; this.styleRef.savedAs = name; this.saveFx();
+    },
+    // one line saying what a set of effects does
+    fxSummary(fx) {
+      fx = { ...this.fxDefaults(), ...fx };
+      const zh = this.lang === "zh", item = (label, v) => label + (zh ? "：" : ": ") + v, parts = [];
+      if (fx.intro !== "none") parts.push(item(this.t("fxIntro"), this.t("intro_" + fx.intro)));
+      if (fx.transition !== "cut") parts.push(item(this.t("fxTransition"), this.t("tr_" + fx.transition) + " " + this.t("sec", { s: fx.transition_seconds })));
+      const on = ["slowmo", "zoom", "flash", "shake"].filter(k => fx["kill_" + k]).map(k => this.t("k_" + k));
+      if (on.length) parts.push(item(this.t("fxKills"), on.join(zh ? "、" : ", ")));
+      if (fx.grade !== "none") parts.push(item(this.t("fxGrade"), this.t("g_" + fx.grade)));
+      if (fx.letterbox) parts.push(this.t("fxBars"));
+      if (fx.outro !== "none") parts.push(item(this.t("fxOutro"), this.t("o_" + fx.outro)));
+      if (fx.music) parts.push(this.t("fxMusic"));
+      return parts.join(" · ");
+    },
+    presetTip(p) { return this.fxSummary(p.fx) + (p.source ? "\n" + this.t("fromFile", { name: p.source }) : ""); },
+    get fxNowLine() {
+      if (!this.fx) return "";
+      const text = this.fxSummary(this.fx);
+      if (!text) return this.t("nowPlain");
+      const mine = this.fxPreset.startsWith("my:") && (this.prefs.fx_presets || []).find(p => "my:" + p.name === this.fxPreset);
+      const src = mine?.source ? (this.lang === "zh" ? "（" : " (") + this.t("fromFile", { name: mine.source }) + (this.lang === "zh" ? "）" : ")") : "";
+      return this.t("nowLabel", { text }) + src;
     },
     reportLine(r) {
       switch (r.what) {
@@ -612,7 +698,11 @@ document.addEventListener("alpine:init", () => {
       if (toReel) this.reelOpen = true;
       if (this.job.state !== "running") this.job = await this.post("/api/reset");
     },
-    openPath(path, select = false) { if (path) this.post("/api/open", { path, select }); },
+    async openPath(path, select = false) {
+      if (!path) { this.toast(this.t("openMissing")); return; }
+      try { await this.post("/api/open", { path, select }); }
+      catch (e) { this.toast(e.message === "missing" ? this.t("openMissing") : this.t("openFailed", { e: e.message })); }
+    },
     openUrl(url) { this.post("/api/open-url", { url }); },
     async copy(text) {
       try { await navigator.clipboard.writeText(text); }

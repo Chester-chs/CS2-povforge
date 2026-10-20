@@ -412,13 +412,23 @@
             <b x-text="t('repTitle', { name: styleRef.name })"></b>
             <button class="icon-btn" @click="styleRef.state = 'idle'" :title="t('close')" :aria-label="t('close')"><svg><use href="#i-x"/></svg></button>
           </div>
-          <ul class="fx-lines">
-            <template x-for="(r, i) in styleRef.report" :key="i"><li x-text="reportLine(r)" x-show="reportLine(r)"></li></template>
-            <li x-show="!styleRef.report.length" x-text="t('repNothing')"></li>
-          </ul>
+          <dl class="fx-found">
+            <template x-for="r in refRows" :key="r.label">
+              <div class="fx-found-row"><dt x-text="r.label"></dt><dd :class="{ none: r.none }" x-text="r.value"></dd></div>
+            </template>
+          </dl>
           <div class="fx-report-actions" x-show="styleRef.music && styleRef.music.music">
             <button class="btn small" @click="useRefMusic()" :disabled="styleRef.musicUsed" x-text="styleRef.musicUsed ? t('musicUsed') : t('useMusic')"></button>
           </div>
+          <div class="fx-name" x-show="!styleRef.savedAs">
+            <label for="ref-name" x-text="t('presetNameLabel')"></label>
+            <div class="fx-name-row">
+              <input id="ref-name" class="text-input inline" x-model="styleRef.presetName" @keydown.enter="saveRefPreset()" maxlength="40">
+              <button class="btn primary small" @click="saveRefPreset()" :disabled="!styleRef.presetName.trim()" x-text="t('presetSaveRef')"></button>
+            </div>
+            <p class="err small" x-show="presetTaken(styleRef.presetName)" x-text="t('presetReplace')"></p>
+          </div>
+          <p class="fx-saved" x-show="styleRef.savedAs"><svg class="row-ic ok"><use href="#i-circle-check"/></svg><span x-text="t('presetSaved', { name: styleRef.savedAs })"></span></p>
           <p class="hint" x-text="t('repNote')"></p>
         </div>
       </template>
@@ -432,7 +442,7 @@
           </template>
           <button class="chip" role="radio" x-show="styleRef.effects" :aria-checked="fxPreset === 'ref'" @click="applyRef()" x-text="t('presetRef')"></button>
           <template x-for="p in (prefs.fx_presets || [])" :key="p.name">
-            <span class="chip mine" :aria-checked="fxPreset === 'my:' + p.name">
+            <span class="chip mine" :aria-checked="fxPreset === 'my:' + p.name" :title="presetTip(p)">
               <button @click="applyPreset('my:' + p.name)" x-text="p.name"></button>
               <button class="chip-x" @click="deletePreset(p.name)" :title="t('remove')" :aria-label="t('remove')"><svg><use href="#i-x"/></svg></button>
             </span>
@@ -440,6 +450,7 @@
           <span class="chip" role="radio" aria-checked="true" x-show="fxPreset === 'custom'" x-text="t('presetCustom')"></span>
           <button class="link small" @click="fxSaveOpen = !fxSaveOpen" x-show="fxPreset === 'custom' || fxPreset === 'ref'" x-text="t('fxSave')"></button>
         </div>
+        <p class="fx-now" x-text="fxNowLine"></p>
         <div class="group fx-save" x-show="fxSaveOpen">
           <input class="text-input" x-model="fxSaveName" :placeholder="t('fxSaveName')" @keydown.enter="savePreset()" :aria-label="t('fxSaveName')">
           <button class="btn" @click="savePreset()" :disabled="!fxSaveName.trim()" x-text="t('save')"></button>

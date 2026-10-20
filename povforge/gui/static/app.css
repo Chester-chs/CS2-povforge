@@ -474,3 +474,17 @@ svg { width: 16px; height: 16px; flex: none; fill: none; }
 .fx-report-actions { margin: 4px 0 8px 24px; }
 .fx-report .hint { margin-left: 24px; color: var(--label-2); }
 .row-ic.warn { color: var(--orange); }
+.fx-found { margin: 10px 0 10px 24px; display: grid; gap: 0; font-size: 13px; }
+.fx-found-row { display: grid; grid-template-columns: 84px 1fr; gap: 12px; padding: 5px 0; border-top: 0.5px solid var(--separator); }
+.fx-found-row:first-child { border-top: 0; }
+.fx-found dt { color: var(--label-2); }
+.fx-found dd { margin: 0; color: var(--label); font-weight: 500; }
+.fx-found dd.none { color: var(--label-3); font-weight: 400; }
+.fx-name { margin: 6px 0 8px 24px; display: grid; gap: 6px; }
+.fx-name label { font-size: 12.5px; font-weight: 600; color: var(--label); }
+.fx-name-row { display: flex; gap: 8px; align-items: center; }
+.fx-name-row .text-input { flex: 1; }
+.err.small { font-size: 12px; margin: 0; }
+.fx-saved { display: flex; align-items: center; gap: 6px; margin: 6px 0 8px 24px; font-size: 13px; font-weight: 500; }
+.row-ic.ok { color: var(--green); }
+.fx-now { margin: -2px 4px 10px; font-size: 12px; color: var(--label-2); }

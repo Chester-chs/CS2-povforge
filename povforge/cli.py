@@ -355,7 +355,21 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _utf8_output() -> None:
+    """When the app reads our output through a pipe, write UTF-8. The packaged
+    program ignores PYTHONIOENCODING, and Windows would otherwise use its local
+    code page (GBK on Chinese Windows): file paths with Chinese in them reached
+    the app garbled, so "Play video" and "Show in folder" found no file."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if stream is not None and not stream.isatty():
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _utf8_output()
     args = build_parser().parse_args(argv)
     try:
         # Only before recording: a read-only command (the app reading a demo, say)

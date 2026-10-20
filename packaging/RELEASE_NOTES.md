@@ -1,4 +1,11 @@
-**What's new in v0.11.0 / 本次更新**
+**What's new in v0.11.1 / 本次更新**
+
+- Fixed: "Play video" and "Show in folder" did nothing when the video's folder or name had Chinese in it (the path reached the app garbled). If a file can't be opened, the app now says why.
+  修复：视频所在文件夹或文件名带中文时，"播放视频"和"打开所在文件夹"没有反应（路径传给软件时乱码了）。打不开时现在会提示原因。
+- Copy a video's style now lists what it found in the video, item by item (opening, transition, kill effects, colour, cinema bars, ending, pace, music), and asks you to name it as a preset, so you can see which look each video uses and pick it again later. Your presets show where they came from.
+  照着成片做：读完会逐项列出视频用了什么（开头、转场、击杀特效、调色、黑边、结尾、节奏、音乐），然后让你给这组效果起名存成预设，之后随时能选，也知道哪个预设来自哪个视频。
+
+**v0.11.0**
 
 - Highlight reels can now have effects, all chosen in the reel page before recording and added when the reel is put together: an opening (fade in or a title card), transitions between the moments (flash, dip to black, dissolve, push, wipe, zoom, blur, pixelate, with their length), effects on the kills (slow motion, zoom, flash, shake; on every kill, the last kill of each moment or only the final kill), colour looks, cinema bars, an ending (fade out, freeze frame or an end card), the pace around the kills, and background music with its volume and how loud the game stays. Ready-made looks (Plain, Hype, Cinematic, Clean) are one click, and you can save your own. With nothing chosen the reel is joined exactly as before.
   高光集锦可以加效果了，全部在集锦页里录制前选好，合成时加上：开头（黑场渐入或标题卡）、段与段之间的转场（闪白、黑场、叠化、推移、擦除、缩放、模糊、像素化，可选时长）、击杀特效（慢动作、放大、闪白、震动；可加在每个击杀、每段最后一杀或只在全片最后一杀）、调色、电影黑边、结尾（渐黑、定格或结尾卡）、击杀前后的节奏，以及背景音乐（音量、游戏声音保留/调低/静音）。现成的"原样""燃""电影感""简洁"一键套用，也能把自己调好的存成预设。什么都不选时，集锦和以前一样原样拼接。
