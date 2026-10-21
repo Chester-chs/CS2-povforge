@@ -1,0 +1,162 @@
+POVForge 与 CodexOshi 审查及修复报告
+日期：2026-10-21（Europe/London）
+
+范围与方法
+按用户要求先完成 POVForge，再处理 CodexOshi。使用 Superpowers 系统排错、测试驱动与完成前验证，并进行独立代码复核。
+保留现有核心功能；每项修复基于具体代码路径及可复现证据。没有将未验收的原生行为当作已证实缺陷。
+POVForge 基线：9953414；CodexOshi 基线：1309808。以下为审查记录；修复提交及推送情况以各仓库 Git 历史为准。
+
+核心流程
+POVForge：Demo 解析/解压与计划缓存 → HLAE/CS2 第一人称录制 → 叠加/合成/发布；集锦在全部主片段结束后追加可选受害者回放。设置保护覆盖正常、取消和失败路径。
+CodexOshi：窗口跟随与生命周期 → 额度 HTTP/本地/RPC 回退 → 本地 Token 索引 → 角色、音效与偏好设置 → 公告及更新准备/交接。
+
+本轮验证结果
+POVForge：基线全量 184 项通过；最终提交前重新执行完整回归，216 项全部通过（240.86 秒），包含最后一次媒体发布调整与新增跨文件系统用例。
+POVForge：导演脚本 Node 模拟、Python 编译与 git diff --check 通过；没有待恢复的 CS2 设置备份。
+CodexOshi：基线 245 项通过；最终 npm test 256 项通过、0 失败、0 跳过；修改的 JavaScript 语法与 git diff --check 通过。
+CodexOshi：独立最终复核相关 21 项通过，未发现需要追加修复的问题。
+
+逐项问题与修复（位置指向修复后当前源码）
+
+P01  启动失败后任务一直显示运行中
+位置：C:/Users/Chester/Documents/ChatGPT/POVFORGE/povforge/gui/server.py:627
+触发：准备配置文件、保存设置或创建录制子进程时抛出异常。
+影响：队列项目报错，但 Job 仍是 running；后续重试被误判为已有录制运行。
+修复：启动边界统一捕获异常，记录 error 状态及错误原因，再交还队列处理。
+验证：test_start_failure_does_not_leave_job_running，覆盖配置失败和启动失败，先失败后通过。
+
+P02  并发请求可同时准备两个录制任务
+位置：C:/Users/Chester/Documents/ChatGPT/POVFORGE/povforge/gui/server.py:845
+触发：第一个请求已选中队列项，但 Job.start 尚在准备文件，第二个请求进入调度。
+影响：两个项目同时进入启动流程，可能争用配置、录制进程及设置备份。
+修复：调度同时检查任务忙碌状态与已占用的 running 队列项。
+验证：test_queue_reserves_one_start_while_child_is_being_prepared，重入调度复现后通过。
+
+P03  取消录制时过早向队列报告结束
+位置：C:/Users/Chester/Documents/ChatGPT/POVFORGE/povforge/gui/server.py:748
+触发：taskkill 使子进程先退出，读取线程醒来，而取消线程仍在恢复 CS2 设置。
+影响：队列可能在设置恢复之前接收继续、重试或清理请求。
+修复：取消和清理期间保持 busy，固定取消的进程对象，清理完成后仅通知一次；未退出的子进程继续阻止新任务。
+验证：test_cancel_notifies_queue_once_after_settings_cleanup；原有取消、备份归属和恢复失败测试继续通过。
+
+P04  旧任务延迟输出污染新任务
+位置：C:/Users/Chester/Documents/ChatGPT/POVFORGE/povforge/gui/server.py:668
+触发：取消后启动新任务，旧子进程管道随后才输出缓冲的 Done、Error 或进度；或读取线程延迟启动。
+影响：新任务可能显示旧成片路径、旧错误及错误进度。
+修复：读取线程创建时绑定自己的 Popen；每条输出在锁内核对进程身份，结束通知也核对归属。
+验证：test_old_reader_cannot_change_a_new_jobs_result_or_error 与 test_reader_thread_is_bound_to_its_own_child，先失败后通过。
+
+P05  缓存可能复用其他 Demo 或玩家的录像
+位置：C:/Users/Chester/Documents/ChatGPT/POVFORGE/povforge/pipeline.py:116
+触发：不同目录有同名 Demo、不同玩家使用同一昵称，或同名源文件及剪辑策略发生变化；整场缓存查找以前只比较文件名。
+影响：旧录像和新解析数据混用，造成录错比赛、选手或时间段。
+修复：不同来源、玩家与策略分开缓存；整场查找核对完整来源与已有文件指纹；同来源正常复用。
+验证：test_different_source_cannot_reuse_previous_job_or_clips 四组输入，以及 test_whole_match_lookup_rejects_same_filename_from_another_folder，先失败后通过。
+
+P06  压缩 Demo 更新后仍读取旧解压内容
+位置：C:/Users/Chester/Documents/ChatGPT/POVFORGE/povforge/demo.py:64
+触发：替换同名压缩文件，或两个同名压缩文件共用解压备用目录。
+影响：新来源指纹可能被错误地关联到旧比赛数据。
+修复：记录源路径、大小、修改时间及解压结果的来源信息；不匹配则重新解压；使用独立临时文件并清理。
+验证：真实 gzip 替换与备用目录冲突测试先失败后通过；另检查未变化来源能继续复用。
+
+P07  设置保存中断会破坏上一份配置
+位置：C:/Users/Chester/Documents/ChatGPT/POVFORGE/povforge/gui/server.py:70
+触发：直接覆盖 app.json 的过程中发生写入错误。
+影响：已有输出路径、风格和受害者开关等设置被截断，重启后回退默认值。
+修复：同目录独立临时文件写成功后再原子替换，失败清理临时文件。
+验证：test_preferences_survive_a_partial_write 注入部分写入错误，先失败后通过。
+
+P08  集锦编码失败留下看似成片的残缺文件
+位置：C:/Users/Chester/Documents/ChatGPT/POVFORGE/povforge/reel.py:219
+触发：普通拼接或带效果集锦在最后编码阶段失败。
+影响：用户成片目录留下无法正常播放的 MP4，后续重试另起文件名。
+修复：在目标目录暂存，成功后发布；失败删除暂存文件；外层 finally 清理本次集锦临时片段。暂存与目标同目录也保留跨磁盘输出能力。
+验证：两类失败输出测试先失败后通过；跨文件系统发布补充测试和真实 FFmpeg 集锦回归通过。
+
+P09  更新清单可包含越界或有歧义的路径
+位置：C:/Users/Chester/Documents/ChatGPT/POVFORGE/povforge/selfupdate.py:89
+触发：更新包或原文件清单包含 ../、绝对路径、盘符、反斜杠变体、尾随点或空格等。
+影响：准备或应用更新可能指向暂存、安装目录之外的文件，或将不同名字解析为同一 Windows 文件。
+修复：解包、比较清单和应用阶段统一校验；同时关闭更新 ZIP 和底层读取资源。
+验证：遍历路径、删除路径和 Windows 别名测试先失败后通过；原有差量下载与回滚测试通过。
+
+P10  仅大小写变化的更新可能删掉刚安装的 DLL
+位置：C:/Users/Chester/Documents/ChatGPT/POVFORGE/povforge/selfupdate.py:74
+触发：旧文件名为 lib.dll，新版本改为 LIB.dll。
+影响：旧逻辑同时计划替换和删除，Windows 把两者视作同一文件，更新报告成功但文件丢失。
+修复：按 Windows 不区分大小写的身份比较路径，拒绝重复别名及替换/删除集合重叠。
+验证：清单差异回归与真实临时 Windows 更新应用测试通过，DLL 保留新内容。
+
+P11  更新可能沿目录联接修改安装目录之外的文件
+位置：C:/Users/Chester/Documents/ChatGPT/POVFORGE/povforge/selfupdate.py:97
+触发：安装子目录已经是指向其他目录的 junction 或链接。
+影响：合法相对路径仍可能写到外部目录。这是有前置条件的文件边界问题，本轮没有据此推断远程利用。
+修复：Python 预检实际解析后的包含关系；PowerShell 应用前再次检查路径及重解析点。
+验证：隔离临时目录中创建真实 Windows junction，修复前覆盖外部测试文件，修复后拒绝应用并保留原内容。
+
+C01  空的 HTTP 成功响应被误认作有效额度
+位置：C:/Users/Chester/Documents/ChatGPT/CodexOshi-pr-1-review/runtime/quota.cjs:40
+触发：HTTP 返回 200，但 rate_limit 为空或没有可用额度窗口。
+影响：清空旧读数并跳过本地和 RPC 回退，界面只能显示未知。
+修复：将没有可用窗口的响应标为不可用，继续既有回退流程。
+验证：empty successful HTTP response is unavailable rather than a valid empty quota，先失败后通过。
+
+C02  空 RPC 读数覆盖上一次成功额度
+位置：C:/Users/Chester/Documents/ChatGPT/CodexOshi-pr-1-review/runtime/quota.cjs:114
+触发：网络失败、本地无记录，RPC 返回空窗口。
+影响：已有额度和观测时间被无效新快照清空。
+修复：仅使用有有效窗口的 RPC 替换额度；否则保留旧数值并明确标记过期。
+验证：empty RPC response cannot erase the last observed quota，先失败后通过。
+
+C03  并发偏好保存互相覆盖
+位置：C:/Users/Chester/Documents/ChatGPT/CodexOshi-pr-1-review/desktop/main.cjs:148
+触发：固定位置、挂件开关或简洁模式尚在保存，同时切换语言或改变卡片尺寸。
+影响：内存和磁盘不一致，重启后丢失选择，甚至重新打开已关闭的挂件。
+修复：语言与尺寸保存加入同一事务队列；保存时获取最新快照；简洁模式只合并自己的字段，保留尺寸预览。
+验证：固定/开关/简洁模式与语言的三个独立测试，尺寸重叠测试和原有组合保存测试通过。
+
+C04  语言保存失败后界面仍使用未保存的选择
+位置：C:/Users/Chester/Documents/ChatGPT/CodexOshi-pr-1-review/desktop/main.cjs:163
+触发：语言配置写入因权限等原因失败。
+影响：接口报错，但界面语言已变，重启又恢复，造成状态不一致。
+修复：写入失败恢复之前的语言并更新界面。
+验证：a failed language save restores the actual persisted language，先失败后通过。
+
+C05  公告开关保存失败仍改变内存状态
+位置：C:/Users/Chester/Documents/ChatGPT/CodexOshi-pr-1-review/runtime/news-service.cjs:23
+触发：切换公告开关时，替换设置文件失败。
+影响：操作报错，但公告实际开关已改变，且重启行为不同。
+修复：失败恢复原开关值，保留错误上报。
+验证：failed announcement preference save restores the previous enabled choice，先失败后通过。
+
+C06  运行中角色根目录被替换成链接后仍允许外部删除
+位置：C:/Users/Chester/Documents/ChatGPT/CodexOshi-pr-1-review/runtime/characters.cjs:52
+触发：角色存储初始化后，根目录被替换为直接指向其他目录的链接或 junction。
+影响：删除角色可能删除链接外目标中同名的目录；此问题需要本机目录被替换这一前置条件。
+修复：每次角色操作再次校验直接根目录，保留 macOS 父目录别名支持。
+验证：真实临时 junction 删除边界测试先失败后通过，父目录别名兼容测试通过。
+
+C07  更新状态写入失败残留临时文件
+位置：C:/Users/Chester/Documents/ChatGPT/CodexOshi-pr-1-review/runtime/update-service.cjs:6
+触发：状态临时文件写好，但替换目标设置失败。
+影响：重复重试不断积累不再使用的临时状态文件。
+修复：无论成功或失败都尝试清理本次独立临时文件。
+验证：failed update state replacement does not leave a partial temporary file，先失败后通过。
+
+仍未验证的部分
+1. 本轮未启动 CS2；录制取消/清理使用假外部进程和隔离设置目录验证。修改后的整场录制及集锦仍需一次真实 CS2/HLAE 回归。
+2. 压缩来源变更使用真实 gzip 复现；zstd/bz2 共用来源校验路径，本轮没有重跑真实 FACEIT 压缩 Demo。
+3. Windows 更新应用/回滚和 junction 验证均在临时目录内进行，没有更新真实安装目录。
+4. CodexOshi 本轮未重启已安装挂件或进行真实桌面点击/拖动验收；测试运行真实业务代码，替换 Electron、网络与子进程边界。
+5. macOS 辅助功能授权后的跟随、点击/拖动、Spaces、全屏及多显示器仍需要 Mac 真机验收，保留实验性状态。
+6. 本轮没有发布新安装包，也没有把本地源码修复部署到已安装应用。
+
+本地修复目录
+C:\Users\Chester\Documents\ChatGPT\POVFORGE
+C:\Users\Chester\Documents\ChatGPT\CodexOshi-pr-1-review
+
+验证日志
+C:\Users\Chester\Documents\ChatGPT\POVFORGE\.test-tmp\audit-prepush-povforge.log
+C:\Users\Chester\Documents\ChatGPT\POVFORGE\.test-tmp\audit-reel-final.log
+C:\Users\Chester\Documents\ChatGPT\CodexOshi-pr-1-review\audit-verified-codexoshi.log

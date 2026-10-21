@@ -27,7 +27,7 @@ import sys
 import urllib.error
 import urllib.request
 import zipfile
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Callable
 
 MANIFEST = "manifest.json"
@@ -74,9 +74,30 @@ def local_manifest(app_dir: Path, version: str) -> dict:
 def changes(new: dict, old: dict) -> tuple[list[str], list[str]]:
     """(files to fetch, files to remove) to turn ``old`` into ``new``."""
     nf, of = new["files"], old["files"]
-    fetch = [p for p, i in nf.items() if of.get(p, {}).get("sha256") != i["sha256"]]
-    remove = [p for p in of if p not in nf and p.lower() not in KEEP]
+    for files in (nf, of):
+        for p in files:
+            _safe_relative(p)
+        if len({p.casefold() for p in files}) != len(files):
+            raise ValueError("Unsafe duplicate Windows update paths")
+    old_files = {p.casefold(): i for p, i in of.items()}
+    new_names = {p.casefold() for p in nf}
+    fetch = [p for p, i in nf.items() if old_files.get(p.casefold(), {}).get("sha256") != i["sha256"]]
+    remove = [p for p in of if p.casefold() not in new_names and p.lower() not in KEEP]
     return fetch, remove
+
+
+def _safe_relative(name: str) -> str:
+    if (not isinstance(name, str) or not name or name.startswith("/")
+            or PureWindowsPath(name).drive or "\\" in name or ":" in name or "\x00" in name
+            or any(part in ("", ".", "..") or part.endswith((".", " ")) for part in name.split("/"))):
+        raise ValueError(f"Unsafe update path: {name!r}")
+    return name
+
+
+def _safe_target(root: Path, rel: str) -> None:
+    _safe_relative(rel)
+    if not (root / rel).resolve().is_relative_to(root.resolve()):
+        raise ValueError(f"Unsafe update path through a linked directory: {rel!r}")
 
 
 # --- reading a zip on a web server, a few bytes at a time ----------------------------
@@ -208,7 +229,8 @@ def _members(z: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]:
     for info in z.infolist():
         name = info.filename.replace("\\", "/")
         if name.startswith(ZIP_ROOT) and not name.endswith("/"):
-            out[name[len(ZIP_ROOT):]] = info
+            rel = _safe_relative(name[len(ZIP_ROOT):])
+            out[rel] = info
     return out
 
 
@@ -218,6 +240,15 @@ def prepare(app_dir: Path, source: str | Path, version: str, work: Path,
             progress: Progress | None = None) -> dict:
     """Download what changed into ``work/stage``; returns the plan for apply()."""
     z, raw = open_zip(source)
+    try:
+        return _prepare_zip(app_dir, z, raw, version, work, progress)
+    finally:
+        z.close()
+        if raw is not None:
+            raw.close()
+
+
+def _prepare_zip(app_dir: Path, z, raw, version: str, work: Path, progress) -> dict:
     members = _members(z)
     if MANIFEST not in members:
         raise RuntimeError("This release has no file list; using the full installer.")
@@ -269,6 +300,19 @@ function Retry([scriptblock]$b) {
   for ($i = 0; $i -lt 60; $i++) { try { & $b; return } catch { Start-Sleep -Milliseconds 250 } }
   & $b
 }
+function Assert-SafePath([string]$root, [string]$rel) {
+  $base = [IO.Path]::GetFullPath($root).TrimEnd('\')
+  $target = [IO.Path]::GetFullPath((Join-Path $base $rel))
+  if (-not $target.StartsWith($base + '\', [StringComparison]::OrdinalIgnoreCase)) { throw "Unsafe update path: $rel" }
+  $cursor = $target
+  while ($cursor -ne $base) {
+    if (Test-Path -LiteralPath $cursor) {
+      $entry = Get-Item -LiteralPath $cursor -Force
+      if ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Unsafe linked update path: $rel" }
+    }
+    $cursor = Split-Path -Parent $cursor
+  }
+}
 Log "update to $($c.version): waiting for PovForge to close"
 if ($c.wait_pid -gt 0) { try { Wait-Process -Id $c.wait_pid -Timeout 90 -ErrorAction SilentlyContinue } catch {} }
 Start-Sleep -Milliseconds 700
@@ -277,6 +321,7 @@ $added = New-Object System.Collections.Generic.List[string]
 $ok = $true
 try {
   foreach ($rel in @($c.changed)) {
+    Assert-SafePath $c.app $rel; Assert-SafePath $c.stage $rel; Assert-SafePath $c.backup $rel
     $src = Join-Path $c.stage $rel; $dst = Join-Path $c.app $rel; $bk = Join-Path $c.backup $rel
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst) | Out-Null
     if (Test-Path -LiteralPath $dst) {
@@ -288,6 +333,7 @@ try {
     $added.Add($rel)
   }
   foreach ($rel in @($c.removed)) {
+    Assert-SafePath $c.app $rel; Assert-SafePath $c.backup $rel
     $dst = Join-Path $c.app $rel; $bk = Join-Path $c.backup $rel
     if (Test-Path -LiteralPath $dst) {
       New-Item -ItemType Directory -Force -Path (Split-Path -Parent $bk) | Out-Null
@@ -295,6 +341,7 @@ try {
       $moved.Add($rel)
     }
   }
+  Assert-SafePath $c.app 'manifest.json'; Assert-SafePath $c.stage 'manifest.json'
   Copy-Item -LiteralPath (Join-Path $c.stage 'manifest.json') -Destination (Join-Path $c.app 'manifest.json') -Force
   if ($c.uninstall_key -and (Test-Path -LiteralPath $c.uninstall_key)) {
     try { Set-ItemProperty -LiteralPath $c.uninstall_key -Name DisplayVersion -Value $c.version } catch {}
@@ -319,6 +366,17 @@ def apply(app_dir: Path, work: Path, plan: dict, log: Path, wait_pid: int = 0,
           relaunch: bool = True, wait: bool = False) -> int | None:
     """Swap the staged files in (after ``wait_pid`` has exited). With ``wait``,
     runs in the foreground and returns the exit code (for tests)."""
+    _safe_target(work, "stage")
+    _safe_target(work, "backup")
+    _safe_target(app_dir, MANIFEST)
+    _safe_target(work / "stage", MANIFEST)
+    for rel in (*plan["changed"], *plan["removed"]):
+        _safe_relative(rel)
+        _safe_target(app_dir, rel)
+        _safe_target(work / "stage", rel)
+        _safe_target(work / "backup", rel)
+    if {p.casefold() for p in plan["changed"]} & {p.casefold() for p in plan["removed"]}:
+        raise ValueError("Unsafe overlapping update changes and removals")
     script = work / "apply.ps1"
     script.write_text(APPLY_PS1, encoding="utf-8-sig")       # BOM: Windows PowerShell reads it as UTF-8
     cfg = {"app": str(app_dir), "stage": str(work / "stage"), "backup": str(work / "backup"), "work": str(work),

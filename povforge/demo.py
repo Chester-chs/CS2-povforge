@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import json
+import os
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -71,15 +74,27 @@ def prepare_demo(path: str | Path, work_dir: Path | None = None) -> Path:
     name = path.name[: -len(suffix)]
     if not name.lower().endswith(".dem"):
         name += ".dem"
+    stat = path.stat()
+    source = {"path": str(path.resolve()), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
     for folder in (path.parent, work_dir):
         if folder is None:
             continue
         out = folder / name
-        if out.exists() and out.stat().st_size > 0:
-            return out
+        provenance = out.with_name(out.name + ".source.json")
+        try:
+            saved = json.loads(provenance.read_text(encoding="utf-8"))
+            stat = out.stat()
+            if (saved["source"] == source and stat.st_size > 0
+                    and saved["output"] == [stat.st_size, stat.st_mtime_ns]):
+                return out
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+        tmp = metadata_tmp = None
         try:
             folder.mkdir(parents=True, exist_ok=True)
-            tmp = out.with_suffix(".part")
+            fd, temporary = tempfile.mkstemp(dir=folder, prefix=out.name + ".", suffix=".part")
+            os.close(fd)
+            tmp = Path(temporary)
             with open(path, "rb") as src, open(tmp, "wb") as dst:
                 if suffix == ".zst":
                     import zstandard
@@ -92,9 +107,19 @@ def prepare_demo(path: str | Path, work_dir: Path | None = None) -> Path:
                     with opener(src) as z:
                         shutil.copyfileobj(z, dst, 1 << 20)
             tmp.replace(out)
+            stat = out.stat()
+            metadata_tmp = tmp.with_suffix(".json")
+            metadata_tmp.write_text(json.dumps({"source": source,
+                                                "output": [stat.st_size, stat.st_mtime_ns]}), encoding="utf-8")
+            metadata_tmp.replace(provenance)
             return out
         except OSError:
             continue
+        finally:
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
+            if metadata_tmp is not None:
+                metadata_tmp.unlink(missing_ok=True)
     raise RuntimeError(f"Could not unpack {path}")
 
 

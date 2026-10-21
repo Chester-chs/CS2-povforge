@@ -69,7 +69,17 @@ def load_prefs() -> dict:
 
 def save_prefs(prefs: dict) -> None:
     app_dir().mkdir(parents=True, exist_ok=True)
-    (app_dir() / "app.json").write_text(json.dumps(prefs, indent=2, ensure_ascii=False), encoding="utf-8")
+    # Write beside the destination so a failed save leaves the previous file intact.
+    import tempfile
+
+    fd, name = tempfile.mkstemp(dir=app_dir(), prefix="app-", suffix=".tmp")
+    os.close(fd)
+    temp = Path(name)
+    try:
+        temp.write_text(json.dumps(prefs, indent=2, ensure_ascii=False), encoding="utf-8")
+        temp.replace(app_dir() / "app.json")
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def _toml_str(s: str) -> str:
@@ -578,6 +588,8 @@ class Job:
 
     def reset(self) -> None:
         self.proc: subprocess.Popen | None = None
+        self.cancelling = False
+        self._finish_notified = False
         self.state = "idle"          # idle | running | done | error | cancelled
         self.stage = ""
         self.lines: list[str] = []
@@ -597,6 +609,11 @@ class Job:
         self.source = (0, 0)         # reel: which demo of how many
         self.started = 0.0
 
+    @property
+    def busy(self) -> bool:
+        return (self.state == "running" or self.cancelling
+                or (self.proc is not None and self.proc.poll() is None))
+
     def snapshot(self) -> dict:
         with self.lock:
             return {"state": self.state, "stage": self.stage, "lines": self.lines[-200:],
@@ -611,12 +628,20 @@ class Job:
         """Start a queue item: a whole-match recording or a highlight reel."""
         kind = item.get("kind", "match")
         with self.lock:
-            if self.state == "running":
+            if self.busy:
                 raise RuntimeError("A recording is already running.")
             self.reset()
             self.state, self.stage, self.started = "running", "read", time.time()
             self.player, self.demo, self.item, self.kind = item["name"], item.get("path", ""), item.get("id", 0), kind
             self.planned = sorted(item.get("rounds") or [])
+        try:
+            self._launch(item, prefs, kind)
+        except Exception as e:
+            with self.lock:
+                self.state, self.error = "error", str(e)
+            raise
+
+    def _launch(self, item: dict, prefs: dict, kind: str) -> None:
         videos = videos_folder(prefs, item)
         save_prefs(prefs)                         # a new player got a folder name
         cfg = write_job_config(prefs, videos)
@@ -638,27 +663,40 @@ class Job:
         self.proc = subprocess.Popen(cli_command(*args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                      text=True, encoding="utf-8", errors="replace", env=env,
                                      creationflags=flags)
-        threading.Thread(target=self._read, daemon=True).start()
+        threading.Thread(target=self._read, args=(self.proc,), daemon=True).start()
 
-    def _read(self) -> None:
-        assert self.proc and self.proc.stdout
-        for raw in self.proc.stdout:
+    def _read(self, proc=None) -> None:
+        proc = self.proc if proc is None else proc
+        assert proc and proc.stdout
+        for raw in proc.stdout:
             line = raw.rstrip()
             if line:
-                self._take(line)
-        code = self.proc.wait()
+                self._take(line, proc)
+        code = proc.wait()
         with self.lock:
+            if self.proc is not proc:
+                return
             if self.state == "running":
                 if code == 0 and self.result:
                     self.state, self.stage = "done", "done"
                 else:
                     self.state = "error"
                     self.error = self.error or (self.lines[-1] if self.lines else f"Exit code {code}")
+        self._notify_finished(proc)
+
+    def _notify_finished(self, proc) -> None:
+        with self.lock:
+            if (self.proc is not proc or self.cancelling or self._finish_notified
+                    or proc.poll() is None):
+                return
+            self._finish_notified = True
         if self.on_finish:
             self.on_finish()
 
-    def _take(self, line: str) -> None:
+    def _take(self, line: str, proc=None) -> None:
         with self.lock:
+            if proc is not None and self.proc is not proc:
+                return
             self.lines.append(line)
             if m := re.match(r"Starting CS2 .* record (\d+) clips", line):
                 self.stage, self.step = "record", (0, int(m.group(1)))
@@ -708,30 +746,40 @@ class Job:
                 self.error = line[7:].strip()
 
     def cancel(self) -> None:
-        from .. import hlae, settings_guard
         with self.lock:
-            if self.state != "running" or not self.proc:
+            if self.state != "running" or not self.proc or self.cancelling:
                 return
+            proc = self.proc
+            self.cancelling = True
             self.state = "cancelled"
+        try:
+            self._cancel_process(proc)
+        finally:
+            with self.lock:
+                self.cancelling = False
+            self._notify_finished(proc)
+
+    def _cancel_process(self, proc) -> None:
+        from .. import hlae, settings_guard
         try:
             if sys.platform == "win32":
                 # Stop preparation first, so it cannot launch a game after the
                 # ownership check. A historical backup does not authorize this job.
                 flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-                subprocess.run(["taskkill", "/pid", str(self.proc.pid), "/t", "/f"],
+                subprocess.run(["taskkill", "/pid", str(proc.pid), "/t", "/f"],
                                capture_output=True, creationflags=flags)
-                if settings_guard.owned_by(self.proc.pid):
+                if settings_guard.owned_by(proc.pid):
                     subprocess.run(["taskkill", "/im", "cs2.exe", "/f"], capture_output=True, creationflags=flags)
             else:
-                self.proc.terminate()
+                proc.terminate()
         except OSError as e:
             self._take(f"Could not stop the recording process: {e}")
-        owns_game = settings_guard.owned_by(self.proc.pid)
+        owns_game = settings_guard.owned_by(proc.pid)
         for _ in range(20):
-            if (not owns_game or "cs2.exe" not in hlae.running_processes()) and self.proc.poll() is not None:
+            if (not owns_game or "cs2.exe" not in hlae.running_processes()) and proc.poll() is not None:
                 break
             time.sleep(0.5)
-        if (owns_game and "cs2.exe" in hlae.running_processes()) or self.proc.poll() is None:
+        if (owns_game and "cs2.exe" in hlae.running_processes()) or proc.poll() is None:
             self._take("Error: The recording process or CS2 is still open. Your settings backup is kept. "
                        "Close both, then run: povforge restore-settings")
             return
@@ -796,7 +844,8 @@ class Queue:
 
     def _start_next(self) -> None:
         with self.lock:
-            if self.paused or self.job.state == "running":
+            if (self.paused or getattr(self.job, "busy", self.job.state == "running")
+                    or any(i["state"] == "running" for i in self.items)):
                 return
             item = next((i for i in self.items if i["state"] == "queued"), None)
             if item is None:
@@ -1201,7 +1250,7 @@ class App:
         self.setup = Setup()
         self.update: dict | None = None
         self.quit = lambda: None            # set by main() once the server exists
-        self.updater = Updater(__version__, busy=lambda: self.job.state == "running" or self.inspecting > 0,
+        self.updater = Updater(__version__, busy=lambda: self.job.busy or self.inspecting > 0,
                                quit_app=lambda: self.quit())
         self.last_seen = time.time()   # the page asks for state every second or two
         self.bye_at = 0.0              # the page said it was closing (pagehide)
@@ -1216,7 +1265,7 @@ class App:
         self.update = st["info"] if st["state"] == "available" else None
 
     def busy(self) -> bool:
-        return (self.job.state == "running" or bool(self.setup.installing) or self.inspecting > 0
+        return (self.job.busy or bool(self.setup.installing) or self.inspecting > 0
                 or self.updater.status()["state"] in ("downloading", "installing"))
 
     def quit_reason(self, now: float) -> str:
@@ -1355,7 +1404,7 @@ def make_handler(app: App):
                         save_prefs(app.prefs)
                     return self._json(app.prefs)
                 if url.path == "/api/player-folder":
-                    if app.job.state == "running":
+                    if app.job.busy:
                         return self._json({"error": "busy"}, 409)
                     rename_player_folder(app.prefs, str(b.get("steamid", "")), str(b.get("folder", "")))
                     save_prefs(app.prefs)
@@ -1425,11 +1474,11 @@ def make_handler(app: App):
                     app.job.cancel()
                     return self._json(app.job.snapshot())
                 if url.path == "/api/reset":
-                    if app.job.state != "running":
+                    if not app.job.busy:
                         app.job.reset()
                     return self._json(app.job.snapshot())
                 if url.path == "/api/workfiles/clean":
-                    if app.job.state == "running" or any(i["state"] in ("queued", "running") for i in app.queue.snapshot()["items"]):
+                    if app.job.busy or any(i["state"] in ("queued", "running") for i in app.queue.snapshot()["items"]):
                         return self._json({"error": "busy"}, 409)
                     freed = clean_work(app.prefs)
                     return self._json({"freed": freed, "bytes": 0, "path": str(work_dir(app.prefs))})

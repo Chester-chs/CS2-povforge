@@ -17,6 +17,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import shutil
+import os
+import tempfile
+from contextlib import contextmanager
 
 from . import effects, camera, hlae
 from .compose import concat_line, free_name, safe_filename
@@ -133,9 +136,11 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
             return _with_effects(cfg, title, order, fx)
         return _plain_join(cfg, title, order)
     finally:
-        # Only temporary composites; reusable camera takes stay in each job/shots.
-        if camera_work.is_dir():
-            shutil.rmtree(camera_work)
+        # Failed renders must also release temporary pieces; reusable takes stay.
+        reel_work = pipeline.work_root(cfg) / "reel pieces" / safe_filename(title)
+        for temporary in (camera_work, reel_work):
+            if temporary.is_dir():
+                shutil.rmtree(temporary)
 
 
 def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
@@ -210,6 +215,19 @@ def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
     return result + replays
 
 
+@contextmanager
+def _reel_destination(final: Path):
+    # Stage beside the destination: atomic publication also works across drives.
+    fd, name = tempfile.mkstemp(dir=final.parent, prefix=".reel-", suffix=".tmp.mp4")
+    os.close(fd)
+    staged = Path(name)
+    try:
+        yield staged
+        staged.replace(final)
+    finally:
+        staged.unlink(missing_ok=True)
+
+
 def _plain_join(cfg: Config, title: str, order: list) -> Path:
     """Keep the original quick join path when there are no visual/audio effects."""
     out_dir = pipeline.work_root(cfg) / "reel pieces" / safe_filename(title)
@@ -227,8 +245,9 @@ def _plain_join(cfg: Config, title: str, order: list) -> Path:
     pipeline.videos_dir(cfg).mkdir(parents=True, exist_ok=True)
     final = free_name(pipeline.videos_dir(cfg), safe_filename(title))
     _log("Joining the reel ...")
-    subprocess.run([cfg.compose.ffmpeg, "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
-                    "-i", str(listing), "-c", "copy", "-movflags", "+faststart", str(final)], check=True)
+    with _reel_destination(final) as staged:
+        subprocess.run([cfg.compose.ffmpeg, "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+                        "-i", str(listing), "-c", "copy", "-movflags", "+faststart", str(staged)], check=True)
     shutil.rmtree(out_dir, ignore_errors=True)       # the pieces are cut again from the recordings if needed
     try:
         out_dir.parent.rmdir()                       # gone too when no other reel is being cut
@@ -256,8 +275,9 @@ def _with_effects(cfg: Config, title: str, order: list, fx: dict) -> Path:
     pipeline.videos_dir(cfg).mkdir(parents=True, exist_ok=True)
     final = free_name(pipeline.videos_dir(cfg), safe_filename(title))
     _log("Joining the reel ...")
-    effects.build(moments, fx, final, work, (cfg.record.width, cfg.record.height), cfg.record.fps,
-                  cfg.compose, title=title, source_stats=stats)
+    with _reel_destination(final) as staged:
+        effects.build(moments, fx, staged, work, (cfg.record.width, cfg.record.height), cfg.record.fps,
+                      cfg.compose, title=title, source_stats=stats)
     shutil.rmtree(work, ignore_errors=True)
     try:
         work.parent.rmdir()

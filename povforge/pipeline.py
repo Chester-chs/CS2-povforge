@@ -7,6 +7,7 @@ a job can be stopped and resumed, or run step by step.
 from __future__ import annotations
 
 import json
+import hashlib
 import subprocess
 from pathlib import Path
 
@@ -112,9 +113,31 @@ def saved_plan(cfg: Config, record: dict) -> Path | None:
     return None
 
 
+def _cache_job(cfg: Config, demo: Path, player, suffix: str, record: dict) -> Path:
+    """A familiar folder name is reusable only for the same recording source.
+
+    Round selection can renumber matching clips. A different match, player,
+    source revision or timeline policy must have separate intermediate files.
+    """
+    job = job_dir_for(cfg, demo, player.name, suffix)
+    if not job.exists():
+        return job
+    identity = {k: v for k, v in record.items() if k not in ("rounds", "player")}
+    try:
+        previous = json.loads((job / "source.json").read_text(encoding="utf-8"))
+        previous = {k: v for k, v in previous.items() if k not in ("rounds", "player")}
+        if previous == identity and load_plan(job).player.steamid == player.steamid:
+            return job
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        pass
+    identity["steamid"] = player.steamid
+    digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()[:16]
+    return job_dir_for(cfg, demo, f"{player.name}__{digest}", suffix)
+
+
 def whole_match_job(cfg: Config, demo: str | Path, steamid: str) -> Path | None:
     """The whole-match job (not a reel) of this demo and player, if one was planned."""
-    stem = demo_stem(demo)
+    source = Path(demo).resolve()
     for root in job_roots(cfg):
         if not root.is_dir():
             continue
@@ -125,7 +148,21 @@ def whole_match_job(cfg: Config, demo: str | Path, steamid: str) -> Path | None:
                 plan = load_plan(f.parent)
             except Exception:
                 continue
-            if plan.player.steamid == steamid and Path(plan.demo_path).stem == stem:
+            if plan.player.steamid != steamid:
+                continue
+            source_file = f.parent / "source.json"
+            if source_file.exists():
+                try:
+                    record = json.loads(source_file.read_text(encoding="utf-8"))
+                    stat = source.stat()
+                    matches = (not record.get("suffix") and Path(record["demo"]).resolve() == source
+                               and record["size"] == stat.st_size and record["mtime"] == stat.st_mtime)
+                except (OSError, ValueError, KeyError, TypeError):
+                    matches = False
+            else:
+                # Older plans have no fingerprint: never match by filename alone.
+                matches = Path(plan.demo_path).resolve() == source
+            if matches:
                 return f.parent
     return None
 
@@ -162,7 +199,7 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     _log(f"Reading {demo_path.name} ...")
     demo = load_demo(demo_path)
     player = find_player(demo.players, player_query)
-    job = job_dir_for(cfg, demo_path, player.name, job_suffix)
+    job = _cache_job(cfg, demo_path, player, job_suffix, record)
     job.mkdir(parents=True, exist_ok=True)
 
     _log(f"Parsing positions and inputs for {player.name} ...")
