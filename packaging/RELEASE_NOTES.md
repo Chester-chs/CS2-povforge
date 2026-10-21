@@ -9,6 +9,18 @@
 - Settings protection covers setup failures, cancellation and temporary recording files. Failed takes cannot be reused as successful recordings.
   设置保护覆盖初始化失败、取消及临时录制文件，失败片段不会被当作成功录制复用。
 
+- Recording jobs now recover from startup failure, reserve queued work once, and wait for cancellation/settings cleanup before starting the next job. Old process output cannot contaminate a later recording.
+  修复启动失败后卡住、并发启动队列和旧进程输出串入新任务；取消时等待录制退出及设置清理后再继续队列。
+- Recording and decompression caches verify demo source identity, player and planning settings. Replacing a compressed demo or using a same-name match no longer silently reuses unrelated footage.
+  录像与解压缓存校验 Demo 来源、选手和计划设置，避免同名比赛或替换压缩 Demo 后误用旧片段。
+- Preference saves preserve the previous file on failure. Reel exports publish only after successful rendering and clean failed temporary pieces; output folders on another drive remain supported.
+  设置保存失败时保留原文件；集锦成功合成后才发布成片，失败时清理临时片段，并继续支持跨盘输出。
+- Incremental updates reject unsafe archive/manifest paths, protect linked-directory boundaries and avoid deleting a replacement file when only its letter case changes.
+  增量更新校验压缩包及清单路径、保护目录链接边界，并修复仅文件名大小写变化时误删替换文件的问题。
+
+Validation: 216 automated tests and the director simulation passed before release. The release workflow also tests the packaged command line, GUI server, installer, incremental updates and uninstall on a clean Windows runner. A fresh real CS2/HLAE recording with this audited build has not been performed; no persistent CS2 settings were changed during the audit.
+验证：发布前本地 216 项自动测试及导演脚本模拟通过；发布流水线还会在独立 Windows 环境验证打包命令行、界面服务、安装、增量更新及卸载。审查后的版本尚未重新进行真实 CS2/HLAE 录制；本轮审查未改动持久 CS2 设置。
+
 **v0.13.0**
 
 - Recording quality: choose the recording size (screen size, 1080p, 1440p, 4K; up to your screen's) and frame rate (60 or 120 fps, smooth slow motion) in Settings. Recordings and finished videos are encoded for quality first (bigger files).
