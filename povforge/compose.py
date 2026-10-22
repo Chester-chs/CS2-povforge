@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .media import probe
+from .media import probe, bounded_size, bounded_fps
 from .model import Plan
 from .overlay.hud import enable_expr
 
@@ -56,7 +56,7 @@ def encode_args(s: ComposeSettings) -> list[str]:
 
 def overlay_command(clip: Path, layers: dict[str, Path], out: Path, s: ComposeSettings,
                     scale_to: tuple[int, int] | None = None, height: int = 1080,
-                    static_images: dict[str, Path] | None = None) -> list[str]:
+                    static_images: dict[str, Path] | None = None, fps: float = 60) -> list[str]:
     """ffmpeg command putting all overlay layers on one clip.
 
     Stacking order: scope, crosshair, HUD, minimap, keyboard.
@@ -83,6 +83,7 @@ def overlay_command(clip: Path, layers: dict[str, Path], out: Path, s: ComposeSe
         cmd += ["-i", f]
     parts, prev = [], "[0:v]"
     if scale_to:
+        scale_to = bounded_size(*scale_to)
         parts.append(f"[0:v]scale={scale_to[0]}:{scale_to[1]}:flags=lanczos,setsar=1[v0]")
         prev = "[v0]"
     for i, (_, anchor, margin, enable) in enumerate(inputs, start=1):
@@ -92,6 +93,8 @@ def overlay_command(clip: Path, layers: dict[str, Path], out: Path, s: ComposeSe
             opts += f":enable='{enable}'"
         parts.append(f"{prev}[{i}:v]overlay={opts}[v{i}]")
         prev = f"[v{i}]"
+    parts.append(f"{prev}fps={bounded_fps(fps)}[rate]")
+    prev = "[rate]"
     if parts:
         cmd += ["-filter_complex", ";".join(parts), "-map", prev]
     else:
@@ -104,37 +107,6 @@ def safe_filename(name: str) -> str:
     """Player names can contain characters Windows doesn't allow in file names."""
     cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name).strip(" .")
     return cleaned or "player"
-
-
-def upload_copy(video: Path, height: int, s: ComposeSettings, log=print) -> Path | None:
-    """A copy of ``video`` scaled up to ``height`` lines (4K = 2160) for uploading:
-    Bilibili and YouTube give larger videos a higher bitrate, so it looks sharper
-    there. Nothing is made if the video is already that big."""
-    from .media import probe
-    info = probe(video, s.ffmpeg)
-    if not height or info.height >= height:
-        return None
-    out = video.with_name(f"{video.stem} [{'4K' if height == 2160 else f'{height}p'}].mp4")
-    log(f"Making the {'4K' if height == 2160 else f'{height}p'} upload copy ...")
-    cmd = [s.ffmpeg, "-y", "-loglevel", "error", "-i", str(video), "-vf", f"scale=-2:{height}:flags=lanczos",
-           "-c:v", "libx264", "-crf", "16", "-preset", "faster", "-pix_fmt", "yuv420p",
-           "-c:a", "copy", "-movflags", "+faststart", "-progress", "pipe:1", "-nostats", str(out)]
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True)
-    last = -1
-    for line in p.stdout:
-        if line.startswith("out_time_us=") and info.duration > 0:
-            try:
-                pct = int(int(line.split("=")[1]) / 1e6 / info.duration * 100)
-            except ValueError:
-                continue
-            if pct >= last + 5:
-                last = pct
-                log(f"Upload copy {min(pct, 100)}/100")
-    if p.wait() != 0:
-        out.unlink(missing_ok=True)
-        raise RuntimeError("the upload copy could not be made")
-    log(f"Upload copy: {out.resolve()}")
-    return out
 
 
 def concat_line(p: Path) -> str:
@@ -185,13 +157,22 @@ def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str,
             fps: float, s: ComposeSettings, size: tuple[int, int] | None = None,
             intro: Path | None = None, static_images: dict[str, Path] | None = None,
             titles: dict[int, str] | None = None) -> Path:
+    fps = bounded_fps(fps)
+    size = bounded_size(*(size or (1920, 1080)))
     parts_dir = job_dir / "parts"
     parts_dir.mkdir(parents=True, exist_ok=True)
     height = size[1] if size else 1080
     parts = []
     for i, (clip, lay) in enumerate(zip(clips, layers)):
         out = parts_dir / f"part_{i:03d}.mp4"
-        if not out.exists():
+        compatible = False
+        if out.exists():
+            try:
+                cached = probe(out, s.ffmpeg)
+                compatible = ((cached.width, cached.height) == size and abs(cached.fps - fps) < 0.01)
+            except (OSError, ValueError, KeyError, subprocess.CalledProcessError):
+                pass
+        if not compatible:
             print(f"Composing {i + 1}/{len(clips)}", flush=True)
             tmp = out.with_name(out.stem + ".tmp.mp4")
             scale_to = None
@@ -201,7 +182,7 @@ def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str,
                     print(f"  recorded at {info.width}x{info.height}, scaling to {size[0]}x{size[1]}",
                           flush=True)
                     scale_to = size
-            subprocess.run(overlay_command(clip, lay, tmp, s, scale_to, height, static_images), check=True)
+            subprocess.run(overlay_command(clip, lay, tmp, s, scale_to, height, static_images, fps), check=True)
             tmp.replace(out)
         parts.append(out)
 

@@ -311,6 +311,16 @@
     <h3 class="group-title" x-text="t('reelName')"></h3>
     <div class="group"><input class="text-input" x-model="reel.title" @input="reel.titleEdited = true" :aria-label="t('reelName')"></div>
 
+    <h3 class="group-title" x-text="lang === 'zh' ? '录制内容' : 'Content'"></h3>
+    <div class="group row">
+      <select class="select wide" x-model="reel.content" @change="setReelContent(reel.content)" :aria-label="lang === 'zh' ? '录制内容' : 'Content'">
+        <option value="kills" x-text="lang === 'zh' ? '击杀高光（原模式）' : 'Kill highlights (original)'"></option>
+        <option value="deaths" x-text="lang === 'zh' ? '仅死亡 · 本人第一人称' : 'Deaths · own first person'"></option>
+        <option value="kills_deaths" x-text="lang === 'zh' ? '击杀＋死亡 · 按回合顺序' : 'Kills + deaths · round order'"></option>
+        <option value="duel" x-text="lang === 'zh' ? '双人对位 · 每次 A → B' : 'Duels · each A → B'"></option>
+      </select>
+    </div>
+
     <div class="group-title with-control"><h3 x-text="t('reelSources')"></h3><span class="hint" x-text="t('reelSourcesHelp')"></span></div>
     <ul class="group">
       <template x-for="x in reel.sources" :key="x.path">
@@ -356,23 +366,36 @@
       </div>
     </div>
 
+    <div class="group" x-show="reel.content === 'duel'">
+      <template x-for="x in reel.sources" :key="x.path">
+        <div class="row duel-row">
+          <span class="row-main"><b x-text="sourceLabel(x)"></b><small x-text="'A: ' + (playerIn(x.info, srcPlayerId(x))?.name || '—')"></small></span>
+          <select class="select" x-model="x.opponent" @change="recompute()" :aria-label="lang === 'zh' ? '敌方选手 B' : 'Opponent B'">
+            <option value="" x-text="lang === 'zh' ? '选择敌方选手 B' : 'Choose opponent B'"></option>
+            <template x-for="p in duelOpponents(x)" :key="p.steamid"><option :value="p.steamid" :selected="p.steamid === x.opponent" x-text="p.name"></option></template>
+          </select>
+          <button class="btn small" @click="swapDuel(x)" :disabled="!x.opponent" x-text="lang === 'zh' ? '交换 A / B' : 'Swap A / B'"></button>
+        </div>
+      </template>
+    </div>
+
     <div class="group-title with-control">
       <h3 x-text="t('reelItems')"></h3>
       <span class="hint num" x-show="reel.items.length" x-text="t('reelCount', { n: reel.items.length, s: reelSeconds(reel.items) })"></span>
     </div>
-    <p class="hint below" x-text="t('reelItemsHelp')"></p>
+    <p class="hint below" x-text="reelContentHelp"></p>
     <ul class="group reel-list">
       <template x-for="(c, i) in reel.items" :key="c.key">
-        <li class="row" draggable="true" @dragstart="dragFrom = i" @dragover.prevent @drop.prevent="dropAt(i)" :class="{ dragging: dragFrom === i, last: i === reel.items.length - 1 }">
-          <svg class="grip"><use href="#i-grip-vertical"/></svg>
+        <li class="row" :draggable="!chronologicalReel" @dragstart="dragFrom = i" @dragover.prevent @drop.prevent="dropAt(i)" :class="{ dragging: dragFrom === i, last: i === reel.items.length - 1 }">
+          <svg class="grip" x-show="!chronologicalReel"><use href="#i-grip-vertical"/></svg>
           <span class="idx num" x-text="i + 1"></span>
           <span class="row-main">
             <b><span x-text="tagOf(c)"></span><em class="hs" x-show="c.hs" x-text="t('tagHs', { n: c.hs })"></em></b>
             <small x-text="[c.map, c.name, t('roundN', { r: c.round })].join('  ')"></small>
           </span>
           <span class="row-tools">
-            <button class="icon-btn" @click="moveReelItem(i, -1)" :disabled="i === 0" :title="t('up')" :aria-label="t('up')"><svg><use href="#i-chevron-up"/></svg></button>
-            <button class="icon-btn" @click="moveReelItem(i, 1)" :disabled="i === reel.items.length - 1" :title="t('down')" :aria-label="t('down')"><svg><use href="#i-chevron-down"/></svg></button>
+            <button class="icon-btn" x-show="!chronologicalReel" @click="moveReelItem(i, -1)" :disabled="i === 0" :title="t('up')" :aria-label="t('up')"><svg><use href="#i-chevron-up"/></svg></button>
+            <button class="icon-btn" x-show="!chronologicalReel" @click="moveReelItem(i, 1)" :disabled="i === reel.items.length - 1" :title="t('down')" :aria-label="t('down')"><svg><use href="#i-chevron-down"/></svg></button>
             <button class="icon-btn" @click="removeReelItem(i)" :title="t('remove')" :aria-label="t('remove')"><svg><use href="#i-x"/></svg></button>
           </span>
         </li>
@@ -399,8 +422,8 @@
     <div class="group-title with-control">
       <h3 x-text="t('styleTitle')"></h3>
       <span class="title-tools">
-        <button class="btn small" @click="linkOpen = !linkOpen" :disabled="styleRef.state === 'working'" x-text="t('linkPaste')"></button>
-        <button class="btn small" @click="copyStyle()" :disabled="styleRef.state === 'working'"><svg><use href="#i-film"/></svg><span x-text="t('fxCopy')"></span></button>
+        <button class="btn small" @click="linkOpen = !linkOpen" :disabled="referenceWizard.busy" x-text="t('linkPaste')"></button>
+        <button class="btn small" @click="copyStyle()" :disabled="referenceWizard.busy"><svg><use href="#i-film"/></svg><span x-text="t('fxCopy')"></span></button>
       </span>
     </div>
     <p class="hint below" x-text="t('styleHelp')"></p>
@@ -460,7 +483,7 @@
         </div>
         <p class="fx-now" x-text="fxNowLine"></p>
 
-        <template x-if="(prefs.fx_presets || []).length || styleRef.effects">
+        <template x-if="(prefs.fx_presets || []).length || styleRef.effects || fxPreset === 'custom'">
           <div>
             <p class="hint below" x-text="t('mixHelp')"></p>
             <div class="group fx">
@@ -496,10 +519,11 @@
         <div class="group">
           <label class="row">
             <span class="row-main"><b x-text="t('cameraVictimAppend')"></b></span>
-            <input class="switch" type="checkbox" x-model="fx.camera.victim" @change="fxChanged()" :aria-label="t('cameraVictimAppend')">
+            <input class="switch" type="checkbox" x-model="fx.camera.victim" @change="fxChanged()" :disabled="reel.content === 'duel'" :aria-label="t('cameraVictimAppend')">
           </label>
         </div>
         <p class="hint below" x-text="t('cameraVictimHelp')"></p>
+        <p class="hint below" x-show="reel.content === 'duel'" x-text="lang === 'zh' ? '对位模式已包含双方视角，不再额外追加受害者重放。' : 'Duel mode already includes both views; no extra victim replays are appended.'"></p>
       </div>
     </template>
 
@@ -526,6 +550,10 @@
           <li class="row sub" x-show="fx.music">
             <span class="row-main"><small x-text="t('musicVol', { v: Math.round(fx.music_volume * 100) })"></small></span>
             <input type="range" class="range" min="0" max="1.5" step="0.05" x-model.number="fx.music_volume" @change="fxChanged()" :aria-label="t('fxMusic')">
+          </li>
+          <li class="row sub" x-show="fx.music">
+            <label class="row-main" for="music-sync"><b x-text="lang === 'zh' ? '自动卡点（优先连杀）' : 'Sync music to kills'"></b><small x-text="lang === 'zh' ? '从整首歌选择片段，让击杀尽量靠近强拍、连杀落在能量较高处；并非每次击杀都能精确落拍。' : 'Choose a passage from the full song, prioritizing strong beats and energetic multi-kills. Not every kill can land exactly on a beat.'"></small></label>
+            <input id="music-sync" type="checkbox" class="switch" x-model="fx.music_sync" @change="fxChanged()">
           </li>
           <li class="row sub" x-show="fx.music">
             <span class="row-main"><small x-text="t('gameAudio')"></small></span>
@@ -637,6 +665,49 @@
   </section>
 </main>
 
+<div class="sheet-backdrop" x-show="referenceWizard.open" x-cloak @click.self="closeReference()" @keydown.escape.window="if (referenceWizard.open) closeReference()">
+  <div class="sheet reference-sheet" role="dialog" aria-modal="true" :aria-label="lang === 'zh' ? '选择要复现的特效' : 'Choose a reference effect'">
+    <div class="group-title with-control">
+      <h2 x-text="lang === 'zh' ? '选择要复现的特效' : 'Choose a reference effect'"></h2>
+      <button class="icon-btn" @click="closeReference()" :disabled="referenceWizard.busy" :aria-label="t('close')"><svg><use href="#i-x"/></svg></button>
+    </div>
+    <p class="hint" x-text="lang === 'zh' ? '预览 → 选择最多 60 秒的片段 → 描述目标 → 查看方案 → 应用。参考视频的声音不会复制到集锦。' : 'Preview → select up to 60 seconds → describe the effect → review → apply. Reference audio is never copied.'"></p>
+    <p x-show="referenceWizard.busy" class="hint" role="status" x-text="lang === 'zh' ? '正在准备或分析参考视频，请稍候…' : 'Preparing or analyzing the reference…'"></p>
+    <p x-show="referenceWizard.error" class="err" role="alert" x-text="referenceWizard.error"></p>
+    <p x-show="referenceWizard.error && !referenceWizard.id" class="hint" x-text="lang === 'zh' ? '如果链接无法下载，请关闭此窗口，改为导入本地视频。下载失败并不表示特效已分析。' : 'If the link cannot be downloaded, close this window and import a local video. A failed download has not been analyzed.'"></p>
+    <template x-if="referenceWizard.id">
+      <div>
+        <b x-text="referenceWizard.title"></b>
+        <video x-ref="referenceVideo" :src="referenceWizard.preview" controls preload="metadata" class="reference-video"
+          @timeupdate="if (referenceWizard.playSelection && $el.currentTime >= referenceWizard.end) { $el.pause(); referenceWizard.playSelection = false; }"></video>
+        <fieldset :disabled="referenceWizard.busy" class="reference-fields" @input="referenceWizard.proposal = null" @change="referenceWizard.proposal = null">
+          <div class="reference-range">
+            <label><span x-text="lang === 'zh' ? '开始（秒）' : 'Start (seconds)'"></span><input class="text-input" type="number" min="0" :max="referenceWizard.duration" step="0.1" x-model.number="referenceWizard.start"></label>
+            <button class="btn small" @click="referenceMark('start')" x-text="lang === 'zh' ? '使用当前画面' : 'Use current frame'"></button>
+            <label><span x-text="lang === 'zh' ? '结束（秒）' : 'End (seconds)'"></span><input class="text-input" type="number" min="0" :max="referenceWizard.duration" step="0.1" x-model.number="referenceWizard.end"></label>
+            <button class="btn small" @click="referenceMark('end')" x-text="lang === 'zh' ? '使用当前画面' : 'Use current frame'"></button>
+          </div>
+          <button class="btn small" @click="referenceWizard.playSelection = true; $refs.referenceVideo.currentTime = Number(referenceWizard.start); $refs.referenceVideo.play()" x-text="lang === 'zh' ? '播放选中片段' : 'Play selection'"></button>
+          <label class="reference-label"><span x-text="lang === 'zh' ? '想复现哪个效果？例如：1:43 刀身周围的红色光环' : 'Describe the effect, for example: a red ring around the knife at 1:43'"></span><textarea class="text-input" rows="2" maxlength="500" x-model="referenceWizard.description"></textarea></label>
+          <label class="reference-label"><span x-text="lang === 'zh' ? '效果类型（可帮助消除歧义）' : 'Effect type (helps disambiguate)'"></span>
+            <select class="text-input" x-model="referenceWizard.kind">
+              <template x-for="o in [['auto','根据描述','From description'],['flash','闪白','Flash'],['slowmo','慢动作','Slow motion'],['zoom','缩放','Zoom'],['shake','抖动','Shake'],['transition','转场','Transition'],['grade','调色','Color grade'],['object','物体环绕 / 粒子 / 跟踪','Object / particles / tracking']]" :key="o[0]">
+                <option :value="o[0]" x-text="o[lang === 'zh' ? 1 : 2]"></option>
+              </template>
+            </select>
+          </label>
+          <button class="btn" @click="proposeReference()" :disabled="!referenceWizard.description.trim() && referenceWizard.kind === 'auto'" x-text="lang === 'zh' ? '分析所选特效并显示方案' : 'Analyze selection and propose'"></button>
+        </fieldset>
+        <div class="reference-proposal" x-show="referenceWizard.proposal" aria-live="polite">
+          <p x-text="referenceMessage()"></p>
+          <p class="hint" x-show="referenceWizard.proposal?.status === 'detected'" x-text="fxSummary(referenceWizard.proposal?.patch || {})"></p>
+          <button class="btn primary" x-show="referenceWizard.proposal?.status === 'detected'" @click="applyReferenceProposal()" :disabled="referenceWizard.busy" x-text="lang === 'zh' ? '只应用这个方案' : 'Apply this proposal'"></button>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
+
 <div class="hud" aria-live="polite">
   <template x-for="m in toasts" :key="m.id">
     <div class="hud-msg"><svg><use href="#i-circle-check"/></svg><span x-text="m.text"></span></div>
@@ -674,7 +745,7 @@
       <li class="row">
         <span class="row-main"><b x-text="t('recRes')"></b><small x-text="screen ? t('recScreen', { w: screen[0], h: screen[1] }) : t('recResHelp')"></small></span>
         <div class="segmented tiny" role="radiogroup" :aria-label="t('recRes')">
-          <template x-for="o in ['auto', '1080', '1440', '2160']" :key="o">
+          <template x-for="o in ['auto', '1080']" :key="o">
             <button role="radio" :aria-checked="(prefs.record_res || 'auto') === o" :disabled="o !== 'auto' && !(sizes || []).includes(o)"
                     :title="o !== 'auto' && !(sizes || []).includes(o) ? t('recTooBig') : ''"
                     @click="prefs.record_res = o; savePrefs()" x-text="t('res_' + o)"></button>
@@ -684,14 +755,10 @@
       <li class="row">
         <span class="row-main"><b x-text="t('recFps')"></b><small x-text="t('recFpsHelp')"></small></span>
         <div class="segmented tiny" role="radiogroup" :aria-label="t('recFps')">
-          <template x-for="o in [60, 120]" :key="o">
+          <template x-for="o in [60]" :key="o">
             <button role="radio" :aria-checked="(prefs.record_fps || 60) === o" @click="prefs.record_fps = o; savePrefs()" x-text="t('fpsN', { n: o })"></button>
           </template>
         </div>
-      </li>
-      <li class="row">
-        <label class="row-main" for="up-4k"><b x-text="t('up4k')"></b><small x-text="t('up4kHelp')"></small></label>
-        <input type="checkbox" class="switch" id="up-4k" :checked="prefs.upload_4k !== false" @change="prefs.upload_4k = $event.target.checked; savePrefs()">
       </li>
       <li class="row">
         <label class="row-main" for="by-player"><b x-text="t('byPlayer')"></b><small x-text="t('byPlayerHelp')"></small></label>

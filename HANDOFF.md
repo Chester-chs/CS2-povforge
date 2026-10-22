@@ -53,6 +53,31 @@ the final removal of third-person code; the simplification was tested without
 relaunching CS2. Old camera-test ZIPs are historical and are not this source
 revision's build.
 
-Version is 0.14.0. A source push does not publish an installer. The Windows
-workflow builds releases on version tags or manual dispatch. No new release
-tag is part of the current source-update request.
+Version is 0.15.0. A source push does not publish an installer. The Windows
+workflow builds releases on version tags or manual dispatch. The owner has
+authorized publishing this feature update to GitHub.
+
+## 2026-10-22 feature update
+
+- All new output is capped at 1920x1080 and 60 fps. Legacy high-resolution
+  preferences migrate; cached oversized clips/parts are normalized. No extra
+  4K upload copy is produced.
+- New content modes: deaths only, kills plus deaths, and opposing-player
+  duels. Solo events always use the selected player's first person in round
+  order. Duels include mutual kills only, each encounter A then B, with a swap
+  control. Duel mode does not append a third victim replay. `reel_events.py`
+  validates selections before recording and keeps actual kill anchors separate
+  from deaths. Exit events belong to the round just played.
+- Reference import now previews the source, accepts a selected time range and
+  effect description, displays a supported partial proposal, then requires an
+  explicit Apply. Common editing effects are template approximations. The
+  supplied Bilibili example could not be downloaded in this environment;
+  object-tracked knife rings are unsupported, not silently approximated by a
+  full-screen filter.
+- Optional music synchronization selects a continuous excerpt from the full
+  song using onset strength, energy and the final Demo kill timeline. It does
+  not identify a semantic chorus or guarantee every kill lands on a beat.
+- Automated verification: 255 tests passed; browser UI and real Demo event
+  parsing were checked; FFmpeg tests verify actual output/order. New event
+  modes have not been recorded in live CS2. No persistent CS2 settings were
+  changed during this update.

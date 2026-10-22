@@ -108,6 +108,17 @@ def _cmd_analyze_style(args, cfg) -> None:
     print("Effects: " + json.dumps(r["effects"], ensure_ascii=False))
 
 
+def _cmd_reference(args, cfg) -> None:
+    import json
+    from . import reference
+    if args.action == "prepare":
+        result = reference.prepare(args.video, Path(args.folder), cfg.compose.ffmpeg)
+    else:
+        result = reference.analyze_selection(args.video, args.start, args.end, args.kind,
+                                             args.description, cfg.compose.ffmpeg)
+    print(json.dumps(result, ensure_ascii=False), flush=True)
+
+
 def _cmd_self_update(args, cfg) -> None:
     """Bring an install up to date from a release zip (what the app's update does;
     also used to test it). --manifest only writes the file list of a build."""
@@ -337,6 +348,16 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("video", help="a video file, or a link to one (Bilibili, YouTube, a direct .mp4 ...)")
     s.add_argument("--json", action="store_true", help="print the result as JSON")
     s.set_defaults(func=_cmd_analyze_style)
+
+    s = sub.add_parser("reference", help="prepare a reference preview or propose one selected effect")
+    s.add_argument("action", choices=("prepare", "analyze"))
+    s.add_argument("video")
+    s.add_argument("--folder", default="")
+    s.add_argument("--start", type=float, default=0)
+    s.add_argument("--end", type=float, default=5)
+    s.add_argument("--kind", default="auto")
+    s.add_argument("--description", default="")
+    s.set_defaults(func=_cmd_reference)
 
     s = sub.add_parser("self-update", help="update an install from a release zip (or write a build's file list)")
     s.add_argument("--app", required=True, help="the PovForge folder")

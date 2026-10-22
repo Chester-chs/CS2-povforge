@@ -14,7 +14,7 @@ from .compose import AUDIO_RATE, ComposeSettings, concat_line, encode_args, safe
 from .config import Config
 from .hlae import actual_starts, clip_id
 from .intro import pretty_map
-from .media import probe
+from .media import probe, bounded_size, bounded_fps
 from .model import Plan
 from .overlay import font
 
@@ -41,12 +41,19 @@ def kill_windows(plan: Plan, starts: dict[str, float], kills: list[tuple[int, bo
     return out
 
 
-def _cut(src: Path, a: float, b: float, out: Path, s: ComposeSettings) -> None:
+def _cut(src: Path, a: float, b: float, out: Path, s: ComposeSettings,
+         size: tuple[int, int] | None = None, fps: float | None = None) -> None:
     d = b - a
     fade = min(FADE, d / 4)
+    info = probe(src, s.ffmpeg)
+    w, h = bounded_size(*(size or (info.width, info.height)))
+    rate = bounded_fps(fps or info.fps or 60)
+    video = (f"scale={w}:{h}:force_original_aspect_ratio=decrease,"
+             f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={rate},"
+             f"fade=t=in:st=0:d={fade},fade=t=out:st={d - fade:.3f}:d={fade}")
     subprocess.run([
         s.ffmpeg, "-y", "-loglevel", "error", "-ss", f"{a:.3f}", "-i", str(src), "-t", f"{d:.3f}",
-        "-vf", f"fade=t=in:st=0:d={fade},fade=t=out:st={d - fade:.3f}:d={fade}",
+        "-vf", video,
         "-af", f"afade=t=in:st=0:d={fade},afade=t=out:st={d - fade:.3f}:d={fade},aresample={AUDIO_RATE}",
         *encode_args(s), str(out)], check=True)
 

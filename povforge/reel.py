@@ -36,11 +36,22 @@ class ReelItem:
     demo: str
     steamid: str
     round: int
+    mode: str = "kills"
+    opponent: str = ""
+
+    def __post_init__(self):
+        if self.mode not in {"kills", "deaths", "kills_deaths", "duel"}:
+            raise ValueError("Unknown reel content mode.")
+        if self.round < 1 or not self.steamid or not self.demo:
+            raise ValueError("Choose a demo, player and valid round.")
+        if self.mode == "duel" and (not self.opponent or self.opponent == self.steamid):
+            raise ValueError("Choose two different opposing players for a duel.")
 
 
 def load_spec(path: Path) -> tuple[str, list[ReelItem]]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    items = [ReelItem(str(i["demo"]), str(i["steamid"]), int(i["round"])) for i in data.get("items", [])]
+    items = [ReelItem(str(i["demo"]), str(i["steamid"]), int(i["round"]),
+                      str(i.get("mode", "kills")), str(i.get("opponent", ""))) for i in data.get("items", [])]
     if not items:
         raise ValueError("The highlight reel has no rounds.")
     return str(data.get("title") or "Highlights"), items
@@ -91,6 +102,10 @@ def _cut_points(cfg: Config, job: Path, rounds: set[int], plan=None, clips=None,
 
 def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = False,
         fx: dict | None = None) -> Path:
+    cfg.record.limit_output()
+    if any(it.mode != "kills" for it in items):
+        from .reel_events import run_events
+        return run_events(cfg, title, items, placeholder, fx)
     h = cfg.highlights
     fx = effects.normalize(fx)
     pace = effects.pace_seconds(fx, h.before, h.after)
@@ -230,6 +245,7 @@ def _reel_destination(final: Path):
 
 def _plain_join(cfg: Config, title: str, order: list) -> Path:
     """Keep the original quick join path when there are no visual/audio effects."""
+    cfg.record.limit_output()
     out_dir = pipeline.work_root(cfg) / "reel pieces" / safe_filename(title)
     out_dir.mkdir(parents=True, exist_ok=True)
     for f in out_dir.glob("piece_*.mp4"):
@@ -238,7 +254,7 @@ def _plain_join(cfg: Config, title: str, order: list) -> Path:
     for n, (clip, a, b, _) in enumerate(order, 1):
         _log(f"Cutting the reel {n}/{len(order)}")
         piece = out_dir / f"piece_{n:03d}.mp4"
-        _cut(clip, a, b, piece, cfg.compose)
+        _cut(clip, a, b, piece, cfg.compose, (cfg.record.width, cfg.record.height), cfg.record.fps)
         pieces.append(piece)
     listing = out_dir / "list.txt"
     listing.write_text("".join(concat_line(p) for p in pieces), encoding="utf-8")
@@ -254,7 +270,6 @@ def _plain_join(cfg: Config, title: str, order: list) -> Path:
     except OSError:
         pass
     seconds = sum(w[2] - w[1] for w in order)
-    pipeline.make_upload_copy(cfg, final)
     _log(f"Reel: {len(order)} moments, {seconds:.0f} s")
     _log(f"Done: {final.resolve()}")
     return final
@@ -263,6 +278,8 @@ def _plain_join(cfg: Config, title: str, order: list) -> Path:
 def _with_effects(cfg: Config, title: str, order: list, fx: dict) -> Path:
     """Put the reel together with its effects (effects.py)."""
     from .style import colour_stats
+
+    cfg.record.limit_output()
 
     _log("Effects: " + (", ".join(effects.describe(fx)) or "none"))
     moments = [effects.Moment(clip, a, b, kills) for clip, a, b, kills in order]
@@ -284,7 +301,6 @@ def _with_effects(cfg: Config, title: str, order: list, fx: dict) -> Path:
     except OSError:
         pass
     seconds = probe(final, cfg.compose.ffmpeg).duration
-    pipeline.make_upload_copy(cfg, final)
     _log(f"Reel: {len(moments)} moments, {seconds:.0f} s")
     _log(f"Done: {final.resolve()}")
     return final

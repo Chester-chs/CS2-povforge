@@ -51,7 +51,6 @@ def test_reel_publication_does_not_require_same_filesystem_as_work(tmp_path, mon
         return original(path, target)
 
     monkeypatch.setattr(Path, "replace", same_directory_only)
-    monkeypatch.setattr(reel.pipeline, "make_upload_copy", lambda *a: None)
     if with_effects:
         monkeypatch.setattr(effects, "build", lambda moments, fx, out, *a, **kw: Path(out).write_bytes(b"complete"))
         monkeypatch.setattr(reel, "probe", lambda *a: SimpleNamespace(duration=1))

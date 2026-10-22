@@ -184,12 +184,15 @@ def parse_rounds(spec: str | None) -> set[int] | None:
 
 def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
               rounds: set[int] | None = None, job_suffix: str = "",
-              trim_to_kills: tuple[float, float] | None = None) -> tuple[Plan, Path]:
+              trim_to_kills: tuple[float, float] | None = None, *,
+              event_ticks: list[int] | None = None) -> tuple[Plan, Path]:
     """Work out the clips to record. ``job_suffix`` keeps a separate job folder
     (the highlight reel uses its own); ``trim_to_kills`` = (seconds before the
     first kill, seconds after the last) records only that part of each round."""
     source = Path(demo_path)
     record = _source_record(cfg, source, player_query, rounds, job_suffix, trim_to_kills)
+    if event_ticks is not None:
+        record["event_ticks"] = sorted(set(event_ticks))
     known = saved_plan(cfg, record)
     if known is not None:                      # read before: skip reading the demo again
         plan = load_plan(known)
@@ -233,8 +236,31 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     )
     if rounds:
         segments = [sg for sg in segments if sg.round_number in rounds]
+    if event_ticks is not None:
+        from dataclasses import replace
+        from .demo import event_round_end
+        by_round = {r.number: r for r in demo.rounds}
+        expanded = []
+        for seg in segments:
+            r = by_round.get(seg.round_number)
+            if r is None:
+                expanded.append(seg)
+                continue
+            stop = event_round_end(demo, r)
+            ticks = [t for t in event_ticks if r.freeze_end_tick <= t < stop]
+            if ticks:
+                tail = max(1, round(((trim_to_kills or (0, 0))[1] + 1) * demo.tickrate))
+                end = min(stop, max(seg.end_tick, max(ticks) + tail))
+                death = min((d.tick for d in demo.deaths if d.victim_steamid == player.steamid
+                             and r.freeze_end_tick <= d.tick < stop), default=None)
+                if death is not None:
+                    end = min(end, death + max(1, round(cfg.plan.post_death_seconds * demo.tickrate)))
+                seg = replace(seg, end_tick=end)
+            expanded.append(seg)
+        segments = expanded
     if trim_to_kills:
-        segments = trim_segments(segments, [t for t, _ in kills], demo.tickrate, *trim_to_kills)
+        segments = trim_segments(segments, event_ticks if event_ticks is not None else [t for t, _ in kills],
+                                 demo.tickrate, *trim_to_kills)
     plan = Plan(str(demo_path.resolve()), demo.map_name, demo.tickrate, player, segments)
     plan_file = job / "plan.json"
     if plan_file.exists() and load_plan(job).segments != plan.segments:
@@ -496,6 +522,7 @@ def resolve_intro_image(spec: str) -> Path | None:
 
 
 def make_video(cfg: Config, job: Path, clips: list[Path]) -> Path:
+    cfg.record.limit_output()
     layers = make_overlays(cfg, job, clips)
     intro = make_intro_clip(cfg, job, clips)
     plan = load_plan(job)
@@ -508,19 +535,7 @@ def make_video(cfg: Config, job: Path, clips: list[Path]) -> Path:
                     static_images=static_images(cfg, job), titles=titles)
     final = publish(cfg, job, final)
     make_extras(cfg, job, plan, clips, final, intro)
-    make_upload_copy(cfg, final)
     return final
-
-
-def make_upload_copy(cfg: Config, final: Path) -> None:
-    """The scaled-up copy for uploading, if asked for; a failure never loses the video."""
-    if not cfg.upload.upscale:
-        return
-    from .compose import upload_copy
-    try:
-        upload_copy(final, cfg.upload.upscale, cfg.compose, _log)
-    except Exception as e:
-        _log(f"Note: upload copy failed ({e})")
 
 
 def make_extras(cfg: Config, job: Path, plan: Plan, clips: list[Path], final: Path,
@@ -554,6 +569,7 @@ def make_extras(cfg: Config, job: Path, plan: Plan, clips: list[Path], final: Pa
 
 
 def make_recording(cfg: Config, job: Path, placeholder: bool = False) -> list[Path]:
+    cfg.record.limit_output()
     if placeholder:
         return make_placeholder_clips(cfg, job)
     return hlae.record(load_plan(job), job, cfg.record, cfg.compose.ffmpeg)

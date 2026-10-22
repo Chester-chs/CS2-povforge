@@ -55,7 +55,7 @@ class HighlightSettings:
 @dataclass
 class UploadSettings:
     enabled: bool = True
-    upscale: int = 0        # also make a copy this many lines high for uploading (2160 = 4K); 0 = no
+    upscale: int = 0        # deprecated; accepted only to migrate older configuration files
 
 
 @dataclass
@@ -102,4 +102,6 @@ def load_config(path: str | Path | None) -> Config:
     for section in ("plan", "record", "overlay", "compose", "intro", "highlights", "upload"):
         if section in data:
             _apply(getattr(cfg, section), data[section], section)
+    cfg.record.limit_output()
+    cfg.upload.upscale = 0
     return cfg

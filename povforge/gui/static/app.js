@@ -7,12 +7,11 @@ const TEXT = {
     linkPaste: "粘贴链接", linkRead: "读取", linkHint: "B 站、YouTube 等视频页的链接，或直接的 .mp4 地址", linkBad: "请粘贴以 http 开头的链接。",
     analyzingLink: "正在下载并分析 {name}…", analyzingLinkHelp: "只下载低清晰度的一份，读完就删，通常不到一分钟。",
     recRes: "录制分辨率", recResHelp: "不能超过屏幕大小", recScreen: "你的屏幕是 {w}×{h}，不能超过它", recTooBig: "超过你的屏幕大小",
-    res_auto: "跟屏幕一样", res_1080: "1080p", res_1440: "1440p", res_2160: "4K",
-    recFps: "录制帧率", recFpsHelp: "120 帧慢动作更顺滑，录制时间和文件大约翻倍", fpsN: "{n} 帧",
-    up4k: "另存一份 4K 上传版", up4kHelp: "放大到 4K 再存一份，传 B 站、YouTube 时网站给的码率更高、更清楚；要多花一些时间", stage_upscale: "制作 4K 上传版",
-    musicAdd: "上传音乐…", musicOff: "不加音乐", musicHelp: "用你自己的音乐文件，从集锦开头放到结尾（不够长会循环），最后几秒淡出。上传过的会留在这里，下次直接选。",
+    res_auto: "适应屏幕（最高 1080p）", res_1080: "1080p",
+    recFps: "录制帧率", recFpsHelp: "最高 1080p、60 帧", fpsN: "{n} 帧",
+    musicAdd: "上传音乐…", musicOff: "不加音乐", musicHelp: "添加整首音乐，可打开自动卡点，按 Demo 击杀时间选择强拍片段。不够长时回退为循环播放，末尾淡出。上传过的音乐会保留。",
     modesLabel: "做什么", modeMatch: "整场录制", demosForReel: "点选要用的 demo", reelPickLeft: "在左边的 demo 列表里点选要用的场次，可以选好几场。",
-    styleTitle: "成片风格", styleHelp: "不导入成片时，集锦原样拼接、不加任何效果。导入一个做好的集锦，软件读出它的开头、转场、击杀特效和结尾，存成你命名的风格，做集锦时照着加。",
+    styleTitle: "成片风格", styleHelp: "导入成片后先预览、选择时间段并描述想要的特效，查看可实现方案后再应用。当前支持常见剪辑效果，物体跟踪与复杂粒子效果暂不支持。",
     stylePlain: "不加效果", styleUnsaved: "{name}（未命名）", styleMix: "混搭", mixHelp: "也可以按项挑：每一项都来自你导入过的成片。",
     fromList: "来自 {list}",
     fxCamera: "第一人称集锦",
@@ -42,7 +41,7 @@ const TEXT = {
     rep_pace: "每段约 {s} 秒（{kind}）", rep_kill: "击杀特效：{kind}（{n} 处）", rep_colour: "调色：{kind}，会照着它调", rep_letterbox: "有电影黑边",
     rep_outro: "结尾：{kind}（约 {s} 秒）", rep_music: "有背景音乐（约 {bpm} BPM）",
     look_natural: "自然", look_vivid: "鲜艳", look_muted: "偏淡", look_warm: "偏暖", look_cool: "偏冷", look_bw: "黑白",
-    reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "挑出最精彩的回合拼在一起。每个回合从第一个击杀前几秒连续到最后一个击杀后，中间不剪。只用游戏画面，不加小地图；导入做好的成片，可以照着它的风格加效果。",
+    reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "选择击杀高光、仅死亡、击杀＋死亡或双人对位。始终使用第一人称；可指定参考成片里的单个特效，并让背景音乐按 Demo 击杀时间自动卡点。",
     reelName: "名称", reelSources: "素材", reelSourcesHelp: "在左边点选，可以多选", reelPlayer: "选手",
     reelSame: "同一个人", reelEach: "每场分别选", reelEachHelp: "在上面每场 demo 的右边选这场用哪位选手。", reelPlayerIn: "{name}（{n} 场）", reelNotIn: "这场没有这名选手", reelPick: "选择选手",
     reelItems: "集锦内容", reelItemsHelp: "已自动挑出 3 杀以上和残局获胜的回合，按精彩程度排好，最强的放最后。拖动或用箭头调整顺序。",
@@ -117,12 +116,11 @@ const TEXT = {
     linkPaste: "Paste a link", linkRead: "Read", linkHint: "A Bilibili, YouTube or other video page, or a direct .mp4 address", linkBad: "Paste a link starting with http.",
     analyzingLink: "Downloading and reading {name}…", analyzingLinkHelp: "Only a small copy is downloaded and deleted afterwards; usually under a minute.",
     recRes: "Recording size", recResHelp: "Can't be bigger than your screen", recScreen: "Your screen is {w}×{h}; recordings can't be bigger", recTooBig: "Bigger than your screen",
-    res_auto: "Screen size", res_1080: "1080p", res_1440: "1440p", res_2160: "4K",
-    recFps: "Frame rate", recFpsHelp: "120 fps makes slow motion smooth; recording takes about twice as long and files are about twice as big", fpsN: "{n} fps",
-    up4k: "Also save a 4K upload copy", up4kHelp: "A copy scaled up to 4K: Bilibili and YouTube give it more bitrate, so it looks sharper there. Takes extra time.", stage_upscale: "Make the 4K upload copy",
-    musicAdd: "Add music…", musicOff: "No music", musicHelp: "Your own music file plays from the start of the reel to the end (looped if it's shorter) and fades out. Songs you add stay here for next time.",
+    res_auto: "Fit screen (up to 1080p)", res_1080: "1080p",
+    recFps: "Frame rate", recFpsHelp: "Output is limited to 1080p at 60 fps", fpsN: "{n} fps",
+    musicAdd: "Add music…", musicOff: "No music", musicHelp: "Add a full song and optionally sync its strong beats to Demo kill times. Short tracks fall back to looping, with a fade at the end. Songs are remembered for next time.",
     modesLabel: "What to make", modeMatch: "Whole match", demosForReel: "Pick demos for the reel", reelPickLeft: "Pick the demos to use in the list on the left; several are fine.",
-    styleTitle: "Style", styleHelp: "Without a finished video the rounds are simply joined, no effects. Import a finished highlight video and PovForge reads its opening, transitions, kill effects and ending, keeps them as a style you name, and adds them to your reel.",
+    styleTitle: "Style", styleHelp: "Preview a reference, select a time range and describe the wanted effect. Review the proposal before applying. Common editing effects are supported; object tracking and complex particles are not.",
     stylePlain: "No effects", styleUnsaved: "{name} (unnamed)", styleMix: "Mixed", mixHelp: "Or pick item by item; every choice comes from a video you imported.",
     fromList: "from {list}",
     fxCamera: "First-person highlights",
@@ -152,7 +150,7 @@ const TEXT = {
     rep_pace: "About {s} s per moment ({kind})", rep_kill: "Kill effect: {kind} ({n}×)", rep_colour: "Colour: {kind}; yours will be matched to it", rep_letterbox: "Cinema bars",
     rep_outro: "Ending: {kind} (about {s} s)", rep_music: "Background music (about {bpm} BPM)",
     look_natural: "natural", look_vivid: "vivid", look_muted: "muted", look_warm: "warm", look_cool: "cool", look_bw: "black and white",
-    reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "The best rounds joined together. Each round runs unbroken from a few seconds before its first kill to just after its last. Game picture only, no minimap; import a finished video to give it that video's style.",
+    reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "Choose kill highlights, deaths, kills + deaths, or opposing-player duels. Always first person; select a reference effect and optionally sync music to Demo kill times.",
     reelName: "Name", reelSources: "Demos", reelSourcesHelp: "Pick them on the left; several are fine", reelPlayer: "Player",
     reelSame: "Same player", reelEach: "Per demo", reelEachHelp: "Choose the player for each demo on its row above.", reelPlayerIn: "{name} ({n} demos)", reelNotIn: "This player isn't in this demo", reelPick: "Choose a player",
     reelItems: "In the reel", reelItemsHelp: "Rounds with 3+ kills and won clutches are picked for you, best last. Drag or use the arrows to change the order.",
@@ -230,10 +228,13 @@ document.addEventListener("alpine:init", () => {
     updateOpen: false, updatingAway: false, upd: { state: "idle" },
     player: null, chosenRounds: [], lastRun: null, setupOpen: false, customRounds: false, lastPath: "",
     settingsOpen: false, reelOpen: false, dragFrom: null, work: { bytes: null, path: "", confirm: false, cleaning: false },
-    reel: { title: "", titleEdited: false, mode: "same", steamid: "", sources: [], items: [], reordered: false },
+    reel: { title: "", titleEdited: false, mode: "same", content: "kills", steamid: "", sources: [], items: [], reordered: false },
     linkOpen: false, linkText: "", screen: null, sizes: [],
     fx: null, fxMeta: { defaults: {}, presets: {}, transitions: [], grades: [] }, fxPreset: "plain", fxSaveOpen: false, fxSaveName: "",
     styleRef: { state: "idle", name: "", path: "", report: [], music: null, effects: null, error: "", presetName: "", savedAs: "" },
+    referenceWizard: { open: false, busy: false, id: "", preview: "", title: "", duration: 0,
+      start: 0, end: 5, playSelection: false, description: "", kind: "auto", proposal: null, error: "" },
+    referenceRequest: 0,
     accents: ["blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"],
     options: [
       { key: "intro", label: "optIntro" }, { key: "minimap", label: "optMinimap" }, { key: "keyboard", label: "optKeyboard" },
@@ -384,7 +385,7 @@ document.addEventListener("alpine:init", () => {
     openReel(fromMatch) {
       this.reelOpen = true; this.showRun = false; this.setupOpen = false;
       if (fromMatch && this.demo && this.player) {
-        this.reel = { title: "", titleEdited: false, mode: "same", steamid: this.player.steamid, items: [], reordered: false,
+        this.reel = { title: "", titleEdited: false, mode: "same", content: "kills", steamid: this.player.steamid, items: [], reordered: false,
                       sources: [{ path: this.demo.path, info: this.demo, loading: false, error: "", steamid: this.player.steamid }] };
         this.recompute();
       }
@@ -425,22 +426,72 @@ document.addEventListener("alpine:init", () => {
     },
     srcPlayerId(x) { return this.reel.mode === "same" ? this.reel.steamid : x.steamid; },
     setMode(m) { this.reel.mode = m; for (const x of this.reel.sources) if (!x.steamid) x.steamid = this.playerIn(x.info, this.reel.steamid) ? this.reel.steamid : ""; this.recompute(); },
+    setReelContent(content) { this.reel.content = content; this.recompute(); },
+    get chronologicalReel() { return this.reel.content !== "kills"; },
+    get reelContentHelp() {
+      if (this.reel.content === "kills") return this.t("reelItemsHelp");
+      if (this.reel.content === "duel") return this.lang === "zh"
+        ? "只收录双方互相击杀的交手；每次先 A 后 B，按回合顺序。仅列出有对位交手的敌方选手；未能确认队伍时不能录制。"
+        : "Only mutual-kill encounters, each A then B in round order. Opponents need confirmed enemy encounters.";
+      return this.lang === "zh" ? "始终使用所选选手的第一人称，按回合和事件时间拼接，相邻片段自动合并。"
+        : "Always the selected player's first person, in round/event order. Overlapping moments are merged.";
+    },
+    duelOpponents(x) {
+      const sid = this.srcPlayerId(x), ids = new Set();
+      for (const e of x.info?.duels || []) {
+        if (e.attacker === sid) ids.add(e.victim);
+        if (e.victim === sid) ids.add(e.attacker);
+      }
+      return this.playersOf(x.info).filter(p => p.steamid !== sid && ids.has(p.steamid));
+    },
+    swapDuel(x) {
+      if (!x.opponent) return;
+      const first = this.srcPlayerId(x), second = x.opponent;
+      // Per-demo identities allow other selected demos to keep their own pair.
+      for (const s of this.reel.sources) s.steamid = this.srcPlayerId(s);
+      this.reel.mode = "each"; x.steamid = second; x.opponent = first; this.recompute();
+    },
+    sortReelItems(items) {
+      const rank = new Map(this.reel.sources.map((x, i) => [x.path, i]));
+      return items.sort((a, b) => (rank.get(a.path) - rank.get(b.path)) || a.round - b.round);
+    },
     // every round of the chosen player(s) in the chosen demos
     get reelCandidates() {
       const out = [];
       for (const x of this.reel.sources) {
         const p = this.playerIn(x.info, this.srcPlayerId(x));
         if (!p) continue;
-        (p.rounds_k || []).forEach((k, i) => {
+        if (this.reel.content === "duel") {
+          const opponent = this.playerIn(x.info, x.opponent);
+          if (!opponent) continue;
+          const encounters = (x.info?.duels || []).filter(e =>
+            (e.attacker === p.steamid && e.victim === opponent.steamid) ||
+            (e.attacker === opponent.steamid && e.victim === p.steamid));
+          for (const round of [...new Set(encounters.map(e => e.round))].sort((a,b)=>a-b)) {
+            out.push({ key: `${x.path}|${p.steamid}|${opponent.steamid}|${round}`, path: x.path,
+              map: x.info.map_pretty, steamid: p.steamid, opponent: opponent.steamid,
+              name: `${p.name} → ${opponent.name}`, round, k: encounters.filter(e=>e.round===round).length,
+              hs:0, clutch:0, score:0, mode:"duel" });
+          }
+          continue;
+        }
+        ((this.chronologicalReel ? p.rounds_event_k : null) || p.rounds_k || []).forEach((k, i) => {
           const hs = p.rounds_hs?.[i] || 0, c = p.rounds_clutch?.[i] || 0;
           out.push({ key: x.path + "|" + p.steamid + "|" + (i + 1), path: x.path, map: x.info.map_pretty, steamid: p.steamid,
-                     name: p.name, round: i + 1, k, hs, clutch: c, score: k * 10 + hs + (c ? 25 * c : 0) });
+                     name: p.name, round: i + 1, k, hs, died: !!p.rounds_died?.[i], mode: this.reel.content,
+                     clutch: c, score: k * 10 + hs + (c ? 25 * c : 0) });
         });
       }
       return out;
     },
     recompute() {
-      this.reel.items = this.reelCandidates.filter(c => c.k >= 3 || c.clutch >= 1).sort((a, b) => a.score - b.score);
+      for (const x of this.reel.sources) {
+        if (this.reel.content === "duel" && !this.duelOpponents(x).some(p => p.steamid === x.opponent)) x.opponent = "";
+      }
+      const candidates = this.reelCandidates;
+      this.reel.items = this.chronologicalReel ? this.sortReelItems(candidates.filter(c =>
+        c.mode === "duel" || c.died || (c.mode === "kills_deaths" && c.k > 0)))
+        : candidates.filter(c => c.k >= 3 || c.clutch >= 1).sort((a, b) => a.score - b.score);
       this.reel.reordered = false;
       if (!this.reel.titleEdited) {
         const names = [...new Set(this.reel.items.map(i => i.name))];
@@ -450,43 +501,55 @@ document.addEventListener("alpine:init", () => {
     },
     get reelOthers() {
       const inReel = new Set(this.reel.items.map(i => i.key));
-      return this.reelCandidates.filter(c => !inReel.has(c.key) && (c.k > 0 || c.clutch > 0));
+      return this.reelCandidates.filter(c => !inReel.has(c.key) && (this.chronologicalReel
+        ? c.mode === "duel" || c.died || (c.mode === "kills_deaths" && c.k > 0)
+        : c.k > 0 || c.clutch > 0));
     },
     addReelItem(c) {
       const items = this.reel.items;
+      if (this.chronologicalReel) { items.push(c); this.sortReelItems(items); return; }
       const at = this.reel.reordered ? items.length : items.findIndex(i => i.score > c.score);
       items.splice(at < 0 ? items.length : at, 0, c);
     },
     removeReelItem(i) { this.reel.items.splice(i, 1); },
     moveReelItem(i, d) {
+      if (this.chronologicalReel) return;
       const j = i + d, items = this.reel.items;
       if (j < 0 || j >= items.length) return;
       [items[i], items[j]] = [items[j], items[i]]; this.reel.reordered = true;
     },
     dropAt(i) {
+      if (this.chronologicalReel) return;
       const from = this.dragFrom; this.dragFrom = null;
       if (from === null || from === i) return;
       const [it] = this.reel.items.splice(from, 1); this.reel.items.splice(i, 0, it); this.reel.reordered = true;
     },
     tagOf(c) {
+      if (c.mode === "duel") return this.lang === "zh" ? `${c.k} 次交手 · A → B` : `${c.k} encounters · A → B`;
+      if (c.mode === "deaths") return this.lang === "zh" ? "阵亡 · 本人第一人称" : "Death · own first person";
       const zh = this.lang === "zh", names = zh ? { 2: "双杀", 3: "三杀", 4: "四杀", 5: "ACE" } : { 2: "2K", 3: "3K", 4: "4K", 5: "ACE" };
       const parts = [];
       if (c.k >= 2) parts.push(names[Math.min(c.k, 5)]); else if (c.k === 1) parts.push(this.t("kills1", { n: 1 }));
       if (c.clutch) parts.push(this.t("tagClutch", { n: c.clutch }));
+      if (c.mode === "kills_deaths" && c.died) parts.push(zh ? "阵亡" : "Death");
       return parts.join("  ");
     },
     reelSeconds(items) { return Math.round(items.reduce((t, c) => t + (c.k ? 5.5 + (c.k - 1) * 2.5 : 8), 0)); },
     get reelWhyNot() {
       const w = this.whyNotSetup;
+      if (!w && this.reel.content === "duel" && this.reel.sources.some(x => !x.opponent))
+        return this.lang === "zh" ? "请为每场 demo 选择有交手记录的敌方选手。" : "Choose an opponent with an encounter for each demo.";
       return w || (this.reel.items.length ? "" : this.t("reelNeedItems"));
     },
     async startReel(watch) {
       const wasRunning = this.job.state === "running";
       const effects = { ...this.fx };
+      if (this.reel.content === "duel") effects.camera = { ...this.cameraSettings(effects.camera), victim: false };
       if (effects.intro === "title" && !effects.intro_sub) effects.intro_sub = this.reelPlayersLine;
       if (effects.outro === "card" && !effects.outro_text) effects.outro_text = this.t("outroTextDefault");
       const body = { title: this.reel.title.trim() || this.t("reelDefaultMany"), summary: this.t("reelSummary", { n: this.reel.items.length }),
-                     items: this.reel.items.map(c => ({ demo: c.path, steamid: c.steamid, round: c.round, name: c.name })), effects };
+                     items: this.reel.items.map(c => ({ demo: c.path, steamid: c.steamid, round: c.round, name: c.name,
+                       mode: c.mode || "kills", opponent: c.opponent || "" })), effects };
       const j = await this.post("/api/queue/add-reel", body);
       this.queue = j.queue; this.job = j;
       if (watch && !wasRunning) { this.viewId = null; this.reelOpen = false; this.showRun = true; }
@@ -501,7 +564,7 @@ document.addEventListener("alpine:init", () => {
     },
     // the parts of the effects that make a look (not the music file or the texts)
     fxLook(fx) {
-      const skip = new Set(["music", "music_volume", "music_start", "game_audio", "intro_text", "intro_sub", "outro_text", "grade_match", "camera"]);
+      const skip = new Set(["music", "music_volume", "music_start", "music_sync", "game_audio", "intro_text", "intro_sub", "outro_text", "grade_match", "camera"]);
       const full = { ...this.fxDefaults(), ...fx };
       return JSON.stringify(Object.keys(full).filter(k => !skip.has(k)).sort().map(k => [k, full[k]]));
     },
@@ -514,7 +577,7 @@ document.addEventListener("alpine:init", () => {
     },
     keepOwn() {
       const f = this.fx || {};
-      return { music: f.music || "", music_volume: f.music_volume ?? 0.8, music_start: f.music_start || 0, game_audio: f.game_audio || "keep",
+      return { music: f.music || "", music_volume: f.music_volume ?? 0.8, music_start: f.music_start || 0, music_sync: f.music_sync === true, game_audio: f.game_audio || "keep",
                intro_text: f.intro_text || "", intro_sub: f.intro_sub || "", outro_text: f.outro_text || "" };
     },
     applyPreset(key) {
@@ -522,7 +585,7 @@ document.addEventListener("alpine:init", () => {
       const mine = (this.prefs.fx_presets || []).find(p => "my:" + p.name === key);
       const own = this.keepOwn();
       const texts = { intro_text: own.intro_text, intro_sub: own.intro_sub, outro_text: own.outro_text,
-                      music: own.music, music_volume: own.music_volume, music_start: own.music_start, game_audio: own.game_audio };
+                      music: own.music, music_volume: own.music_volume, music_start: own.music_start, music_sync: own.music_sync, game_audio: own.game_audio };
       this.fx = mine ? { ...this.fxDefaults(), ...mine.fx, ...texts } : { ...this.fxDefaults(), ...texts };
       this.fx.camera = { ...this.cameraSettings(this.fx.camera), victim };
       this.fxPreset = mine ? key : "plain"; this.saveFx();
@@ -543,6 +606,7 @@ document.addEventListener("alpine:init", () => {
     partSources() {
       const list = (this.prefs.fx_presets || []).map(p => ({ value: "my:" + p.name, name: p.name, fx: p.fx }));
       if (this.styleRef.effects && !this.styleRef.savedAs) list.push({ value: "ref", name: this.styleRef.name, fx: this.styleRef.effects });
+      if (this.fx) list.push({ value: "current", name: this.lang === "zh" ? "当前设置" : "Current settings", fx: this.fx });
       return list;
     },
     partText(key, fx) {
@@ -589,7 +653,7 @@ document.addEventListener("alpine:init", () => {
     applyRef() {
       const { victim } = this.cameraSettings(this.fx?.camera);
       const look = { ...this.styleRef.effects };
-      for (const k of ["music", "music_volume", "music_start", "game_audio"]) delete look[k];
+      for (const k of ["music", "music_volume", "music_start", "music_sync", "game_audio"]) delete look[k];
       this.fx = { ...this.fxDefaults(), ...look, ...this.keepOwn() };
       this.fx.camera = { ...this.cameraSettings(this.fx.camera), victim };
       this.fxPreset = "ref"; this.saveFx();
@@ -621,13 +685,68 @@ document.addEventListener("alpine:init", () => {
     clearMusic() { this.fx.music = ""; this.fxChanged(); },
     async copyStyle() {
       const r = await this.post("/api/pick", { kind: "video" });
-      if (r.path) this.readStyle(r.path, r.path.split(/[\\/]/).pop());
+      if (r.path) this.openReference(r.path);
     },
     readLink() {
       const url = (this.linkText || "").trim();
       if (!/^https?:\/\//i.test(url)) { this.toast(this.t("linkBad")); return; }
       this.linkOpen = false;
-      this.readStyle(url, url.replace(/^https?:\/\//i, "").slice(0, 60), true);
+      this.openReference(url);
+    },
+    async openReference(source) {
+      if (this.referenceWizard.busy) return;
+      const request = ++this.referenceRequest;
+      this.referenceWizard = { open: true, busy: true, id: "", preview: "", title: "", duration: 0,
+        start: 0, end: 5, playSelection: false, description: "", kind: "auto", proposal: null, error: "" };
+      try {
+        const result = await this.post("/api/style/prepare", { path: source });
+        if (this.referenceRequest !== request) return;
+        Object.assign(this.referenceWizard, result, { end: Math.min(5, result.duration) });
+      } catch (e) { this.referenceWizard.error = e.message; }
+      finally { if (this.referenceRequest === request) this.referenceWizard.busy = false; }
+    },
+    closeReference() {
+      if (this.referenceWizard.busy) return;
+      this.$refs.referenceVideo?.pause();
+      this.referenceWizard.open = false;
+    },
+    referenceMark(which) {
+      this.referenceWizard[which] = Math.round((this.$refs.referenceVideo?.currentTime || 0) * 10) / 10;
+      this.referenceWizard.proposal = null;
+    },
+    async proposeReference() {
+      const r = this.referenceWizard;
+      if (r.busy || !r.id) return;
+      r.busy = true; r.proposal = null; r.error = "";
+      try {
+        const result = await this.post("/api/style/propose", { id: r.id, start: r.start, end: r.end,
+          kind: r.kind, description: r.description });
+        r.proposal = result.proposal;
+      } catch (e) { r.error = e.message; }
+      finally { r.busy = false; }
+    },
+    referenceMessage() {
+      const p = this.referenceWizard.proposal, zh = this.lang === "zh";
+      if (!p) return "";
+      if (p.reason === "object_tracking") return zh
+        ? "按你的描述，这个效果需要跟踪刀身或物体，并处理遮挡。当前版本不能自动复刻，不能用全屏滤镜替代；不会改动你的效果设置。"
+        : "Your description requires object tracking and occlusion handling. Automatic recreation is not supported; no global filter will be substituted.";
+      if (p.reason === "unknown_effect") return zh
+        ? "暂时无法把这段描述对应到可实现的效果。请明确选择效果类型；复杂粒子、物体跟踪等暂不支持。"
+        : "This description could not be matched to a supported effect. Choose a type explicitly; particles and object tracking are not supported.";
+      if (p.status === "not_detected") return zh
+        ? "这段画面没有检测到所选效果的足够证据。请缩小或调整时间范围，不会自动套用其他效果。"
+        : "There is not enough evidence for this effect in the selected range. Adjust the range; unrelated effects will not be applied.";
+      return zh ? "检测到可用的效果线索。下面是模板近似方案，点击应用后才修改对应选项；不代表逐帧复刻。"
+        : "A supported effect was detected. Review this template approximation; only Apply changes the corresponding options. This is not a frame-exact copy.";
+    },
+    applyReferenceProposal() {
+      const p = this.referenceWizard.proposal;
+      if (this.referenceWizard.busy || p?.status !== "detected") return;
+      this.styleRef = { ...this.styleRef, state: "idle", effects: p.patch,
+        name: this.referenceWizard.title, savedAs: "" };
+      this.fx = { ...this.fxDefaults(), ...this.fx, ...p.patch };
+      this.fxChanged(); this.closeReference();
     },
     async readStyle(source, name, link = false) {
       this.styleRef = { state: "working", name, path: source, link, report: [], music: null, effects: null, error: "",
@@ -691,7 +810,7 @@ document.addEventListener("alpine:init", () => {
       const name = (this.styleRef.presetName || "").trim().slice(0, 40);
       if (!name) return;
       const fx = { ...this.fxDefaults(), ...this.styleRef.effects };
-      for (const k of ["music", "music_volume", "music_start", "game_audio"]) delete fx[k];   // music is chosen on its own
+      for (const k of ["music", "music_volume", "music_start", "music_sync", "game_audio"]) delete fx[k];   // music is chosen on its own
       const list = (this.prefs.fx_presets || []).filter(p => p.name !== name).concat([{ name, fx, source: this.styleRef.name }]);
       this.prefs = await this.post("/api/prefs", { fx_presets: list });
       this.fx = { ...fx, ...this.keepOwn() };
@@ -769,9 +888,7 @@ document.addEventListener("alpine:init", () => {
       if (!this.fx && s.effects) {             // once: the effects used last time
         this.fx = { ...this.fxDefaults(), ...(this.prefs.reel_fx || {}) };
         this.fx.camera = this.cameraSettings(this.fx.camera);
-        // effects that don't come from an imported video can't be seen or changed any more
-        const ok = this.fxParts.every(c => this.partOf(c.key, this.fx) === this.partOf(c.key, {}) || this.partNow(c.key));
-        if (!ok) { this.fx = { ...this.fxDefaults(), camera: this.fx.camera }; this.saveFx(); }
+        // Targeted reference proposals are valid saved effects even without a named preset.
         this.fxPreset = this.presetOf(this.fx);
       }
     },
@@ -887,25 +1004,22 @@ document.addEventListener("alpine:init", () => {
       return t[0].score > t[1].score ? 0 : 1;
     },
     // rough overall progress; recording rounds is most of the time
-    get upscaling() { return this.prefs.upload_4k !== false && this.prefs.record_res !== "2160"; },
     get stages() {
       const base = this.job.kind === "reel" ? ["read", "record", "cut"] : ["read", "record", "overlays", "intro", "compose", "extras"];
-      return this.upscaling || this.job.stage === "upscale" ? base.concat(["upscale"]) : base;
+      return base;
     },
     get progressPct() {
       const j = this.job;
       if (j.state === "done") return 100;
       const [a, b] = j.step || [0, 0], f = b ? Math.min(a / b, 1) : 0;
       if (j.kind === "reel") {     // each demo: read then record; then cutting at the end
-        if (j.stage === "upscale") return Math.round(92 + 8 * f);
-        if (j.stage === "cut") return Math.round(85 + (this.upscaling ? 7 : 15) * f);
+        if (j.stage === "cut") return Math.round(85 + 15 * f);
         const [si, sn] = j.source?.[1] ? j.source : [1, 1];
         const within = j.stage === "record" ? 0.15 + 0.85 * f : 0.05;
         return Math.round(85 * ((si - 1 + within) / sn));
       }
-      const up = this.upscaling;
-      const span = { read: [2, 5], record: [5, 66], overlays: [66, 76], intro: [76, 79], compose: [79, up ? 88 : 95],
-                     extras: [up ? 88 : 95, up ? 90 : 100], upscale: [90, 100] }[j.stage] || [0, 0];
+      const span = { read: [2, 5], record: [5, 66], overlays: [66, 76], intro: [76, 79], compose: [79, 95],
+                     extras: [95, 100] }[j.stage] || [0, 0];
       return Math.round(span[0] + (span[1] - span[0]) * f);
     },
     get viewingItem() { return this.viewId !== null && this.viewId !== this.job.item; },

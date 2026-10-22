@@ -13,9 +13,9 @@ min_segment_seconds = 1.0        # skip clips shorter than this
 [record]                         # recording in CS2 through HLAE
 hlae_path = ""                   # empty = C:\Tools\hlae\HLAE.exe and other usual places
 cs2_path = ""                    # empty = found through Steam
-width = 1920
+width = 1920                    # maximum 1920 x 1080; older larger settings are capped
 height = 1080
-fps = 60
+fps = 60                        # maximum 60
 window_mode = "windowed"         # or "fullscreen" if your screen is smaller than width x height
 video_options = "-c:v libx264 -pix_fmt yuv420p -preset veryfast -crf 16"
 preroll_seconds = 2.0            # wait this long at each clip start before recording

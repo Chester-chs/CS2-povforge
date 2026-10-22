@@ -51,6 +51,20 @@ class DemoData:
     rounds: list[Round]
     deaths: list[Death]
     winners: dict[int, int] = field(default_factory=dict)  # round_end tick -> 2 (T) / 3 (CT)
+    round_starts: list[int] = field(default_factory=list)
+
+
+def event_round_end(demo, round_: Round) -> int:
+    """Exclusive event boundary: exit frags belong to the round just played."""
+    next_freeze = min((r.freeze_end_tick for r in demo.rounds if r.freeze_end_tick > round_.freeze_end_tick), default=None)
+    starts = [t for t in getattr(demo, "round_starts", [])
+              if t > round_.freeze_end_tick and (next_freeze is None or t <= next_freeze)]
+    if starts:
+        return min(starts)
+    if next_freeze is None:
+        return getattr(demo, "last_tick", round_.end_tick + 1)
+    # In old/malformed demos without round_start, retain the normal two-second tail.
+    return min(next_freeze, round_.end_tick + max(1, round(2 * demo.tickrate)))
 
 
 def _sid(v) -> str | None:
@@ -202,7 +216,8 @@ def load_demo(path: str | Path, tickrate: float = DEFAULT_TICKRATE) -> DemoData:
     except Exception:
         pass
 
-    return DemoData(path, map_name, tickrate, last_tick, players, rounds, deaths, winners)
+    return DemoData(path, map_name, tickrate, last_tick, players, rounds, deaths, winners,
+                    _event_ticks(parser, "round_start"))
 
 
 MIN_PRESS_TICKS = 4  # show even the shortest tap for ~60 ms so it's visible

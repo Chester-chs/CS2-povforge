@@ -51,6 +51,11 @@ class RecordSettings:
     timeout_factor: float = 3.0   # give up after this many times the video length (+10 min)
     player_hud: bool = False      # try cl_spec_stats 0 (on its own it doesn't replace the spectator card)
 
+    def limit_output(self) -> None:
+        from .media import bounded_size, bounded_fps
+        self.width, self.height = bounded_size(self.width, self.height)
+        self.fps = int(bounded_fps(self.fps))
+
 
 # --- finding things -------------------------------------------------------------
 
@@ -179,6 +184,7 @@ def clip_id(seg: Segment) -> str:
 
 
 def setup_commands(s: RecordSettings) -> list[str]:
+    s.limit_output()
     cmds = [
         "sv_cheats 1",
         "demo_timescale 1",
@@ -240,6 +246,7 @@ def _validated_shots(extra_shots: list[dict] | None) -> list[dict]:
 
 def build_job(plan: Plan, segments: list[Segment], raw_dir: Path, s: RecordSettings,
               *, extra_shots: list[dict] | None = None) -> dict:
+    s.limit_output()
     fwd = lambda p: str(Path(p).resolve()).replace("\\", "/")  # noqa: E731
     return {
         "player": plan.player.name,
@@ -398,6 +405,7 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg",
     Normally returns the ordinary clip paths. With ``shots_only`` it returns
     the requested shots, in input order, and leaves ordinary clips untouched.
     """
+    s.limit_output()
     shots = _validated_shots(extra_shots)
     clips_dir = job_dir / "clips"
     raw_dir = job_dir / "raw"

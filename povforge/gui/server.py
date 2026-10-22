@@ -52,9 +52,8 @@ def load_prefs() -> dict:
              "intro": True, "minimap": True, "keyboard": True, "show_enemies": False, "lang": "",
              "upload": True, "appearance": "auto", "accent": "blue",
              "by_player": True,          # finished videos go into a folder per player
-             "record_res": "auto",       # auto (the screen's) | 1080 | 1440 | 2160
-             "record_fps": 60,           # 60 | 120
-             "upload_4k": True,          # also make a 4K copy for uploading
+             "record_res": "auto",       # fit the screen, capped at 1080p
+             "record_fps": 60,
              "player_folders": {},       # steamid -> {"folder": name on disk, "name": in-game name}
              "folders_set": False}       # first run: the user picks where demos are and where videos go
     if f.exists():
@@ -64,6 +63,10 @@ def load_prefs() -> dict:
             prefs.update(saved)
         except Exception:
             pass
+    prefs.pop("upload_4k", None)
+    if prefs.get("record_res") not in ("auto", "1080"):
+        prefs["record_res"] = "1080"
+    prefs["record_fps"] = 60
     return prefs
 
 
@@ -99,14 +102,9 @@ def write_job_config(prefs: dict, videos: Path | None = None) -> Path:
              "[highlights]", "enabled = false", "",      # highlights are made as a reel now
              "[upload]", f"enabled = {str(bool(prefs.get('upload', True))).lower()}"]
     w, h = record_size(prefs)
-    fps = 120 if int(prefs.get("record_fps") or 60) == 120 else 60
-    if prefs.get("upload_4k", True) and h < 2160:
-        lines.append("upscale = 2160")
-    # quality first: near-lossless while recording, careful encoding when putting it together
-    big = h > 1440 or fps > 60
-    lines += ["", "[record]", f"width = {w}", f"height = {h}", f"fps = {fps}",
-              f'video_options = "-c:v libx264 -pix_fmt yuv420p -preset veryfast -crf {14 if h > 1440 else 12}"',
-              "", "[compose]", "crf = 15", f'preset = "{"fast" if big else "medium"}"', ""]
+    lines += ["", "[record]", f"width = {w}", f"height = {h}", "fps = 60",
+              'video_options = "-c:v libx264 -pix_fmt yuv420p -preset veryfast -crf 12"',
+              "", "[compose]", "crf = 15", 'preset = "medium"', ""]
     f = app_dir() / "last-run.toml"
     app_dir().mkdir(parents=True, exist_ok=True)
     f.write_text("\n".join(lines), encoding="utf-8")
@@ -115,7 +113,7 @@ def write_job_config(prefs: dict, videos: Path | None = None) -> Path:
 
 # --- recording size ----------------------------------------------------------------
 
-SIZES = {"1080": (1920, 1080), "1440": (2560, 1440), "2160": (3840, 2160)}
+SIZES = {"1080": (1920, 1080)}
 
 
 def screen_size() -> tuple[int, int] | None:
@@ -153,19 +151,15 @@ def fitting_sizes(screen: tuple[int, int] | None) -> list[str]:
         return list(SIZES)
     sw, sh = screen
     fit = [k for k, (w, h) in SIZES.items() if w <= sw and h <= sh]
-    return fit or ["1080"]
+    return fit
 
 
 def record_size(prefs: dict, screen: tuple[int, int] | None = None) -> tuple[int, int]:
     """The size to record at: the chosen one if it fits on the screen, else the biggest that does."""
     screen = screen if screen is not None else screen_size()
-    fit = fitting_sizes(screen)
-    want = str(prefs.get("record_res") or "auto")
-    if want == "auto":
-        want = fit[-1] if screen is not None else "1080"
-    elif want not in fit:
-        want = fit[-1]
-    return SIZES[want]
+    scale = min(1.0, screen[0] / 1920, screen[1] / 1080) if screen else 1.0
+    return max(2, int(1920 * scale) // 2 * 2), max(2, int(1080 * scale) // 2 * 2)
+
 
 
 # --- a folder per player ----------------------------------------------------------
@@ -425,7 +419,7 @@ _inspect_cache: dict[str, dict] = {}
 
 
 def inspect_demo(path: str, work_dir: Path) -> dict:
-    from ..demo import load_demo, load_scoreboard, prepare_demo
+    from ..demo import load_demo, load_scoreboard, prepare_demo, event_round_end
     from ..faceit import match_id
     from ..intro import pretty_map
 
@@ -440,12 +434,12 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
     except Exception:
         teams = []
     # per player and round: kills, and whether they died
-    ends = [r.end_tick for r in d.rounds]
-    starts = [0] + ends[:-1]
+    ends = [event_round_end(d, r) for r in d.rounds]
+    starts = [r.freeze_end_tick for r in d.rounds]
 
     def round_of(tick: int) -> int | None:
         for i, (a, b) in enumerate(zip(starts, ends)):
-            if a < tick <= b:
+            if a <= tick < b:
                 return i
         return None
 
@@ -463,19 +457,21 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
             kills[a][i] += 1
     # kills, headshots and won clutches per round (for the highlight reel)
     table = {}
+    sides = {}
     try:
         from ..demo import round_sides
         from ..highlights import round_table
-        table = round_table(d.rounds, d.deaths, d.winners, round_sides(dem, d.rounds))
+        sides = round_sides(dem, d.rounds)
+        table = round_table(d.rounds, d.deaths, d.winners, sides)
     except Exception:
         pass
 
     def per_round(sid: str) -> dict:
         rows = table.get(sid)
         if not rows:
-            return {"rounds_k": kills.get(sid, []), "rounds_died": died.get(sid, []),
+            return {"rounds_k": kills.get(sid, []), "rounds_event_k": kills.get(sid, []), "rounds_died": died.get(sid, []),
                     "rounds_hs": [0] * n, "rounds_clutch": [0] * n, "rounds_won": [None] * n}
-        return {"rounds_k": [r.kills for r in rows], "rounds_died": died.get(sid, []),
+        return {"rounds_k": [r.kills for r in rows], "rounds_event_k": kills.get(sid, []), "rounds_died": died.get(sid, []),
                 "rounds_hs": [r.headshots for r in rows], "rounds_clutch": [r.clutch for r in rows],
                 "rounds_won": [r.won for r in rows]}
 
@@ -489,7 +485,9 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
         out_teams.append({"name": "", "score": None,
                           "players": [{"steamid": p.steamid, "name": p.name, "k": None, "d": None, "a": None,
                                        "adr": None, "hs": None, **per_round(p.steamid)} for p in loose]})
+    from ..reel_events import duel_events
     info = {"path": str(src), "name": src.name, "map": d.map_name, "map_pretty": pretty_map(d.map_name),
+            "duels": duel_events(d, sides),
             "rounds": n, "minutes": round(d.last_tick / d.tickrate / 60, 1), "faceit_match": match_id(src.name),
             "date": time.strftime("%Y-%m-%d %H:%M", time.localtime(src.stat().st_mtime)), "teams": out_teams}
     _inspect_cache[key] = info
@@ -498,7 +496,7 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
     return info
 
 
-INSPECT_VERSION = 2       # bump when inspect_demo's output changes: saved readings are made again
+INSPECT_VERSION = 3       # bump when inspect_demo's output changes: saved readings are made again
 
 
 def inspect_isolated(path: str, work_dir: Path) -> dict:
@@ -554,6 +552,110 @@ def analyze_isolated(path: str) -> dict:
     return json.loads(out[-1])
 
 
+def stop_reference_process(proc) -> None:
+    if proc.poll() is not None:
+        return
+    if sys.platform == "win32":
+        subprocess.run(["taskkill", "/pid", str(proc.pid), "/t", "/f"],
+                       capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW, timeout=15)
+    else:
+        import signal
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    if proc.poll() is None:
+        proc.kill()
+    proc.wait(timeout=15)
+
+
+def reference_isolated(*args: str, owner=None) -> dict:
+    """Bounded reference task; timeout also stops its own download/encoder children."""
+    flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    launch = owner.launch if owner is not None else subprocess.Popen
+    proc = launch(cli_command("reference", *args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                  text=True, encoding="utf-8", errors="replace",
+                  env=dict(os.environ, PYTHONIOENCODING="utf-8"), creationflags=flags,
+                  start_new_session=sys.platform != "win32")
+    try:
+        try:
+            stdout, stderr = proc.communicate(timeout=900)
+        except subprocess.TimeoutExpired:
+            stop_reference_process(proc)
+            proc.communicate()
+            raise RuntimeError("Reference preparation timed out. Try a shorter local video.") from None
+    finally:
+        if owner is not None:
+            with owner.process_lock:
+                owner.processes.discard(proc)
+    lines = [line for line in stdout.splitlines() if line.startswith("{")]
+    if proc.returncode or not lines:
+        detail = (stderr or stdout).strip().splitlines()
+        raise RuntimeError(detail[-1] if detail else "Reference processing failed.")
+    return json.loads(lines[-1])
+
+
+class ReferenceLibrary:
+    """Only opaque session IDs can expose selected preview media to the browser."""
+    def __init__(self):
+        import tempfile
+        self.temp = tempfile.TemporaryDirectory(prefix="povforge-references-", ignore_cleanup_errors=True)
+        self.items: dict[str, dict] = {}
+        self.lock = threading.Lock()
+        self.process_lock = threading.Lock()
+        self.processes = set()
+        self.closed = False
+
+    def launch(self, *args, **kwargs):
+        with self.process_lock:
+            if self.closed:
+                raise RuntimeError("Reference session is closed.")
+            proc = subprocess.Popen(*args, **kwargs)
+            self.processes.add(proc)
+            return proc
+
+    def prepare(self, source: str) -> dict:
+        import uuid
+        if not self.lock.acquire(blocking=False):
+            raise ValueError("A reference is already being prepared.")
+        folder = Path(self.temp.name) / uuid.uuid4().hex
+        try:
+            if self.closed:
+                raise RuntimeError("Reference session is closed.")
+            result = reference_isolated("prepare", source, "--folder", str(folder), owner=self)
+            key = folder.name
+            with self.process_lock:
+                if self.closed:
+                    raise RuntimeError("Reference session is closed.")
+                self.items[key] = result
+            # The window uses one current source; retain a few recent sources for in-flight requests.
+            while len(self.items) > 4:
+                old = next(iter(self.items))
+                self.items.pop(old)
+                shutil.rmtree(Path(self.temp.name) / old, ignore_errors=True)
+            return {"id": key, "title": result["title"], "duration": result["duration"],
+                    "preview": f"/api/style/video?id={key}"}
+        except Exception:
+            shutil.rmtree(folder, ignore_errors=True)
+            raise
+        finally:
+            self.lock.release()
+
+    def get(self, key: str) -> dict:
+        if self.closed or key not in self.items:
+            raise ValueError("Reference expired. Import it again.")
+        return self.items[key]
+
+    def close(self) -> None:
+        with self.process_lock:
+            self.closed = True
+            processes = list(self.processes)
+        for proc in processes:
+            stop_reference_process(proc)
+        self.items.clear()
+        self.temp.cleanup()
+
+
 # --- recording job -----------------------------------------------------------------
 
 def cli_command(*args: str) -> list[str]:
@@ -579,7 +681,7 @@ def rounds_spec(rounds: list[int]) -> str:
 class Job:
     """One `povforge run` child process and what it has reported so far."""
 
-    STAGES = ["read", "record", "overlays", "intro", "compose", "extras", "cut", "upscale", "done"]
+    STAGES = ["read", "record", "overlays", "intro", "compose", "extras", "cut", "done"]
 
     def __init__(self):
         self.lock = threading.Lock()
@@ -736,10 +838,6 @@ class Job:
                 self.stage, self.step = "cut", (int(m.group(1)), int(m.group(2)))
             elif line.startswith(("Joining the reel", "Effects: joining", "Effects: sound")):
                 self.stage, self.step = "cut", (1, 1)
-            elif line.startswith("Making the 4K upload copy"):
-                self.stage, self.step = "upscale", (0, 100)
-            elif m := re.match(r"Upload copy (\d+)/100", line):
-                self.stage, self.step = "upscale", (int(m.group(1)), 100)
             elif line.startswith("Done: "):
                 self.result = line[6:].strip()
             elif line.startswith("Error: "):
@@ -825,8 +923,12 @@ class Queue:
         """A highlight reel: items are {demo, steamid, round} in the order they appear;
         ``fx`` the effects chosen for it (see effects.py)."""
         from .. import effects
+        from ..reel import ReelItem
         reel = [{"demo": str(i["demo"]), "steamid": str(i["steamid"]), "round": int(i["round"]),
-                 "name": str(i.get("name") or "")} for i in items]
+                 "name": str(i.get("name") or ""), "mode": str(i.get("mode", "kills")),
+                 "opponent": str(i.get("opponent", ""))} for i in items]
+        for i in reel:
+            ReelItem(**{k: v for k, v in i.items() if k != "name"})
         if not reel:
             raise ValueError("No rounds in the reel.")
         return self._add({"kind": "reel", "name": title or "Highlights", "reel": reel, "rounds": [],
@@ -1238,6 +1340,7 @@ def pick_folder(initial: str) -> str | None:
 
 class App:
     def __init__(self):
+        self.references = ReferenceLibrary()
         self.prefs = load_prefs()
         if self.prefs.get("folders_set") and self.prefs.get("by_player", True) and not self.prefs.get("organized"):
             try:
@@ -1331,6 +1434,8 @@ def make_handler(app: App):
                                        "effects": {"defaults": effects.DEFAULTS, "presets": effects.PRESETS,
                                                    "transitions": list(effects.TRANSITIONS),
                                                    "grades": [g for g in effects.GRADES if g != "match"]}})
+                if url.path == "/api/style/video":
+                    return self._video(Path(app.references.get((q.get("id") or [""])[0])["preview"]))
                 if url.path == "/api/job":
                     return self._json({**app.job.snapshot(), "queue": app.queue.snapshot()})
                 if url.path == "/api/workfiles":
@@ -1391,6 +1496,20 @@ def make_handler(app: App):
                         app.inspecting -= 1
                         app.last_seen = time.time()
 
+                if url.path in ("/api/style/prepare", "/api/style/propose"):
+                    app.inspecting += 1
+                    try:
+                        if url.path.endswith("prepare"):
+                            return self._json(app.references.prepare(str(b.get("path", ""))))
+                        ref = app.references.get(str(b.get("id", "")))
+                        return self._json(reference_isolated("analyze", ref["source"],
+                            "--start", str(b.get("start", 0)), "--end", str(b.get("end", 0)),
+                            "--kind", str(b.get("kind", "auto")), "--description", str(b.get("description", ""))[:500],
+                            owner=app.references))
+                    finally:
+                        app.inspecting -= 1
+                        app.last_seen = time.time()
+
                 if url.path == "/api/folder":
                     which = b.get("which")
                     initial = app.prefs["output"] if which == "output" else app.prefs["demo_folders"][0]
@@ -1425,10 +1544,8 @@ def make_handler(app: App):
                         app.prefs["by_player"] = bool(b["by_player"])
                     if b.get("record_res") in ("auto", *SIZES):
                         app.prefs["record_res"] = b["record_res"]
-                    if b.get("record_fps") in (60, 120, "60", "120"):
-                        app.prefs["record_fps"] = int(b["record_fps"])
-                    if "upload_4k" in b:
-                        app.prefs["upload_4k"] = bool(b["upload_4k"])
+                    app.prefs["record_fps"] = 60
+                    app.prefs.pop("upload_4k", None)
                     if b.get("appearance") in ("auto", "light", "dark"):
                         app.prefs["appearance"] = b["appearance"]
                     if b.get("accent") in ACCENTS:
@@ -1513,6 +1630,39 @@ def make_handler(app: App):
         def _file(self, f: Path) -> None:
             self._send(200, Path(f).read_bytes(), CONTENT_TYPES.get(Path(f).suffix.lower(), "application/octet-stream"))
 
+        def _video(self, path: Path) -> None:
+            from ..reference import byte_range
+            size = path.stat().st_size
+            header = self.headers.get("Range")
+            try:
+                start, end = byte_range(header, size) if header else (0, size - 1)
+            except ValueError:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.send_response(206 if header else 200)
+            self.send_header("Content-Type", "video/mp4")
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(end - start + 1))
+            if header:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.end_headers()
+            try:
+                with path.open("rb") as stream:
+                    stream.seek(start)
+                    left = end - start + 1
+                    while left > 0:
+                        chunk = stream.read(min(65536, left))
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                        left -= len(chunk)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
     return Handler
 
 
@@ -1571,3 +1721,6 @@ def main(port: int = 0, open_browser: bool = True) -> None:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        server.server_close()
+        app.references.close()

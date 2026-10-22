@@ -517,3 +517,12 @@ svg { width: 16px; height: 16px; flex: none; fill: none; }
 .row.folder-row::before { display: none; }
 .folder-who { flex: 0 0 42%; font-size: 12px; color: var(--label-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-row .folder-name { flex: 1; min-width: 0; }
+/* Selected reference preview and effect proposal. */
+.sheet.reference-sheet { width: min(820px, calc(100vw - 40px)); max-height: 90vh; overflow-y: auto; justify-items: stretch; text-align: left; }
+.reference-video { display: block; width: 100%; max-height: 360px; background: #111; margin: 12px 0; border-radius: 8px; }
+.reference-fields { border: 0; padding: 0; min-width: 0; }
+.reference-range { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-bottom: 12px; }
+.reference-range label { display: grid; gap: 4px; width: 125px; }
+.reference-label { display: grid; gap: 6px; margin: 14px 0; }
+.reference-label textarea { width: 100%; resize: vertical; }
+.reference-proposal { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }

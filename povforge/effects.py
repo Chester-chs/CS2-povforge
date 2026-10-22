@@ -70,7 +70,7 @@ DEFAULTS: dict = {
     "kill_shake": False, "kill_scope": "all",
     "grade": "none", "grade_match": None, "letterbox": False,
     "outro": "none", "outro_text": "", "outro_seconds": 2.0,
-    "music": "", "music_volume": 0.8, "music_start": 0.0, "game_audio": "keep",
+    "music": "", "music_volume": 0.8, "music_start": 0.0, "music_sync": False, "game_audio": "keep",
     "pace": "normal",
     "camera": normalize_camera(None),
 }
@@ -104,7 +104,7 @@ def normalize(fx: dict | None) -> dict:
     out["camera"] = normalize_camera(out["camera"])
     out["transitions"] = {str(int(k)): v for k, v in dict(out["transitions"] or {}).items()
                           if str(k).lstrip("-").isdigit() and v in TRANSITIONS}
-    for k in ("kill_slowmo", "kill_zoom", "kill_flash", "kill_shake", "letterbox"):
+    for k in ("kill_slowmo", "kill_zoom", "kill_flash", "kill_shake", "letterbox", "music_sync"):
         out[k] = bool(out[k])
     out["intro_seconds"] = _num(out["intro_seconds"], 1.0, 6.0, 2.5)
     out["outro_seconds"] = _num(out["outro_seconds"], 1.0, 6.0, 2.0)
@@ -126,6 +126,8 @@ def is_plain(fx: dict | None) -> bool:
     """Nothing chosen (the pace aside): the reel is joined the quick way, as before."""
     fx = normalize(fx)
     fx["pace"] = DEFAULTS["pace"]
+    if not fx["music"]:
+        fx["music_sync"] = False
     camera = fx["camera"]
     if not camera["victim"]:
         fx["camera"] = normalize_camera(None)
@@ -513,6 +515,8 @@ def boundary_kind(fx: dict, index: int) -> str:
 def build(moments: list[Moment], fx: dict, out: Path, work: Path, size: tuple[int, int], fps: int,
           s: ComposeSettings, title: str = "", source_stats: dict | None = None) -> Path:
     """Put the reel together with its effects into ``out``."""
+    from .media import bounded_size, bounded_fps
+    size, fps = bounded_size(*size), bounded_fps(fps)
     fx = normalize(fx)
     if not moments:
         raise ValueError("no moments")
@@ -590,6 +594,21 @@ def build(moments: list[Moment], fx: dict, out: Path, work: Path, size: tuple[in
     _log("Effects: sound and music ...")
     sound = work / "sound.m4a"
     total = sum(r.seconds for r in rendered) - sum(crossings)
+    if fx["music_sync"] and fx["music"]:
+        from . import music_sync
+        try:
+            _log("Music sync: analyzing the full track ...")
+            track = music_sync.analyze(Path(fx["music"]), s.ffmpeg)
+            times = music_sync.timeline_kills(moments, kills, fx, seq, [r.seconds for r in rendered], crossings)
+            sync = music_sync.choose_offset(track, times, total)
+            if sync["reason"]:
+                _log(f"Music sync: using the selected start ({sync['reason']}).")
+            else:
+                fx["music_start"] = sync["start"]
+                _log(f"Music sync: start {sync['start']:.2f}s; {sync['matched']}/{len(times)} kills within 80ms of a beat.")
+            (work / "music-sync.json").write_text(json.dumps(sync), encoding="utf-8")
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            _log(f"Music sync unavailable; using the selected start: {exc}")
     mix_sound(rendered, crossings, fx, total, sound, s)
 
     out.parent.mkdir(parents=True, exist_ok=True)
