@@ -102,7 +102,7 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             page.evaluate("Alpine.$data(document.body).savePrefs()", await_promise=True)
             assert state['prefs']['record_fps'] == 144
             assert page.evaluate("document.querySelector('.demo-card').getBoundingClientRect().width > 750")
-            assert page.evaluate("Array.from(document.querySelectorAll('.modes button'),b=>b.textContent.trim())") == ['Demo整场录制', 'Demo击杀视角', 'Demo击杀和死亡视角', '高光集锦', '双人对位数据']
+            assert page.evaluate("Array.from(document.querySelectorAll('.modes button'),b=>b.textContent.trim())") == ['Demo整场录制', 'Demo击杀视角', 'Demo击杀和死亡视角', '双人对位数据', '高光集锦']
             assert page.evaluate("document.querySelector('.library h1').textContent") == 'Demo整场录制'
             assert page.evaluate("document.querySelector('.library-head > button').textContent.trim()") == '上传 Demo'
             page.call('Emulation.setDeviceMetricsOverride', width=1920, height=1080, deviceScaleFactor=1, mobile=False)
@@ -138,7 +138,7 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             assert page.wait_for("document.querySelector('.map-scene').naturalWidth > 0 && document.querySelector('.map-scene').style.visibility === 'visible'", 3)
             page.evaluate("document.querySelector('.match .back-library').click()")
             assert page.wait_for("visible('.library')", 3)
-            page.evaluate("document.querySelectorAll('.modes button')[3].click()")
+            page.evaluate("document.querySelectorAll('.modes button')[4].click()")
             page.evaluate("document.querySelector('.demo-card').click()")
             assert page.wait_for("!document.querySelector('.library-bottom button').disabled", 3)
             page.evaluate("document.querySelector('.content').scrollTop = document.querySelector('.content').scrollHeight")
@@ -147,7 +147,7 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             assert page.wait_for("visible('.reel')", 5)
             assert page.wait_for("document.querySelector('.content').scrollTop === 0", 3)
             assert page.evaluate("document.querySelectorAll('.reel option[value=kill_events]').length === 0")
-            for index, title, mode in [(1, 'Demo击杀视角', 'kill_events'), (2, 'Demo击杀和死亡视角', 'kills_deaths'), (4, '双人对位数据', 'duel'), (3, '高光集锦', 'kills')]:
+            for index, title, mode in [(1, 'Demo击杀视角', 'kill_events'), (2, 'Demo击杀和死亡视角', 'kills_deaths'), (3, '双人对位数据', 'duel'), (4, '高光集锦', 'kills')]:
                 page.evaluate("document.querySelector('.content').scrollTop = document.querySelector('.content').scrollHeight")
                 page.evaluate(f"document.querySelectorAll('.modes button')[{index}].click()")
                 assert page.wait_for(f"document.querySelector('.reel h1').textContent === '{title}'", 3)
