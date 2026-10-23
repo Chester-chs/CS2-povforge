@@ -529,7 +529,7 @@
     </template>
 
     </div>
-    <template x-if="fx && fx.camera">
+    <template x-if="fx && fx.camera && reel.content !== 'duel'">
       <div class="camera-options">
         <div class="group-title"><h3 x-text="t('fxCamera')"></h3></div>
         <p class="hint below" x-text="t('cameraHelp')"></p>

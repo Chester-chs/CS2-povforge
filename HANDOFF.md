@@ -2,6 +2,16 @@
 
 ## Current agreed scope
 
+v0.15.10 supersedes the earlier victim replay scope for duel mode: hide the entire
+Perspective replays section in head-to-head mode. The submitted duel task and
+backend ignore saved victim opt-ins; other modes retain their saved choices.
+Existing A/B encounter views remain intact. The requested AI style editor is
+planning only: no style layout changes or API integration are included here.
+Local affected checks: 16 passed in 28.19s and 18 event regressions passed in
+9.12s. JS syntax, Python compilation and diff checks passed. No game/settings
+side effects. See docs/releases/v0.15.10/verification.md.
+
+
 v0.15.9 publishes the v0.15.8 UI/replay features below plus a browser startup
 race fix. v0.15.8 CI run 40030178920 stopped before packaging: 330 passed,
 22 skipped, one PermissionError while Chromium held DevToolsActivePort.

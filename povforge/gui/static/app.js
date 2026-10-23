@@ -688,6 +688,7 @@ document.addEventListener("alpine:init", () => {
         ...Object.fromEntries(["camera", "music", "music_volume", "music_start", "music_sync", "game_audio"]
           .filter(k => this.fx?.[k] !== undefined).map(k => [k, this.fx[k]])) } : { ...this.fx };
       effects.camera = this.cameraSettings(effects.camera);
+      if (this.reel.content === "duel") effects.camera.victim = false;
       if (effects.camera.victim) effects.camera.selected = this.victimEntries.filter(e => this.victimSelected(e.key)).map(e => e.key);
       if (effects.intro === "title" && !effects.intro_sub) effects.intro_sub = this.reelPlayersLine;
       if (effects.outro === "card" && !effects.outro_text) effects.outro_text = this.t("outroTextDefault");
