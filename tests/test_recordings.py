@@ -1,4 +1,5 @@
 import json
+import pytest
 
 
 def test_catalog_survives_restart_dedupes_and_marks_missing(tmp_path, monkeypatch):
@@ -72,13 +73,17 @@ def test_queue_persists_finished_result_and_start_settings_before_clear(tmp_path
     assert row['players']==['Alice'] and row['profile']['fps']==60
 
 
-def test_reel_history_searches_real_maps_not_queue_summary(tmp_path,monkeypatch):
+@pytest.mark.parametrize('known,expected', [
+    ({'x.dem':{'map':'Dust2'},'y.dem':{'map':'Mirage'}}, ['Dust2','Mirage']),
+    ({'x.dem':None,'y.dem':['invalid']}, []),
+])
+def test_reel_history_searches_real_maps_not_queue_summary(tmp_path,monkeypatch,known,expected):
     from povforge.gui import server
     from povforge import recordings
     from test_gui import FakeJob
     monkeypatch.setenv('POVFORGE_STATE',str(tmp_path/'state'))
     monkeypatch.setattr(recordings,'read_duration',lambda p:20)
-    monkeypatch.setattr(server,'_known_demos',lambda:{'x.dem':{'map':'Dust2'},'y.dem':{'map':'Mirage'}})
+    monkeypatch.setattr(server,'_known_demos',lambda:known)
     video=tmp_path/'reel.mp4';video.write_bytes(b'video')
     job=FakeJob();prefs={'output':str(tmp_path)};q=server.Queue(job,prefs)
     item=q.add_reel('Custom title',[{'demo':d,'steamid':'a','round':1,'mode':'kills','name':'A'} for d in ['x.dem','y.dem']], 'Reel, 2 rounds')
@@ -86,4 +91,4 @@ def test_reel_history_searches_real_maps_not_queue_summary(tmp_path,monkeypatch)
         'highlights':'','cover':'','description':'','title':'','error':'','elapsed':80}
     job.state='done';job.on_finish()
     row=recordings.list_videos(server.app_dir(),prefs)['items'][0]
-    assert row['maps']==['Dust2','Mirage']
+    assert row['maps']==expected
