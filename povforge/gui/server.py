@@ -1048,8 +1048,9 @@ class Queue:
             from ..recordings import remember
             if completed.get('kind') == 'reel':
                 known = _known_demos()
-                completed['maps'] = list(dict.fromkeys(known.get(i['demo'], {}).get('map', '')
-                    for i in completed.get('reel', []) if known.get(i['demo'], {}).get('map')))
+                metadata = [known.get(i['demo']) for i in completed.get('reel', [])] if isinstance(known,dict) else []
+                completed['maps'] = list(dict.fromkeys(m['map'] for m in metadata
+                    if isinstance(m,dict) and isinstance(m.get('map'),str) and m['map']))
             remember(app_dir(), completed, self.prefs, snap.get('elapsed', 0))
         self._start_next()
 

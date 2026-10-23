@@ -50,6 +50,18 @@ def session_token(request):
     return match[1].decode()
 
 
+def test_video_library_keeps_host_boundary_and_does_not_parse_demos(http_app,monkeypatch,tmp_path):
+    from povforge.gui import server
+    app, output, authority, request = http_app
+    monkeypatch.setenv('POVFORGE_STATE',str(tmp_path/'state'))
+    monkeypatch.setattr(server,'inspect_isolated',lambda *a,**kw:pytest.fail('library must not parse a Demo'))
+    (output/'already-recorded.mp4').write_bytes(b'video')
+    status,body = request('/api/library')
+    assert status==200
+    assert json.loads(body)['items'][0]['name']=='already-recorded'
+    assert request('/api/library',headers={'Host':'evil.example'})[0]==403
+
+
 def test_quality_preferences_validate_and_persist(http_app, monkeypatch, tmp_path):
     from povforge.gui import server
     monkeypatch.setenv('POVFORGE_STATE', str(tmp_path / 'state'))
