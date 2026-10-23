@@ -105,6 +105,11 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             assert page.evaluate("Array.from(document.querySelectorAll('.modes button'),b=>b.textContent.trim())") == ['Demo整场录制', 'Demo击杀视角', 'Demo击杀和死亡视角', '高光集锦', '双人对位数据']
             assert page.evaluate("document.querySelector('.library h1').textContent") == 'Demo整场录制'
             assert page.evaluate("document.querySelector('.library-head > button').textContent.trim()") == '上传 Demo'
+            page.call('Emulation.setDeviceMetricsOverride', width=1920, height=1080, deviceScaleFactor=1, mobile=False)
+            assert page.wait_for("document.querySelector('.recording-panel').getBoundingClientRect().left >= document.querySelector('.library').getBoundingClientRect().right", 3)
+            assert page.evaluate("Math.abs(document.querySelector('.recording-panel').getBoundingClientRect().top - document.querySelector('.library').getBoundingClientRect().top) < 12")
+            assert page.evaluate("document.querySelector('.content').scrollWidth <= document.querySelector('.content').clientWidth")
+            page.call('Emulation.setDeviceMetricsOverride', width=1264, height=812, deviceScaleFactor=1, mobile=False)
             screenshots = os.environ.get('POVFORGE_UI_SHOTS')
 
             def shot(name):
