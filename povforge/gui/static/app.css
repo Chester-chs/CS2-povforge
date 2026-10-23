@@ -255,7 +255,7 @@ svg { width: 16px; height: 16px; flex: none; fill: none; }
 .match-head { display: flex; align-items: center; gap: 18px; }
 .match-head .title-block h1 { font-size: 40px; letter-spacing: -0.03em; }
 .facts { display: flex; gap: 14px; }
-.radar {
+.map-scene {
   width: 76px; height: 76px; flex: none; border-radius: 16px; object-fit: cover; background: #111;
   box-shadow: 0 4px 14px rgb(0 0 0 / 0.18), 0 0 0 0.5px rgb(0 0 0 / 0.1);
 }
@@ -368,7 +368,7 @@ svg { width: 16px; height: 16px; flex: none; fill: none; }
   .toolbar { left: 0; padding: 10px 16px; flex-wrap: wrap; }
   .teams { grid-template-columns: 1fr; }
   .rounds { grid-template-columns: repeat(8, minmax(0, 1fr)); }
-  .radar { display: none; }
+  .map-scene { display: none; }
   .hud { left: 50%; }
 }
 @media (prefers-reduced-motion: reduce) {

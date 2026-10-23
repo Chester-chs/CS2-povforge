@@ -52,6 +52,8 @@ def workspace_site():
                 return self.respond(state)
             if self.path == '/api/demos':
                 return self.respond(demos)
+            if self.path == '/api/map-thumbnail?map=de_dust2':
+                return self.respond((STATIC / 'icon.png').read_bytes(), 'image/png')
             if self.path == '/api/workfiles':
                 return self.respond({'bytes': 0, 'path': 'C:/Fake-work'})
             self.respond({}, status=404)
@@ -109,6 +111,12 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             assert page.wait_for("document.querySelectorAll('.demo-card').length === 1", 3)
             page.evaluate("document.querySelector('.demo-card').click()")
             assert page.wait_for("visible('.match')", 5)
+            assert page.wait_for("document.querySelector('.map-scene').naturalWidth > 0", 5)
+            assert '/api/map-thumbnail?map=de_dust2' in page.evaluate("document.querySelector('.map-scene').src")
+            page.evaluate("Alpine.$data(document.body).demo.map = 'missing_map'")
+            assert page.wait_for("document.querySelector('.map-scene').style.visibility === 'hidden'", 3)
+            page.evaluate("Alpine.$data(document.body).demo.map = 'de_dust2'")
+            assert page.wait_for("document.querySelector('.map-scene').naturalWidth > 0 && document.querySelector('.map-scene').style.visibility === 'visible'", 3)
             page.evaluate("document.querySelector('.match .back-library').click()")
             assert page.wait_for("visible('.library')", 3)
             page.evaluate("document.querySelectorAll('.modes button')[3].click()")

@@ -2,6 +2,14 @@
 
 ## Current agreed scope
 
+v0.15.4 replaces the match-header radar thumbnail with the actual map scenery
+from the existing MurkyYT/Valve asset source. It is downloaded on demand with an
+8-second timeout and 8 MiB cap, atomically cached separately from radar assets.
+Missing images stay hidden, and a subsequent supported map restores the image.
+Recording minimap behavior is unchanged. No game launch or settings changes.
+
+v0.15.3 was published successfully, including native-host installed-app checks.
+
 v0.15.3 fixes the gray titlebar confirmed in the owner's v0.15.2 screenshot.
 Windows now hosts the existing page inside a native WinForms/WebView2 window,
 whose caption is painted by Windows and responds to the existing DWM colors.
@@ -102,7 +110,7 @@ the final removal of third-person code; the simplification was tested without
 relaunching CS2. Old camera-test ZIPs are historical and are not this source
 revision's build.
 
-Version is 0.15.3. A source push does not publish an installer. The Windows
+Version is 0.15.4. A source push does not publish an installer. The Windows
 workflow builds releases on version tags or manual dispatch. After reviewing
 the 2026-10-23 fixes, the owner explicitly authorized committing, pushing to
 GitHub and publishing updated installers. The prohibition on launching CS2/HLAE

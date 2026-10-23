@@ -89,6 +89,21 @@ def test_thumbnail_parent_traversal_is_rejected(http_app):
     assert request('/api/thumb?path=' + quote(str(output / '..' / 'private.png')))[0] == 404
 
 
+def test_map_scene_route_and_missing_image(http_app, monkeypatch):
+    from povforge import maps
+    _, output, _, request = http_app
+    scene = output / 'scene.png'
+    scene.write_bytes(b'scenery')
+    def thumbnail(name):
+        if name != 'de_dust2':
+            raise ValueError('Unavailable')
+        return scene
+    monkeypatch.setattr(maps, 'get_map_thumbnail', thumbnail)
+    assert request('/api/map-thumbnail?map=de_dust2') == (200, b'scenery')
+    assert request('/api/map-thumbnail?map=../secret')[0] == 404
+    assert request('/api/map-thumbnail?map=workshop_unknown')[0] == 404
+
+
 def test_thumbnail_directory_link_cannot_escape_output(http_app):
     _, output, _, request = http_app
     outside = output.parent / 'private'

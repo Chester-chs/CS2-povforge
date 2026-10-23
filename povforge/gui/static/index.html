@@ -221,7 +221,7 @@
   <section class="page match" x-cloak x-show="demo && !libraryOpen && !setupOpen && !reelOpen && !inspecting && !runVisible">
     <button class="back-library link" @click="openLibrary()"><span aria-hidden="true">‹</span><span x-text="t('backLibrary')"></span></button>
     <header class="match-head">
-      <img class="radar" x-show="demo" :src="demo ? '/api/radar?map=' + demo.map : ''" alt="" x-on:error="$el.style.display = 'none'">
+          <img class="map-scene" x-show="demo" :src="demo ? '/api/map-thumbnail?map=' + encodeURIComponent(demo.map) : ''" alt="" x-on:error="$el.style.visibility = 'hidden'" x-on:load="$el.style.visibility = 'visible'">
       <div class="title-block">
         <h1 x-text="demo?.map_pretty"></h1>
         <p class="facts">

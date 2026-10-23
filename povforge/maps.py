@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import tempfile
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -104,6 +105,34 @@ def map_info_from_text(name: str, text: str) -> MapInfo:
 
 
 # --- download & cache ---------------------------------------------------------
+
+def get_map_thumbnail(name: str) -> Path:
+    """Return the game's scenery thumbnail, independently of radar assets."""
+    if not re.fullmatch(r"[a-z0-9_]{1,80}", name):
+        raise ValueError("Invalid map name")
+    dest = cache_dir() / f"{name}_scene.png"
+    if dest.is_file():
+        return dest
+    req = urllib.request.Request(
+        f"{SOURCE_BASE}/images/thumbs/{name}_png.png",
+        headers={"User-Agent": "cs2-povforge"},
+    )
+    limit = 8 * 1024 * 1024
+    with urllib.request.urlopen(req, timeout=8) as response:
+        data = response.read(limit + 1)
+    if len(data) > limit or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ValueError("Invalid map thumbnail")
+    # Unique temporary files keep simultaneous requests from corrupting the cache.
+    tmp = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=dest.parent, suffix=".part", delete=False) as f:
+            tmp = Path(f.name)
+            f.write(data)
+        tmp.replace(dest)
+    finally:
+        if tmp is not None:
+            tmp.unlink(missing_ok=True)
+    return dest
 
 def _download(url: str, dest: Path) -> None:
     tmp = dest.with_suffix(dest.suffix + ".part")

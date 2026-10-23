@@ -1519,6 +1519,13 @@ def make_handler(app: App):
                     return self._json(app.setup.status())
                 if url.path == "/api/demos":
                     return self._json(find_demos(app.prefs["demo_folders"]))
+                if url.path == "/api/map-thumbnail":
+                    from ..maps import get_map_thumbnail
+                    try:
+                        thumbnail = get_map_thumbnail((q.get("map") or [""])[0])
+                    except (ValueError, OSError):
+                        return self._send(404, b"thumbnail unavailable", "text/plain")
+                    return self._file(thumbnail)
                 if url.path == "/api/radar":
                     from ..maps import get_map
                     name = re.sub(r"[^a-z0-9_]", "", (q.get("map") or [""])[0].lower())
