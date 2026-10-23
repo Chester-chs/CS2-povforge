@@ -719,7 +719,7 @@ document.addEventListener("alpine:init", () => {
       if (!info?.recording_details) return this.lang === 'zh' ? '武器详情暂不可用' : 'Weapon details unavailable';
       const kills = new Map(), deaths = new Map();
       for (const e of this.itemEvents(item, info, mode)) {
-        const map = e.attacker === item.steamid ? kills : deaths, name = this.weaponName(e.weapon);
+        const map = e.victim === item.steamid ? deaths : kills, name = this.weaponName(e.weapon);
         map.set(name, (map.get(name) || 0) + 1);
       }
       const text = map => [...map].map(([w,n]) => `${w} ×${n}`).join(' · ');
@@ -729,7 +729,7 @@ document.addEventListener("alpine:init", () => {
     },
     eventLabel(e, info) {
       const name = sid => this.playerIn(info, sid)?.name || sid || (this.lang === 'zh' ? '环境' : 'World');
-      return `${this.clock(e.time)} · ${name(e.attacker)} → ${name(e.victim)} · ${this.weaponName(e.weapon)}${e.headshot ? (this.lang === 'zh' ? ' · 爆头' : ' · HS') : ''}${e.pov === false ? (this.lang === 'zh' ? ' · 死亡后击杀' : ' · Posthumous') : ''}`;
+      return `${this.clock(e.time)} · ${name(e.attacker)} → ${name(e.victim)} · ${this.weaponName(e.weapon)}${e.headshot ? (this.lang === 'zh' ? ' · 爆头' : ' · HS') : ''}${e.posthumous ? (this.lang === 'zh' ? ' · 死亡后击杀' : ' · Posthumous') : ''}`;
     },
     get matchEstimate() {
       const rs = this.customRounds ? this.chosenRounds : this.roundList, seconds = this.demo?.recording_details?.seconds?.[this.player?.steamid];

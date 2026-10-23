@@ -1024,6 +1024,9 @@ class Queue:
             if item is None:
                 return
             item["state"] = "running"
+            from ..recordings import signature
+            mode = (item.get('reel') or [{}])[0].get('mode', 'kills') if item.get('kind') == 'reel' else 'match'
+            item['_record_profile'] = signature(self.prefs, mode)
         try:
             self.job.start(dict(item), self.prefs)
         except Exception as e:

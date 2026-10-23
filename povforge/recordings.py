@@ -38,7 +38,18 @@ def _read(root):
         if f.stat().st_size > 8*1024*1024:
             return []
         data = json.loads(f.read_text(encoding='utf-8'))
-        return [r for r in data if isinstance(r, dict) and isinstance(r.get('path'), str)][:LIMIT] if isinstance(data, list) else []
+        rows = []
+        for r in data[:LIMIT] if isinstance(data, list) else []:
+            if (not isinstance(r, dict) or not isinstance(r.get('path'), str) or '\x00' in r['path']
+                or not Path(r['path']).is_absolute()):
+                continue
+            if any(type(r.get(k)) not in (int,float) or not math.isfinite(r[k]) or r[k]<0 for k in ('mtime','size')):
+                continue
+            r['name'] = str(r.get('name') or Path(r['path']).stem)
+            for k in ('players','maps'):
+                r[k] = [v for v in r.get(k,[]) if isinstance(v,str)] if isinstance(r.get(k,[]),list) else []
+            rows.append(r)
+        return rows
     except (OSError, ValueError):
         return []
 
@@ -63,7 +74,7 @@ def remember(root, item, prefs, elapsed):
         players = list(dict.fromkeys(s.get('name') or s.get('steamid', '') for s in sources)) if sources else [item.get('name', '')]
         row = {'path': str(video), 'name': item.get('name') or video.stem, 'players': players,
             'maps': [item.get('map') or ''], 'mode': mode, 'mtime': st.st_mtime, 'size': st.st_size,
-            'duration': read_duration(video), 'elapsed': max(0, elapsed), 'profile': signature(prefs, mode),
+            'duration': read_duration(video), 'elapsed': max(0, elapsed), 'profile': item.get('_record_profile') or signature(prefs, mode),
             'created': time.time()}
         with _lock:
             data = [row] + [r for r in _read(root) if os.path.normcase(r['path']) != os.path.normcase(str(video))]

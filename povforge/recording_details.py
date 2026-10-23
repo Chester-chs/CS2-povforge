@@ -15,7 +15,8 @@ def build(demo):
         for d in deaths:
             events.append({'round': r.number, 'tick': d.tick, 'time': (d.tick-r.freeze_end_tick)/demo.tickrate,
                 'attacker': d.attacker_steamid, 'victim': d.victim_steamid,
-                'weapon': d.weapon or '', 'headshot': bool(d.headshot), 'pov': d in supported})
+                'weapon': d.weapon or '', 'headshot': bool(d.headshot), 'pov': d in supported,
+                'posthumous': bool(d.attacker_steamid and d.attacker_steamid != d.victim_steamid and d not in supported)})
     seconds = {}
     for p in demo.players:
         segments = plan_segments(demo.rounds, demo.deaths, p.steamid, demo.tickrate, demo.last_tick)
