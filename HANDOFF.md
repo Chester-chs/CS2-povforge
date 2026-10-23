@@ -1,6 +1,31 @@
-# POVForge handoff — 2026-10-23
+# POVForge handoff — 2026-10-24
 
 ## Current agreed scope
+
+v0.16.0 adds pre-recording main-footage estimates, a persistent finished-video
+library, and expandable per-round weapon/event details in all five modes. The
+user cancelled the AI editor; it is absent from this branch/release. Earlier AI
+work was preserved only in a local archive branch/stash, never pushed.
+
+Inspection keeps the v4 disk key. Normal cache reads remain compatible; the GUI
+requests details and upgrades an older entry once to include version-1
+recording_details (events, round boundaries, default whole-match durations).
+Event counts, merged windows, duel A/B playback and player identities remain
+unchanged. Estimates exclude optional effects/replays/intros/outros and are
+labelled accordingly. Processing/size estimates require three local samples
+with matching mode/FPS and whole-match overlay flags. Profiles are captured
+when jobs start; actual time still depends on the PC and reusable recordings.
+
+Completed jobs save best-effort metadata atomically in app_dir/recordings.json,
+outside work files and the queue. Library listing scans only configured output
+roots and immediate player folders, with bounded entries and no link traversal;
+no Demo parsing or mass FFprobe occurs while listing. Changed/missing videos keep
+history with invalidated timing samples. Old files appear with unknown metadata.
+No video deletion/move command was added. GET /api/library retains the existing
+Host boundary; playback uses the existing authenticated open API.
+
+See docs/releases/v0.16.0/verification.md for current-task RED/GREEN evidence.
+No CS2 launch or game/Steam settings edits were performed.
 
 v0.15.10 supersedes the earlier victim replay scope for duel mode: hide the entire
 Perspective replays section in head-to-head mode. The submitted duel task and

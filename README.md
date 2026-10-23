@@ -39,6 +39,12 @@ Resolution, frame rate, player folders and folder names are available under **Re
 
 Demo analysis is saved locally and reused after restarting the app. **Analysis saved** marks a reusable result. The first read, a changed file, or an update to parsing rules requires analysis again; ordinary app updates keep compatible results. This cache speeds up choosing a match, not the real-time recording itself.
 
+## Before recording and your video library
+
+- **Estimated result:** after choosing players and rounds, check the main-footage duration and merged segment count. These exclude extra replays, intros/outros, slow motion and transitions. After three local recordings with matching mode and FPS, previous jobs provide ranges for processing time and output size. Temporary footage needs extra disk space.
+- **Weapons per round:** all five modes show summaries such as `AK-47 ×2 · M4A4 ×1`. Expand a round for event times, players, weapons and headshots. Head-to-head shows only the selected pair's encounters. Previously cached demos need one additional read for the new timing/weapon index, which is then reused.
+- **Video library:** open it from the sidebar to search by player, map or title, filter by mode, play videos and show their folders. New results persist across restarts and queue clearing. Existing videos are discovered in configured output/player folders; their mode, map or duration may be unknown. Moved/deleted files are marked, without rerecording or changing the originals.
+
 ## Choose what to record
 
 | Output | What the video contains |
