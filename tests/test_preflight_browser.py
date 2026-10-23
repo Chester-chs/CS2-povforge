@@ -11,6 +11,7 @@ def test_preflight_weapons_and_finished_library_are_visible_and_responsive(works
         page = browser.page()
         try:
             page.call('Page.enable')
+            page.call('Emulation.setDeviceMetricsOverride',width=1920,height=1080,deviceScaleFactor=1,mobile=False)
             page.call('Page.addScriptToEvaluateOnNewDocument', source="window.uiErrors=[];window.addEventListener('error',e=>uiErrors.push(e.message))")
             page.call('Page.navigate', url=url)
             assert page.wait_for("document.querySelectorAll('.demo-card').length===5", 15)

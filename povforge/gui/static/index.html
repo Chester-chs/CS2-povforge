@@ -24,15 +24,18 @@
   </button>
 
   <nav class="modes" role="tablist" :aria-label="t('modesLabel')">
-    <button role="tab" :aria-selected="!settingsOpen && !reelOpen" @click="openMatchMode()">
+    <button role="tab" :aria-selected="!settingsOpen && !videosOpen && !reelOpen" @click="openMatchMode()">
       <svg><use href="#i-film"/></svg><span x-text="t('modeMatch')"></span>
     </button>
     <template x-for="mode in reelModes" :key="mode.value">
-      <button role="tab" :aria-selected="!settingsOpen && reelOpen && reel.content === mode.value" @click="openReel(false, mode.value)">
+      <button role="tab" :aria-selected="!settingsOpen && !videosOpen && reelOpen && reel.content === mode.value" @click="openReel(false, mode.value)">
         <svg><use :href="'#i-' + mode.icon"/></svg><span x-text="t(mode.label)"></span>
       </button>
     </template>
   </nav>
+  <button class="side-row videos-nav" :aria-current="videosOpen ? 'page' : null" @click="openVideos()">
+    <svg class="row-ic"><use href="#i-folder"/></svg><span x-text="lang === 'zh' ? '成片库' : 'Video library'"></span>
+  </button>
 
   <div class="side-scroll">
 
@@ -82,7 +85,7 @@
 
 <!-- ================= content ================= -->
 <main class="content">
-<div class="recording-views" :class="{ 'library-layout': booted && libraryOpen && !setupOpen && !runVisible, 'editor-layout': booted && reelOpen && !libraryOpen && !setupOpen && !runVisible }" x-show="!settingsOpen">
+<div class="recording-views" :class="{ 'library-layout': booted && libraryOpen && !setupOpen && !runVisible, 'editor-layout': booted && reelOpen && !libraryOpen && !setupOpen && !runVisible }" x-show="!settingsOpen && !videosOpen">
   <!-- The library is the everyday home; setup is an explicit, separate view. -->
   <section class="page library" x-cloak x-show="booted && libraryOpen && !setupOpen && !runVisible">
     <header class="library-head">
@@ -294,6 +297,19 @@
         </div>
 
         <p class="selection-totals match-totals" aria-live="polite" x-text="t('selectionTotals', { name: player.name, k: matchTotals.kills, d: matchTotals.deaths })"></p>
+        <aside class="group pad preflight" aria-live="polite">
+          <h3 x-text="lang === 'zh' ? '预计结果' : 'Before recording'"></h3><b class="estimate-main" x-text="estimateText(matchEstimate)"></b>
+          <p class="hint" x-text="estimateResources(matchEstimate,'match')"></p>
+          <p class="hint" x-text="lang === 'zh' ? '按默认回合起止估算；不含片头。断线、录制定位及编码会影响实际结果。磁盘还需留出工作文件空间。' : 'Estimated from default round boundaries, excluding the intro. Disconnects, seeking and encoding affect actual results. Temporary recordings need extra disk space.'"></p>
+        </aside>
+        <h3 class="group-title" x-text="lang === 'zh' ? '回合与击杀武器' : 'Rounds and weapons'"></h3>
+        <ul class="group round-events">
+          <template x-for="r in (customRounds ? chosenRounds : roundList)" :key="r">
+            <li class="row"><details class="weapon-details"><summary><b x-text="t('roundN',{r})"></b><small x-text="weaponSummary({round:r,steamid:player.steamid},demo,'match')"></small></summary>
+              <ul><template x-for="(e,i) in itemEvents({round:r,steamid:player.steamid},demo,'match')" :key="i"><li x-text="eventLabel(e,demo)"></li></template></ul>
+            </details></li>
+          </template>
+        </ul>
         <h3 class="group-title" x-text="t('optsTitle')"></h3>
         <ul class="group">
           <template x-for="o in options" :key="o.key">
@@ -399,6 +415,11 @@
     <div class="selection-totals reel-totals" aria-live="polite">
       <template x-for="row in reelTotals" :key="row.steamid"><p x-text="t(reel.content === 'duel' ? 'duelTotals' : 'selectionTotals', { name: row.name, k: row.kills, d: row.deaths })"></p></template>
     </div>
+    <aside class="group pad preflight" aria-live="polite">
+      <h3 x-text="lang === 'zh' ? '预计结果' : 'Before recording'"></h3><b class="estimate-main" x-text="estimateText(reelEstimate)"></b>
+      <p class="hint" x-text="estimateResources(reelEstimate,reel.content)"></p>
+      <p class="hint" x-text="lang === 'zh' ? '按事件时间和合并后的主体片段估算；不含额外重放、片头片尾、慢动作及转场。实际成片会随这些设置变化。工作文件需要额外空间。' : 'Estimated from event times and merged main clips; excludes extra replays, intros/outros, slow motion and transitions. These settings change the final duration. Work files need extra space.'"></p>
+    </aside>
     <ul class="group reel-list">
       <template x-for="(c, i) in reel.items" :key="c.key">
         <li class="row" :draggable="!chronologicalReel" @dragstart="dragFrom = i" @dragover.prevent @drop.prevent="dropAt(i)" :class="{ dragging: dragFrom === i, last: i === reel.items.length - 1 }">
@@ -407,6 +428,7 @@
           <span class="row-main">
             <b><span x-text="tagOf(c)"></span><em class="hs" x-show="c.hs" x-text="t('tagHs', { n: c.hs })"></em></b>
             <small x-text="[c.map, c.name, t('roundN', { r: c.round })].join('  ')"></small>
+            <details class="weapon-details"><summary x-text="weaponSummary(c)"></summary><ul><template x-for="(e,j) in itemEvents(c)" :key="j"><li x-text="eventLabel(e,itemInfo(c))"></li></template></ul></details>
           </span>
           <span class="row-tools">
             <button class="icon-btn" x-show="!chronologicalReel" @click="moveReelItem(i, -1)" :disabled="i === 0" :title="t('up')" :aria-label="t('up')"><svg><use href="#i-chevron-up"/></svg></button>
@@ -739,6 +761,32 @@
 
 </div>
 
+<section class="page finished-library" x-show="videosOpen && !settingsOpen" x-cloak>
+  <header class="videos-head">
+    <div><h1 x-text="lang === 'zh' ? '成片库' : 'Video library'"></h1><p class="muted" x-text="lang === 'zh' ? '已经完成的视频，随时回来查看。清除录制队列不会删除这里的记录。' : 'Your finished videos, kept independently of the recording queue.'"></p></div>
+    <button class="btn" @click="openVideos()" :disabled="videosBusy"><svg><use href="#i-refresh-cw"/></svg><span x-text="lang === 'zh' ? '刷新' : 'Refresh'"></span></button>
+  </header>
+  <div class="video-filters">
+    <label class="video-search search-field"><svg><use href="#i-search"/></svg><input type="search" x-model="videoQuery" :placeholder="lang === 'zh' ? '搜索选手、地图或视频名称' : 'Search player, map or video'" :aria-label="lang === 'zh' ? '搜索成片' : 'Search videos'"></label>
+    <select class="select" x-model="videoMode" :aria-label="lang === 'zh' ? '录制模式' : 'Recording mode'">
+      <option value="all" x-text="lang === 'zh' ? '全部模式' : 'All modes'"></option>
+      <template x-for="m in ['match',...reelModes.map(m=>m.value),'unknown']" :key="m"><option :value="m" x-text="modeName(m)"></option></template>
+    </select>
+  </div>
+  <p class="footnote err" x-show="videosError" x-text="videosError"></p>
+  <div class="group video-list" :aria-busy="videosBusy">
+    <template x-for="v in filteredVideos" :key="v.path">
+      <article class="row video-row">
+        <span class="video-icon"><svg><use href="#i-film"/></svg></span>
+        <div class="row-main"><b x-text="v.name"></b><small x-text="[modeName(v.mode),...(v.players || []),...(v.maps || [])].filter(Boolean).join(' · ')"></small><small class="path" :title="v.path" x-text="v.path"></small><small class="err" x-show="v.missing" x-text="lang === 'zh' ? '文件已移动或删除，原记录仍保留' : 'File moved or deleted; history retained'"></small></div>
+        <span class="video-meta"><b class="num" x-text="v.duration ? clock(v.duration) : '—'"></b><small class="muted" x-text="ago(v.mtime) + ' · ' + gb(v.size)"></small></span>
+        <div class="video-actions"><button class="btn" :disabled="v.missing" @click="openPath(v.path,false)" x-text="t('play')"></button><button class="btn" :disabled="v.missing" @click="openPath(v.path,true)" x-text="lang === 'zh' ? '文件夹' : 'Folder'"></button></div>
+      </article>
+    </template>
+    <div class="library-empty" x-show="!filteredVideos.length"><p x-text="videosBusy ? (lang === 'zh' ? '正在载入…' : 'Loading…') : (lang === 'zh' ? '没有匹配的成片' : 'No matching videos')"></p></div>
+  </div>
+  <p class="footnote" x-text="lang === 'zh' ? '自动收录新成片，并查找保存目录及选手文件夹内的已有视频。旧视频的地图、模式和时长可能未知；不会为了补全信息重新读取 Demo。' : 'New results are saved automatically. Existing videos are found in output and player folders; their map, mode or duration may be unknown. Demos are never reparsed for the library.'"></p>
+</section>
 <section class="page settings-page" x-show="settingsOpen" x-cloak>
   <button class="back-library link" @click="settingsOpen = false" x-text="t('backRecording')"></button>
   <header class="title-block"><h1 x-text="t('settings')"></h1></header>

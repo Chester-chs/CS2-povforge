@@ -290,6 +290,7 @@ document.addEventListener("alpine:init", () => {
     queue: { items: [], paused: false }, update: null, showRun: false, viewId: null, toasts: [], toastSeq: 0,
 
     async boot() {
+      this.loadVideos();
       // closing the window: tell the app at once (a reload checks in again straight away)
       window.addEventListener("pagehide", () => {
         fetch("/api/bye", { method: "POST", keepalive: true,
@@ -736,7 +737,7 @@ document.addEventListener("alpine:init", () => {
     },
     get reelEstimate() {
       let seconds = 0, segments = 0; const seen = new Set();
-      const mode = this.reel.content, pace = mode === 'kills' ? ({tight:[2.5,1],long:[6,2.5]})[this.fx?.pace] : null;
+      const mode = this.reel.content, pace = mode === 'kills' ? ({tight:[2,.8],long:[6,2.5]})[this.fx?.pace] : null;
       const [before,after] = pace || [4,1.5];
       for (const item of this.reel.items) {
         if (seen.has(item.key || JSON.stringify(item))) continue; seen.add(item.key || JSON.stringify(item));
@@ -768,8 +769,8 @@ document.addEventListener("alpine:init", () => {
       if (samples.length < 3) return this.lang === 'zh' ? '本机完成 3 次同类录制后，可估算制作耗时和成片大小。' : 'Time and output-size estimates become available after 3 similar recordings on this PC.';
       const rates = samples.map(v => v.elapsed/v.duration).sort((a,b)=>a-b), sizes = samples.map(v=>v.size/v.duration).sort((a,b)=>a-b);
       const low = estimate.seconds*rates[0]*.8, high = estimate.seconds*rates[rates.length-1]*1.2;
-      return this.lang === 'zh' ? `按本机 ${samples.length} 次记录估算：制作约 ${this.clock(low)}–${this.clock(high)}；成片约 ${this.bytes(estimate.seconds*sizes[0]*.8)}–${this.bytes(estimate.seconds*sizes[sizes.length-1]*1.2)}。`
-        : `Based on ${samples.length} local jobs: processing ≈ ${this.clock(low)}–${this.clock(high)}; output ≈ ${this.bytes(estimate.seconds*sizes[0]*.8)}–${this.bytes(estimate.seconds*sizes[sizes.length-1]*1.2)}.`;
+      return this.lang === 'zh' ? `按本机 ${samples.length} 次记录估算：制作约 ${this.clock(low)}–${this.clock(high)}；成片约 ${this.gb(estimate.seconds*sizes[0]*.8)}–${this.gb(estimate.seconds*sizes[sizes.length-1]*1.2)}。`
+        : `Based on ${samples.length} local jobs: processing ≈ ${this.clock(low)}–${this.clock(high)}; output ≈ ${this.gb(estimate.seconds*sizes[0]*.8)}–${this.gb(estimate.seconds*sizes[sizes.length-1]*1.2)}.`;
     },
     get reelWhyNot() {
       const w = this.whyNotSetup;
@@ -1261,6 +1262,7 @@ document.addEventListener("alpine:init", () => {
     async clearQueue() { this.queue = await this.post("/api/queue/clear"); },
     async resumeQueue() { this.queue = await this.post("/api/queue/resume"); },
     openItem(it) {
+      this.videosOpen = false;
       this.settingsOpen = false; this.setupOpen = false; this.reelOpen = false;
       this.viewId = it.state === "running" ? null : it.id;
       this.showRun = true;
