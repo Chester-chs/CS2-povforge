@@ -82,7 +82,7 @@
 
 <!-- ================= content ================= -->
 <main class="content">
-<div class="recording-views" x-show="!settingsOpen">
+<div class="recording-views" :class="{ 'library-layout': booted && libraryOpen && !setupOpen && !runVisible }" x-show="!settingsOpen">
   <!-- The library is the everyday home; setup is an explicit, separate view. -->
   <section class="page library" x-cloak x-show="booted && libraryOpen && !setupOpen && !runVisible">
     <header class="library-head">
@@ -293,6 +293,7 @@
           </p>
         </div>
 
+        <p class="selection-totals match-totals" aria-live="polite" x-text="t('selectionTotals', { name: player.name, k: matchTotals.kills, d: matchTotals.deaths })"></p>
         <h3 class="group-title" x-text="t('optsTitle')"></h3>
         <ul class="group">
           <template x-for="o in options" :key="o.key">
@@ -303,7 +304,7 @@
           </template>
           <li class="row">
             <span class="row-main"><b x-text="t('saveTo')"></b><small class="path" x-text="shortPath(saveFolder)" :title="saveFolder"></small></span>
-            <button class="btn" @click="chooseFolder('output')" x-text="t('change')"></button>
+            <button class="btn" @click="prefs.by_player === false ? chooseFolder('output') : choosePlayerOutput(player.steamid, player.name)" x-text="t('chooseFolder')"></button>
           </li>
         </ul>
       </div>
@@ -395,6 +396,9 @@
       <span class="hint num" x-show="reel.items.length" x-text="t('reelCount', { n: reel.items.length, s: reelSeconds(reel.items) })"></span>
     </div>
     <p class="hint below" x-text="reelContentHelp"></p>
+    <div class="selection-totals reel-totals" aria-live="polite">
+      <template x-for="row in reelTotals" :key="row.steamid"><p x-text="t(reel.content === 'duel' ? 'duelTotals' : 'selectionTotals', { name: row.name, k: row.kills, d: row.deaths })"></p></template>
+    </div>
     <ul class="group reel-list">
       <template x-for="(c, i) in reel.items" :key="c.key">
         <li class="row" :draggable="!chronologicalReel" @dragstart="dragFrom = i" @dragover.prevent @drop.prevent="dropAt(i)" :class="{ dragging: dragFrom === i, last: i === reel.items.length - 1 }">
@@ -524,7 +528,7 @@
     </template>
 
     <template x-if="fx && fx.camera">
-      <div>
+      <div class="camera-options">
         <div class="group-title"><h3 x-text="t('fxCamera')"></h3></div>
         <p class="hint below" x-text="t('cameraHelp')"></p>
         <div class="group">
@@ -560,7 +564,7 @@
           </template>
           <li class="row sub" x-show="fx.music">
             <span class="row-main"><small x-text="t('musicVol', { v: Math.round(fx.music_volume * 100) })"></small></span>
-            <input type="range" class="range" min="0" max="1.5" step="0.05" x-model.number="fx.music_volume" @change="fxChanged()" :aria-label="t('fxMusic')">
+            <input type="range" class="range" min="0" max="1.5" step="0.05" x-model.number="fx.music_volume" :style="'--range-progress:' + ((fx.music_volume || 0) / 1.5 * 100) + '%'" @change="fxChanged()" :aria-label="t('fxMusic')">
           </li>
           <li class="row sub" x-show="fx.music">
             <label class="row-main" for="music-sync"><b x-text="lang === 'zh' ? '自动卡点（优先连杀）' : 'Sync music to kills'"></b><small x-text="lang === 'zh' ? '从整首歌选择片段，让击杀尽量靠近强拍、连杀落在能量较高处；并非每次击杀都能精确落拍。' : 'Choose a passage from the full song, prioritizing strong beats and energetic multi-kills. Not every kill can land exactly on a beat.'"></small></label>
@@ -678,21 +682,18 @@
 <section class="page recording-panel" x-ref="recordingOptions" x-show="booted && !setupOpen && !runVisible && !inspecting && !inspectError" x-cloak>
   <h2 class="settings-heading" x-text="t('recordingSettings')"></h2>
   <ul class="group">      <li class="row">
-        <label class="row-main" for="record-resolution"><b x-text="t('recRes')"></b><small x-text="t('recResHelp')"></small></label>
-        <select id="record-resolution" class="select" :value="prefs.record_res || 'auto'" @change="prefs.record_res = $event.target.value; savePrefs()">
-          <template x-for="o in ['auto', '1080', '1440', '2160']" :key="o">
-            <option :value="o" x-text="t('res_' + o)"></option>
-          </template>
-        </select>
+        <span class="row-main"><b x-text="t('recRes')"></b><small x-text="t('recResHelp')"></small></span>
+        <span class="fixed-resolution">1080P</span>
       </li>
       <li class="row">
         <label class="row-main" for="record-fps"><b x-text="t('recFps')"></b><small x-text="t('recFpsHelp')"></small></label>
-        <div class="fps-input">
-          <input id="record-fps" class="select" type="number" min="1" max="240" step="1" list="fps-presets" :value="prefs.record_fps || 60"
-                 @change="if ($el.checkValidity() && $el.value !== '') { prefs.record_fps = Number($el.value); savePrefs(); } else { $el.reportValidity(); $el.value = prefs.record_fps || 60; }">
-          <span>FPS</span>
-          <datalist id="fps-presets"><option value="24"></option><option value="30"></option><option value="60"></option><option value="120"></option><option value="144"></option><option value="240"></option></datalist>
-        </div>
+        <select id="record-fps" class="select" :value="prefs.record_fps || 60" @change="prefs.record_fps = Number($event.target.value); savePrefs()">
+          <template x-for="rate in [24,30,60,120,144,240]" :key="rate"><option :value="rate" x-text="rate + ' FPS'"></option></template>
+        </select>
+      </li>
+      <li class="row output-root">
+        <span class="row-main"><b x-text="t('saveTo')"></b><small class="path" x-text="prefs.output" :title="prefs.output"></small></span>
+        <button class="btn" @click="chooseFolder('output')" x-text="t('chooseFolder')"></button>
       </li>
       <li class="row">
         <label class="row-main" for="by-player"><b x-text="t('byPlayer')"></b><small x-text="t('byPlayerHelp')"></small></label>
@@ -700,8 +701,9 @@
       </li>
       <template x-for="[sid, f] in playerFolderList" :key="sid">
         <li class="row sub folder-row">
-          <span class="folder-who" x-text="t('folderOf', { name: f.name })"></span>
-          <input class="text-input inline folder-name" :value="f.folder" @change="renamePlayerFolder(sid, $event.target.value, $event.target)" :aria-label="t('folderOf', { name: f.name })">
+          <span class="row-main"><b x-text="f.name"></b><small class="path" x-text="folderPath(f)" :title="folderPath(f)"></small></span>
+          <button class="btn" @click="choosePlayerOutput(sid, f.name)" x-text="t('chooseFolder')"></button>
+          <button class="link small" x-show="f.path" @click="choosePlayerOutput(sid, f.name, true)" x-text="t('useDefaultFolder')"></button>
         </li>
       </template>
 </ul>
@@ -737,7 +739,7 @@
         <select id="app-font" class="select" :value="prefs.font || 'system'" @change="prefs.font = $event.target.value; saveAppearance()"><template x-for="font in fonts" :key="font"><option :value="font" x-text="t('font_' + font)"></option></template></select>
       </div>
       <div class="row"><label class="row-main" for="popup-radius"><b x-text="t('popupRadius')"></b><small x-text="t('popupRadiusHelp')"></small></label>
-        <div class="radius-control"><input id="popup-radius" type="range" min="0" max="28" step="1" :value="prefs.popup_radius ?? 14" @input="previewPopupRadius($event.target.value)" @change="savePopupRadius($event.target.value)"><output x-text="(prefs.popup_radius ?? 14) + ' px'"></output></div>
+        <div class="radius-control"><input id="popup-radius" type="range" min="0" max="28" step="1" :value="prefs.popup_radius ?? 14" :style="'--range-progress:' + ((prefs.popup_radius ?? 14) / 28 * 100) + '%'" @input="previewPopupRadius($event.target.value)" @change="savePopupRadius($event.target.value)"><output x-text="(prefs.popup_radius ?? 14) + ' px'"></output></div>
       </div>
     </div>
     <div class="preview-stage"><div class="popup-preview"><svg><use href="#i-circle-check"/></svg><h3 x-text="t('appearancePreview')"></h3><p x-text="t('appearanceExample')"></p><span class="btn primary" x-text="t('ok')"></span></div></div>

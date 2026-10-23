@@ -20,13 +20,13 @@ const TEXT = {
     continueReel: "继续 · 已选 {n} 场", backLibrary: "返回比赛列表", chooseDemos: "选择比赛",
     enterWorkspace: "开始选择比赛", checkEnvironment: "有准备项目需要处理，查看详情", environment: "环境检查",
     loadingLibrary: "正在载入比赛列表…", noMatches: "没有匹配的比赛", trySearch: "试试其他地图或文件名。",
-    byPlayer: "按选手分文件夹", byPlayerHelp: "成片放进 保存位置/选手名/，几个选手的集锦放进「多人集锦」。文件夹名可以在下面改。",
+    byPlayer: "按选手 ID 建文件夹", byPlayerHelp: "首次录制时自动创建，以选手的游戏 ID 命名；以后复用。也可以为选手单独选择保存文件夹。", chooseFolder: "选择文件夹…", useDefaultFolder: "恢复默认", selectionTotals: "{name} · 所选回合共击杀 {k} 次 · 共死亡 {d} 次", duelTotals: "{name} · 双方交手中击杀 {k} 次 · 死亡 {d} 次",
     folderOf: "{name} 的文件夹", folderTaken: "已经有这个名字的文件夹了。", folderBusy: "正在录制，录完再改名。",
     linkPaste: "粘贴链接", linkRead: "读取", linkHint: "B 站、YouTube 等视频页的链接，或直接的 .mp4 地址", linkBad: "请粘贴以 http 开头的链接。",
     analyzingLink: "正在下载并分析 {name}…", analyzingLinkHelp: "只下载低清晰度的一份，读完就删，通常不到一分钟。",
-    recRes: "输出分辨率", recResHelp: "游戏画面小于所选尺寸时会放大输出，不增加原生细节。",
-    res_auto: "适应屏幕", res_1080: "1080P · 1920×1080", res_1440: "2K · 2560×1440", res_2160: "4K · 3840×2160",
-    recFps: "录制帧率", recFpsHelp: "可输入 1–240 FPS；常用 30、60、120。更高画质需要更多处理时间与空间。", fpsN: "{n} 帧",
+    recRes: "输出分辨率", recResHelp: "固定输出 1920×1080。",
+    res_1080: "1080P",
+    recFps: "录制帧率", recFpsHelp: "选择帧率；数值越高，录制越耗时、文件越大。", fpsN: "{n} 帧",
     musicAdd: "上传音乐…", musicOff: "不加音乐", musicHelp: "添加整首音乐，可打开自动卡点，按 Demo 击杀时间选择强拍片段。不够长时回退为循环播放，末尾淡出。上传过的音乐会保留。",
     modesLabel: "做什么", modeMatch: "Demo整场录制", demosForReel: "点选要用的 demo", reelPickLeft: "点「选择比赛」返回比赛列表，可以选择多场比赛。",
     styleTitle: "成片风格", styleHelp: "导入成片后先预览、选择时间段并描述想要的特效，查看可实现方案后再应用。当前支持常见剪辑效果，物体跟踪与复杂粒子效果暂不支持。",
@@ -147,13 +147,13 @@ const TEXT = {
     continueReel: "Continue with {n} matches", backLibrary: "Back to matches", chooseDemos: "Choose matches",
     enterWorkspace: "Choose a match", checkEnvironment: "Some preparation needs attention. View details", environment: "Environment check",
     loadingLibrary: "Loading matches…", noMatches: "No matching matches", trySearch: "Try another map or filename.",
-    byPlayer: "A folder per player", byPlayerHelp: "Videos go into save folder/player name/; reels of several players into \u201cMulti-player reels\u201d. Rename the folders below.",
+    byPlayer: "Create a folder per player ID", byPlayerHelp: "The first recording creates a folder named after the player’s in-game ID. Later recordings reuse it. You can choose a different folder for each player.", chooseFolder: "Choose folder…", useDefaultFolder: "Use default", selectionTotals: "{name} · Selected rounds: {k} kills · {d} deaths", duelTotals: "{name} · Mutual encounters: {k} kills · {d} deaths",
     folderOf: "{name}'s folder", folderTaken: "There is already a folder with this name.", folderBusy: "A recording is running; rename it when it's done.",
     linkPaste: "Paste a link", linkRead: "Read", linkHint: "A Bilibili, YouTube or other video page, or a direct .mp4 address", linkBad: "Paste a link starting with http.",
     analyzingLink: "Downloading and reading {name}…", analyzingLinkHelp: "Only a small copy is downloaded and deleted afterwards; usually under a minute.",
-    recRes: "Output resolution", recResHelp: "Smaller game footage is upscaled to this size; upscaling does not add native detail.",
-    res_auto: "Fit screen", res_1080: "1080P · 1920×1080", res_1440: "2K · 2560×1440", res_2160: "4K · 3840×2160",
-    recFps: "Frame rate", recFpsHelp: "Enter 1–240 FPS; common choices are 30, 60 and 120. Higher quality takes more processing time and space.", fpsN: "{n} fps",
+    recRes: "Output resolution", recResHelp: "Fixed output at 1920×1080.",
+    res_1080: "1080P",
+    recFps: "Frame rate", recFpsHelp: "Choose a frame rate. Higher rates take longer to record and use more storage.", fpsN: "{n} fps",
     musicAdd: "Add music…", musicOff: "No music", musicHelp: "Add a full song and optionally sync its strong beats to Demo kill times. Short tracks fall back to looping, with a fade at the end. Songs are remembered for next time.",
     modesLabel: "What to make", modeMatch: "Whole match", demosForReel: "Pick demos for the reel", reelPickLeft: "Use Choose matches to return to the match list and select several matches.",
     styleTitle: "Style", styleHelp: "Preview a reference, select a time range and describe the wanted effect. Review the proposal before applying. Common editing effects are supported; object tracking and complex particles are not.",
@@ -271,8 +271,8 @@ document.addEventListener("alpine:init", () => {
     reelModes: [
       {value: 'kill_events', label: 'modeKills', help: 'modeKillsHelp', icon: 'crosshair'},
       {value: 'kills_deaths', label: 'modeKillsDeaths', help: 'modeKillsDeathsHelp', icon: 'skull'},
-      {value: 'kills', label: 'reelNav', help: 'reelBody', icon: 'sparkles'},
       {value: 'duel', label: 'modeDuel', help: 'modeDuelHelp', icon: 'layers'},
+      {value: 'kills', label: 'reelNav', help: 'reelBody', icon: 'sparkles'},
     ],
     linkOpen: false, linkText: "", screen: null, sizes: [],
     fx: null, fxMeta: { defaults: {}, presets: {}, transitions: [], grades: [] }, fxPreset: "plain", fxSaveOpen: false, fxSaveName: "",
@@ -430,7 +430,19 @@ document.addEventListener("alpine:init", () => {
     // --- a folder per player ---
     get playerFolderList() {
       if (this.prefs.by_player === false) return [];
-      return Object.entries(this.prefs.player_folders || {}).sort((a, b) => a[1].folder.localeCompare(b[1].folder));
+      const entries = { ...(this.prefs.player_folders || {}) };
+      const add = p => { if (p && !entries[p.steamid]) entries[p.steamid] = {name:p.name,folder:p.name.replace(/[<>:"\/\\|?*]/g, '_')}; };
+      add(this.player);
+      for (const source of this.reel.sources) add(this.playerIn(source.info, this.srcPlayerId(source)));
+      return Object.entries(entries).sort((a, b) => a[1].name.localeCompare(b[1].name));
+    },
+    folderPath(entry) {
+      const base = this.prefs.output || '';
+      return entry.path || base + (base.includes('\\') ? '\\' : '/') + entry.folder;
+    },
+    async choosePlayerOutput(sid, name, reset = false) {
+      try { this.prefs = await this.post('/api/player-output', {steamid:sid,name,reset}); }
+      catch (e) { this.toast(e.message === 'busy' ? this.t('folderBusy') : e.message); }
     },
     async renamePlayerFolder(sid, name, input) {
       try { this.prefs = await this.post("/api/player-folder", { steamid: sid, folder: name }); }
@@ -442,6 +454,8 @@ document.addEventListener("alpine:init", () => {
     get saveFolder() {
       const base = this.prefs.output || "";
       if (this.prefs.by_player === false || !this.player) return base;
+      const custom = this.prefs.player_folders?.[this.player.steamid]?.path;
+      if (custom) return custom;
       const f = this.prefs.player_folders?.[this.player.steamid]?.folder || this.player.name.replace(/[<>:"\/\\|?*]/g, "_");
       return base + (base.includes("\\") ? "\\" : "/") + f;
     },
@@ -579,6 +593,37 @@ document.addEventListener("alpine:init", () => {
         });
       }
       return out;
+    },
+    roundTotals(player, rounds) {
+      return [...new Set(rounds)].reduce((sum, round) => ({
+        kills: sum.kills + (player?.rounds_k?.[round - 1] || 0),
+        deaths: sum.deaths + (player?.rounds_died?.[round - 1] ? 1 : 0)
+      }), {kills:0, deaths:0});
+    },
+    get matchTotals() { return this.roundTotals(this.player, this.customRounds ? this.chosenRounds : this.roundList); },
+    get reelTotals() {
+      const totals = new Map(), seen = new Set();
+      const add = (player, count) => {
+        if (!player) return;
+        const row = totals.get(player.steamid) || {steamid:player.steamid,name:player.name,kills:0,deaths:0};
+        row.kills += count.kills; row.deaths += count.deaths; totals.set(player.steamid, row);
+      };
+      for (const item of this.reel.items) {
+        const key = `${item.path}|${item.steamid}|${item.opponent || ''}|${item.round}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const source = this.reel.sources.find(x => x.path === item.path);
+        const player = this.playerIn(source?.info, item.steamid);
+        if (this.reel.content !== 'duel') { add(player, this.roundTotals(player, [item.round])); continue; }
+        const opponent = this.playerIn(source?.info, item.opponent);
+        const events = (source?.info?.duels || []).filter(e => e.round === item.round &&
+          ((e.attacker === item.steamid && e.victim === item.opponent) ||
+           (e.attacker === item.opponent && e.victim === item.steamid)));
+        const kills = events.filter(e => e.attacker === item.steamid).length;
+        add(player, {kills, deaths:events.length-kills});
+        add(opponent, {kills:events.length-kills,deaths:kills});
+      }
+      return [...totals.values()];
     },
     recompute() {
       for (const x of this.reel.sources) {

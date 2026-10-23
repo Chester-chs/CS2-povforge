@@ -63,7 +63,7 @@ def load_prefs() -> dict:
              "intro": True, "minimap": True, "keyboard": True, "show_enemies": False, "lang": "",
              "upload": True, "appearance": "auto", "accent": "blue", "font": "system", "popup_radius": 14,
              "by_player": True,          # finished videos go into a folder per player
-             "record_res": "auto",       # fit the screen, up to 4K
+             "record_res": "1080",       # fixed app output size
              "record_fps": 60,
              "player_folders": {},       # steamid -> {"folder": name on disk, "name": in-game name}
              "folders_set": False}       # first run: the user picks where demos are and where videos go
@@ -75,8 +75,7 @@ def load_prefs() -> dict:
         except Exception:
             pass
     prefs.pop("upload_4k", None)
-    if prefs.get("record_res") not in ("auto", *SIZES):
-        prefs["record_res"] = "1080"
+    prefs["record_res"] = "1080"
     prefs["record_fps"] = record_fps(prefs)
     if prefs.get("font") not in FONTS:
         prefs["font"] = "system"
@@ -108,6 +107,7 @@ def write_job_config(prefs: dict, videos: Path | None = None) -> Path:
     """povforge.toml for one run, from the app's switches; ``videos`` = folder for the finished video."""
     lines = ["[output]", f"dir = {_toml_str(prefs['output'])}"]
     if videos is not None:
+        videos.mkdir(parents=True, exist_ok=True)
         lines.append(f"videos = {_toml_str(str(videos))}")
     lines += ["",
              "[overlay]", f"minimap = {str(bool(prefs['minimap'])).lower()}",
@@ -128,12 +128,13 @@ def write_job_config(prefs: dict, videos: Path | None = None) -> Path:
 
 # --- recording size ----------------------------------------------------------------
 
-SIZES = {"1080": (1920, 1080), "1440": (2560, 1440), "2160": (3840, 2160)}
+SIZES = {"1080": (1920, 1080)}
+FRAME_RATES = (24, 30, 60, 120, 144, 240)
 
 
 def record_fps(prefs: dict) -> int:
     value = prefs.get("record_fps", 60)
-    return value if type(value) is int and 1 <= value <= 240 else 60
+    return value if type(value) is int and value in FRAME_RATES else 60
 
 
 def screen_size() -> tuple[int, int] | None:
@@ -175,13 +176,8 @@ def fitting_sizes(screen: tuple[int, int] | None) -> list[str]:
 
 
 def record_size(prefs: dict, screen: tuple[int, int] | None = None) -> tuple[int, int]:
-    """Use the requested size; only Auto follows the current screen size."""
-    chosen = prefs.get("record_res")
-    if isinstance(chosen, str) and chosen in SIZES:
-        return SIZES[chosen]
-    screen = screen if screen is not None else screen_size()
-    scale = min(1.0, screen[0] / 3840, screen[1] / 2160) if screen else 0.5
-    return max(2, int(3840 * scale) // 2 * 2), max(2, int(2160 * scale) // 2 * 2)
+    """The app always outputs 1080p, including after loading older preferences."""
+    return SIZES["1080"]
 
 
 
@@ -228,8 +224,12 @@ def videos_folder(prefs: dict, item: dict) -> Path | None:
         if len(ids) != 1:
             return base / MULTI_FOLDER.get(prefs.get("lang") or "zh", MULTI_FOLDER["zh"])
         name = next((i.get("name") for i in item["reel"] if i.get("name")), "")
-        return base / player_folder(prefs, ids[0], name)
-    return base / player_folder(prefs, str(item.get("steamid", "")), item.get("name", ""))
+        sid = ids[0]
+    else:
+        sid, name = str(item.get("steamid", "")), item.get("name", "")
+    folder = player_folder(prefs, sid, name)
+    custom = prefs["player_folders"][sid].get("path")
+    return Path(custom) if custom else base / folder
 
 
 def _move_into(src: Path, folder: Path) -> Path:
@@ -1615,6 +1615,28 @@ def make_handler(app: App):
                                                                       if f != chosen][:4]
                         save_prefs(app.prefs)
                     return self._json(app.prefs)
+                if url.path == "/api/player-output":
+                    if app.job.busy:
+                        return self._json({"error": "busy"}, 409)
+                    sid = b.get("steamid")
+                    if not isinstance(sid, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", sid):
+                        return self._json({"error": "invalid player"}, 400)
+                    name = str(b.get("name") or sid)[:128]
+                    entry = app.prefs.get("player_folders", {}).get(sid, {})
+                    if b.get("reset") is True:
+                        entry.pop("path", None)
+                    else:
+                        initial = entry.get("path") or str(Path(app.prefs["output"]) / entry.get("folder", folder_name(name)))
+                        chosen = pick_folder(initial)
+                        if not chosen:
+                            return self._json(app.prefs)
+                        selected = Path(chosen)
+                        if not selected.is_absolute() or not selected.is_dir():
+                            return self._json({"error": "invalid folder"}, 400)
+                        player_folder(app.prefs, sid, name)
+                        app.prefs["player_folders"][sid]["path"] = str(selected.resolve())
+                    save_prefs(app.prefs)
+                    return self._json(app.prefs)
                 if url.path == "/api/player-folder":
                     if app.job.busy:
                         return self._json({"error": "busy"}, 409)
@@ -1635,9 +1657,8 @@ def make_handler(app: App):
                                                       if isinstance(m, dict) and m.get("path")]
                     if "by_player" in b:
                         app.prefs["by_player"] = bool(b["by_player"])
-                    if b.get("record_res") in ("auto", *SIZES):
-                        app.prefs["record_res"] = b["record_res"]
-                    if type(b.get("record_fps")) is int and 1 <= b["record_fps"] <= 240:
+                    app.prefs["record_res"] = "1080"
+                    if type(b.get("record_fps")) is int and b["record_fps"] in FRAME_RATES:
                         app.prefs["record_fps"] = b["record_fps"]
                     app.prefs.pop("upload_4k", None)
                     update_appearance(app.prefs, b)

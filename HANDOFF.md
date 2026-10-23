@@ -2,6 +2,29 @@
 
 ## Current agreed scope
 
+v0.15.7 supersedes the app quality choices below: resolution is fixed at 1080P,
+with no editable size control. Saved 2K/4K app choices migrate to 1080. FPS is a
+24/30/60/120/144/240 menu; other old values fall back to 60. CLI/media helpers
+remain compatible with existing advanced configurations.
+The sidebar now orders whole match, kill POV, kills/deaths POV, duel, highlights.
+Selected rounds show kills/deaths totals. Duel totals are per player and count
+only mutual encounters; totals update when rounds/players change and dedupe
+repeated selections. First-person/victim replay behavior is unchanged.
+Recording options show a root folder picker and per-player destination pickers.
+Defaults use the first recorded in-game ID name, reuse that player's folder and
+create it when the job config is written. Chosen destinations persist by Steam
+identity; cancelling a picker leaves preferences intact. Existing videos are
+not moved when choosing a new destination. Legacy folder rename API is retained.
+Desktop >=1560px uses a side-by-side match library and recording options; smaller
+windows stack them with consistent widths. Native maximized preview checked.
+Help text after grouped controls has at least 12px top spacing. Unfilled slider
+tracks are white, with the selected accent on the filled track and thumb.
+Local regression: 340 passed in 277.80s before final small markup/directory
+creation refinements; 31 affected tests passed afterward. Browser geometry and
+state tests, JS syntax and 25 director assertions passed. Native fake-API preview
+verified single title, mode order, full-screen layout and white slider track.
+No CS2 launch or game-settings changes. Release CI verifies final state.
+
 v0.15.6 adds selectable 1080P/1440P/2160P and integer 1-240 FPS through prefs,
 job TOML, HLAE commands, plain/effected composition and exports. Only Auto fits
 the screen; explicit sizes are preserved. If CS2 supplies smaller frames, the
@@ -133,7 +156,7 @@ the final removal of third-person code; the simplification was tested without
 relaunching CS2. Old camera-test ZIPs are historical and are not this source
 revision's build.
 
-Version is 0.15.6. A source push does not publish an installer. The Windows
+Version is 0.15.7. A source push does not publish an installer. The Windows
 workflow builds releases on version tags or manual dispatch. After reviewing
 the 2026-10-23 fixes, the owner explicitly authorized committing, pushing to
 GitHub and publishing updated installers. The prohibition on launching CS2/HLAE

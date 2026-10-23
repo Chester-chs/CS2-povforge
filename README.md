@@ -55,7 +55,7 @@ Traditional highlights also offer **Append victim views after the reel**, off by
 
 ## Video options
 
-- **Choose 1080P, 2K (1440P), or 4K output, and enter a frame rate from 1–240 FPS.** The game is asked to record at that quality; if it produces a smaller image, the video is upscaled to the selected size without adding native detail. Higher settings require more processing time and disk space. The game's HUD is kept and demo playback controls are hidden.
+- **Fixed 1080P output, with 24, 30, 60, 120, 144 or 240 FPS selectable from a menu.** Higher frame rates require more processing time and disk space. The game's HUD is kept and demo playback controls are hidden. Choose where finished videos are saved; by default a folder named after the player's in-game ID is created on first use and reused later.
 - **Whole-match overlays:** optional synchronized minimap, keyboard/mouse display, intro and round chapters. Keyboard information depends on the demo's data. FACEIT demos with a recognizable match ID can use a match-room intro; other demos can use a scoreboard.
 - **Highlight editing:** transitions, grading, slow motion, kill effects, titles and background music. Reels use the game picture and HUD without the whole-match minimap or keyboard overlay.
 - **Reference effects:** import a local video or supported Bilibili/YouTube link, preview it, select up to 60 seconds and describe one effect. Review the proposal before applying it. Supported effects are template approximations; object-tracked effects such as a ring around a moving knife are not supported. Use a local file if a site blocks downloading.

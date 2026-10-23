@@ -1,24 +1,26 @@
-## PovForge v0.15.6
+## PovForge v0.15.7
 
 Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** is the portable edition.
 
 ### English
 
-- Choose 1080P, 2K (1440P), 4K, or Fit screen, and enter an integer frame rate from 1 to 240 FPS. Preferences, recording commands and video exports now honor these values instead of forcing 1080p/60.
-- Smaller game footage is scaled to the chosen output size; upscaling does not add native detail. Higher quality uses more processing time and storage.
-- Keep one app name in the native titlebar; remove the duplicate sidebar logo and name.
-- Return to the top when opening a match, continuing to player/round selection or switching recording modes.
-- Keep Demo analysis when changing quality; move incompatible old takes aside so they are not silently reused.
+- Fix app output at 1080P. Replace free-form FPS input with 24, 30, 60, 120, 144 and 240 FPS choices. Older 2K/4K app selections migrate to 1080P.
+- Choose the main save folder or a separate destination for each player. By default the first recording creates a folder named after the player's in-game ID; later recordings reuse it. Cancelling a picker keeps the current destination.
+- Show kills and deaths for selected rounds; head-to-head mode reports each player's mutual encounters separately.
+- Use a two-column workspace on large windows, with recording options beside the Demo library. Keep stacked layouts for smaller windows.
+- Add breathing room below grouped controls and make unfilled slider tracks white.
+- Sidebar order: whole match, kill POV, kills/deaths POV, head-to-head, highlights.
 
 ### 简体中文
 
 下载安装或更新请使用 **PovForge-Setup.exe**；免安装版使用 **PovForge-windows.zip**。
 
-- 可选 1080P、2K（1440P）、4K 或适应屏幕；帧率可填写 1–240 的整数。偏好保存、录制命令与视频输出均采用所选参数，不再强制回到 1080p/60。
-- 若游戏实际画面较小，成片会放大到所选尺寸，但不会增加原生细节。更高画质需要更多处理时间和空间。
-- 保留原生标题栏中的名称，删除侧边栏重复的图标和名称。
-- 打开比赛、点击继续进入选手或回合选择、切换录制模式时自动回到页面顶部。
-- 改画质后仍保留 Demo 解析记录；不兼容的旧录制片段另存到工作目录，避免误用。
+- 分辨率固定为 1080P，不可修改。帧率改为下拉选项：24、30、60、120、144、240 FPS；旧的 2K/4K 选择会恢复为 1080P。
+- 可选择统一保存位置，也可为每位选手选择独立文件夹。默认在首次录制时创建以选手游戏 ID 命名的文件夹，后续复用；取消选择不会改变原位置。
+- 显示所选回合的击杀、死亡合计；双人对位分别统计双方的交手数据。
+- 大窗口将 Demo 列表与录制设置左右并排，小窗口保持上下排列。
+- 增加说明文字与上方框的间距，滑块未填充轨道改为白色。
+- 侧边栏顺序：Demo整场录制、Demo击杀视角、Demo击杀和死亡视角、双人对位数据、高光集锦。
 
-Validation includes synthetic FFmpeg encoding and isolated UI tests. CS2 was not launched and the owner's game settings were not changed; native game capture at higher settings has not been tested here.
-验证包括 FFmpeg 测试视频编码和隔离界面测试。未启动 CS2，未修改用户游戏设置；本次未实测游戏原生高分辨率录制。
+No CS2 launch or changes to the owner's game settings were made while developing this update.
+开发此更新时未启动 CS2，也未修改用户的游戏设置。
