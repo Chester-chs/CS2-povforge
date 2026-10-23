@@ -1,12 +1,13 @@
 """Camera recording contracts using real job files and a fake external game."""
 
 import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from povforge import hlae, pipeline, settings_guard
+from povforge import hlae, pipeline, settings_guard, media
 from povforge.model import Death, Plan, Player, Segment
 
 
@@ -117,6 +118,7 @@ def fake_game(tmp_path, monkeypatch, *, fail_setup=False, cancel=False, end_reas
     monkeypatch.setattr(hlae.subprocess, "Popen", launch)
     monkeypatch.setattr(hlae.subprocess, "run", lambda *_a, **_k: SimpleNamespace(returncode=0))
     monkeypatch.setattr(hlae, "mux_take", lambda take, out, ffmpeg: out.write_bytes((take / "video.mp4").read_bytes()))
+    monkeypatch.setattr(media, "probe", lambda *_a, **_k: media.VideoInfo(1920, 1080, 200 / 64, 188, 60))
     return state, settings, user, cfg
 
 
@@ -258,3 +260,75 @@ def test_settings_cleanup_refuses_success_while_cs2_is_open(tmp_path, monkeypatc
     monkeypatch.setattr(hlae.time, "sleep", lambda _: None)
     with pytest.raises(RuntimeError, match="restore-settings"):
         hlae._put_settings_back(True)
+
+
+@pytest.mark.parametrize("damage", ["missing_end", "corrupt", "short", "probe_error"])
+def test_interrupted_raw_take_is_discarded_and_rerecorded(tmp_path, monkeypatch, damage):
+    plan = plan_at(tmp_path)
+    state, *_ = fake_game(tmp_path, monkeypatch)
+    job = tmp_path / "job"
+    take = job / "raw" / "r01" / "take0000"
+    take.mkdir(parents=True)
+    (take / "video.mp4").write_bytes(b"old interrupted recording")
+    log = "[povforge] START r01 tick=1000.5\n"
+    if damage != "missing_end":
+        log += "[povforge] END r01 tick=1200.0 why=end_tick\n"
+    (job / "cs2_console.log").write_text(log)
+    (job / "recorded.json").write_text(json.dumps({"r01": 1000.5}))
+
+    def probe(path, *args):
+        if path.read_bytes().startswith(b"old"):
+            if damage == "corrupt":
+                raise ValueError("Unreadable MP4")
+            if damage == "probe_error":
+                raise subprocess.CalledProcessError(1, ['ffprobe', str(path)], stderr='moov atom not found')
+            if damage == "short":
+                return media.VideoInfo(1920, 1080, 0.25, 15, 60)
+        return media.VideoInfo(1920, 1080, 200 / 64, 188, 60)
+
+    def mux(take, out, ffmpeg):
+        data = (take / "video.mp4").read_bytes()
+        out.write_bytes(data)
+
+    monkeypatch.setattr(media, "probe", probe)
+    monkeypatch.setattr(hlae, "mux_take", mux)
+    paths = hlae.record(plan, job, hlae.RecordSettings())
+    assert state["launched"] == 1
+    assert paths[0].read_bytes() == b"r01"
+
+
+def test_complete_ordinary_raw_take_can_resume_without_launch(tmp_path, monkeypatch):
+    plan = plan_at(tmp_path)
+    state, *_ = fake_game(tmp_path, monkeypatch)
+    job = tmp_path / "job"
+    take = job / "raw" / "r01" / "take0000"
+    take.mkdir(parents=True)
+    (take / "video.mp4").write_bytes(b"complete recording")
+    (job / "cs2_console.log").write_text(
+        "[povforge] START r01 tick=1000.5\n[povforge] END r01 tick=1200.0 why=end_tick\n")
+    (job / "recorded.json").write_text(json.dumps({"r01": 1000.5}))
+    paths = hlae.record(plan, job, hlae.RecordSettings())
+    assert state["launched"] == 0
+    assert paths[0].read_bytes() == b"complete recording"
+
+
+@pytest.mark.parametrize('failure', ['permission', 'ffmpeg'])
+def test_output_permission_error_preserves_complete_raw_take(tmp_path, monkeypatch, failure):
+    plan = plan_at(tmp_path)
+    state, *_ = fake_game(tmp_path, monkeypatch)
+    job = tmp_path / 'job'
+    take = job / 'raw/r01/take0000'
+    take.mkdir(parents=True)
+    video = take / 'video.mp4'
+    video.write_bytes(b'complete recording')
+    (job / 'cs2_console.log').write_text(
+        '[povforge] START r01 tick=1000.5\n[povforge] END r01 tick=1200.0 why=end_tick\n')
+    def denied(*args):
+        if failure == 'ffmpeg':
+            raise subprocess.CalledProcessError(1, ['ffmpeg'], stderr='Error opening output file: Permission denied')
+        raise PermissionError('output directory is read-only')
+    monkeypatch.setattr(hlae, 'mux_take', denied)
+    with pytest.raises(PermissionError if failure == 'permission' else subprocess.CalledProcessError):
+        hlae.record(plan, job, hlae.RecordSettings())
+    assert video.read_bytes() == b'complete recording'
+    assert state['launched'] == 0

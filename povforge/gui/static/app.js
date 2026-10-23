@@ -41,7 +41,7 @@ const TEXT = {
     rep_pace: "每段约 {s} 秒（{kind}）", rep_kill: "击杀特效：{kind}（{n} 处）", rep_colour: "调色：{kind}，会照着它调", rep_letterbox: "有电影黑边",
     rep_outro: "结尾：{kind}（约 {s} 秒）", rep_music: "有背景音乐（约 {bpm} BPM）",
     look_natural: "自然", look_vivid: "鲜艳", look_muted: "偏淡", look_warm: "偏暖", look_cool: "偏冷", look_bw: "黑白",
-    reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "选择击杀高光、仅死亡、击杀＋死亡或双人对位。始终使用第一人称；可指定参考成片里的单个特效，并让背景音乐按 Demo 击杀时间自动卡点。",
+    reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "选择高光集锦、仅击杀、击杀＋死亡或双人对位。始终使用第一人称；可指定参考成片里的单个特效，并让背景音乐按 Demo 击杀时间自动卡点。",
     reelName: "名称", reelSources: "素材", reelSourcesHelp: "在左边点选，可以多选", reelPlayer: "选手",
     reelSame: "同一个人", reelEach: "每场分别选", reelEachHelp: "在上面每场 demo 的右边选这场用哪位选手。", reelPlayerIn: "{name}（{n} 场）", reelNotIn: "这场没有这名选手", reelPick: "选择选手",
     reelItems: "集锦内容", reelItemsHelp: "已自动挑出 3 杀以上和残局获胜的回合，按精彩程度排好，最强的放最后。拖动或用箭头调整顺序。",
@@ -150,7 +150,7 @@ const TEXT = {
     rep_pace: "About {s} s per moment ({kind})", rep_kill: "Kill effect: {kind} ({n}×)", rep_colour: "Colour: {kind}; yours will be matched to it", rep_letterbox: "Cinema bars",
     rep_outro: "Ending: {kind} (about {s} s)", rep_music: "Background music (about {bpm} BPM)",
     look_natural: "natural", look_vivid: "vivid", look_muted: "muted", look_warm: "warm", look_cool: "cool", look_bw: "black and white",
-    reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "Choose kill highlights, deaths, kills + deaths, or opposing-player duels. Always first person; select a reference effect and optionally sync music to Demo kill times.",
+    reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "Choose highlights, kill events, kills + deaths, or opposing-player duels. Always first person; select a reference effect and optionally sync music to Demo kill times.",
     reelName: "Name", reelSources: "Demos", reelSourcesHelp: "Pick them on the left; several are fine", reelPlayer: "Player",
     reelSame: "Same player", reelEach: "Per demo", reelEachHelp: "Choose the player for each demo on its row above.", reelPlayerIn: "{name} ({n} demos)", reelNotIn: "This player isn't in this demo", reelPick: "Choose a player",
     reelItems: "In the reel", reelItemsHelp: "Rounds with 3+ kills and won clutches are picked for you, best last. Drag or use the arrows to change the order.",
@@ -223,6 +223,7 @@ const TEXT = {
 
 document.addEventListener("alpine:init", () => {
   Alpine.data("povforge", () => ({
+    csrfToken: document.querySelector?.('meta[name="povforge-token"]')?.content || "",
     version: "", lang: "zh", prefs: {}, setup: {}, job: { state: "idle", lines: [], recorded: [], planned: [], step: [0, 0] },
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
     updateOpen: false, updatingAway: false, upd: { state: "idle" },
@@ -244,7 +245,10 @@ document.addEventListener("alpine:init", () => {
 
     async boot() {
       // closing the window: tell the app at once (a reload checks in again straight away)
-      window.addEventListener("pagehide", () => { try { navigator.sendBeacon("/api/bye", "{}"); } catch (_) {} });
+      window.addEventListener("pagehide", () => {
+        fetch("/api/bye", { method: "POST", keepalive: true,
+          headers: { "Content-Type": "application/json", "X-Povforge-Token": this.csrfToken }, body: "{}" }).catch(() => {});
+      });
       fetch("/static/vendor/icons.svg").then(r => r.text()).then(s => { document.getElementById("icons").innerHTML = s; });
       await this.refresh();
       this.applyTheme();
@@ -433,8 +437,8 @@ document.addEventListener("alpine:init", () => {
       if (this.reel.content === "duel") return this.lang === "zh"
         ? "只收录双方互相击杀的交手；每次先 A 后 B，按回合顺序。仅列出有对位交手的敌方选手；未能确认队伍时不能录制。"
         : "Only mutual-kill encounters, each A then B in round order. Opponents need confirmed enemy encounters.";
-      return this.lang === "zh" ? "始终使用所选选手的第一人称，按回合和事件时间拼接，相邻片段自动合并。"
-        : "Always the selected player's first person, in round/event order. Overlapping moments are merged.";
+      return this.lang === "zh" ? "始终使用所选选手的第一人称，按回合和事件时间拼接，相邻片段自动合并；死亡后的延迟击杀不计入。"
+        : "Always the selected player's first person, in round/event order. Adjacent moments are merged; posthumous kills are excluded.";
     },
     duelOpponents(x) {
       const sid = this.srcPlayerId(x), ids = new Set();
@@ -490,7 +494,7 @@ document.addEventListener("alpine:init", () => {
       }
       const candidates = this.reelCandidates;
       this.reel.items = this.chronologicalReel ? this.sortReelItems(candidates.filter(c =>
-        c.mode === "duel" || c.died || (c.mode === "kills_deaths" && c.k > 0)))
+        c.mode === "duel" || c.k > 0 || (c.mode === "kills_deaths" && c.died)))
         : candidates.filter(c => c.k >= 3 || c.clutch >= 1).sort((a, b) => a.score - b.score);
       this.reel.reordered = false;
       if (!this.reel.titleEdited) {
@@ -502,7 +506,7 @@ document.addEventListener("alpine:init", () => {
     get reelOthers() {
       const inReel = new Set(this.reel.items.map(i => i.key));
       return this.reelCandidates.filter(c => !inReel.has(c.key) && (this.chronologicalReel
-        ? c.mode === "duel" || c.died || (c.mode === "kills_deaths" && c.k > 0)
+        ? c.mode === "duel" || c.k > 0 || (c.mode === "kills_deaths" && c.died)
         : c.k > 0 || c.clutch > 0));
     },
     addReelItem(c) {
@@ -526,7 +530,6 @@ document.addEventListener("alpine:init", () => {
     },
     tagOf(c) {
       if (c.mode === "duel") return this.lang === "zh" ? `${c.k} 次交手 · A → B` : `${c.k} encounters · A → B`;
-      if (c.mode === "deaths") return this.lang === "zh" ? "阵亡 · 本人第一人称" : "Death · own first person";
       const zh = this.lang === "zh", names = zh ? { 2: "双杀", 3: "三杀", 4: "四杀", 5: "ACE" } : { 2: "2K", 3: "3K", 4: "4K", 5: "ACE" };
       const parts = [];
       if (c.k >= 2) parts.push(names[Math.min(c.k, 5)]); else if (c.k === 1) parts.push(this.t("kills1", { n: 1 }));
@@ -544,7 +547,7 @@ document.addEventListener("alpine:init", () => {
     async startReel(watch) {
       const wasRunning = this.job.state === "running";
       const effects = { ...this.fx };
-      if (this.reel.content === "duel") effects.camera = { ...this.cameraSettings(effects.camera), victim: false };
+      if (this.chronologicalReel) effects.camera = { ...this.cameraSettings(effects.camera), victim: false };
       if (effects.intro === "title" && !effects.intro_sub) effects.intro_sub = this.reelPlayersLine;
       if (effects.outro === "card" && !effects.outro_text) effects.outro_text = this.t("outroTextDefault");
       const body = { title: this.reel.title.trim() || this.t("reelDefaultMany"), summary: this.t("reelSummary", { n: this.reel.items.length }),
@@ -873,7 +876,7 @@ document.addEventListener("alpine:init", () => {
       const timer = ctl ? setTimeout(() => ctl.abort(), timeoutMs) : null;
       let r;
       try {
-        r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: ctl?.signal });
+        r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "X-Povforge-Token": this.csrfToken }, body: JSON.stringify(body), signal: ctl?.signal });
       } finally { if (timer) clearTimeout(timer); }
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || r.statusText);
@@ -1037,7 +1040,10 @@ document.addEventListener("alpine:init", () => {
       return p.slice(0, i + 1) + "parts" + p[i] + "intro.png";
     },
     async install() { this.setup = await this.post("/api/install", { what: "all" }); },
-    async restoreSettings() { this.setup = await this.post("/api/restore-settings"); },
+    async restoreSettings() {
+      try { this.setup = await this.post("/api/restore-settings"); }
+      catch (e) { this.toast(e.message); }
+    },
 
     roundDone(r) {
       return this.job.recorded.includes(r) || this.stages.indexOf(this.job.stage) > this.stages.indexOf("record");

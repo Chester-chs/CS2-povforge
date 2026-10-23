@@ -22,12 +22,22 @@ class View:
     kill_ticks: tuple[int, ...]
 
 
+def first_person_kills(deaths) -> list:
+    """Kills in one round for which the attacker still has their own POV."""
+    died = {}
+    for d in deaths:
+        died[d.victim_steamid] = min(d.tick, died.get(d.victim_steamid, d.tick))
+    return [d for d in deaths if d.attacker_steamid and d.attacker_steamid != d.victim_steamid
+            and d.tick <= died.get(d.attacker_steamid, float('inf'))]
+
+
 def duel_events(demo, sides: dict) -> list[dict]:
     """Only opposing-team kills; halftime CT/T changes are resolved per round."""
     out = []
     for r in demo.rounds:
         side = sides.get(r.number, {})
-        for d in sorted(demo.deaths, key=lambda x: x.tick):
+        deaths = [d for d in demo.deaths if r.freeze_end_tick <= d.tick < event_round_end(demo, r)]
+        for d in sorted(first_person_kills(deaths), key=lambda x: x.tick):
             if (r.freeze_end_tick <= d.tick < event_round_end(demo, r)
                     and side.get(d.attacker_steamid) in (2, 3)
                     and side.get(d.victim_steamid) in (2, 3)
@@ -64,6 +74,7 @@ def select_views(items, sources: dict, before: float, after: float) -> list[View
             raise ValueError("The selected player or round is absent from this demo.")
         round_stop = event_round_end(data, r)
         ds = sorted((d for d in data.deaths if r.freeze_end_tick <= d.tick < round_stop), key=lambda d: d.tick)
+        own_kills = first_person_kills(ds)
         if item.mode == "duel":
             side = sides.get(item.round, {})
             if (item.opponent not in ids or item.opponent == item.steamid
@@ -71,11 +82,18 @@ def select_views(items, sources: dict, before: float, after: float) -> list[View
                     or side[item.steamid] == side[item.opponent]):
                 raise ValueError("Duel players must be on confirmed opposing teams in each selected round.")
             ds = [d for d in ds if {d.attacker_steamid, d.victim_steamid} == {item.steamid, item.opponent}]
+            supported = [d for d in ds if d in own_kills]
         else:
-            ds = [d for d in ds if d.victim_steamid == item.steamid or
-                  (item.mode == "kills_deaths" and d.attacker_steamid == item.steamid)]
+            ds = [d for d in ds if (item.mode == "kills_deaths" and d.victim_steamid == item.steamid)
+                  or (d.attacker_steamid == item.steamid and d.victim_steamid != item.steamid)]
+            supported = [d for d in ds if d.victim_steamid == item.steamid or d in own_kills]
+        if len(supported) != len(ds):
+            from .reel import _log
+            _log(f"Round {item.round}: skipped {len(ds) - len(supported)} posthumous kills; "
+                 "the attacker's own first-person view is unavailable.")
+        ds = supported
         if not ds:
-            raise ValueError(f"Round {item.round} has no events for the selected content mode.")
+            raise ValueError(f"Round {item.round} has no first-person events for the selected content mode.")
         solo = []
         for d in ds:
             players = [item.steamid, item.opponent] if item.mode == "duel" else [item.steamid]
@@ -162,11 +180,9 @@ def run_events(cfg, title, items, placeholder=False, fx=None):
     work = pipeline.work_root(cfg)
     from .compose import safe_filename
     try:
-        if items[0].mode == 'duel':
-            order = [spans[v] for v in views]  # Each encounter stays A then B, even when B got the kill.
-        else:
-            ordered_items = list(dict.fromkeys(reel.ReelItem(v.demo, v.steamid, v.round) for v in views))
-            order = reel._camera_order(cfg, title, ordered_items, windows, contexts, fx, placeholder)
+        # Event reels retain the requested perspective; victim appendices belong
+        # to traditional highlights. Duels already contain each encounter A then B.
+        order = [spans[v] for v in views]
         return reel._plain_join(cfg, title, order) if effects.is_plain(fx) else reel._with_effects(cfg, title, order, fx)
     finally:
         for folder in ('camera pieces', 'reel pieces'):

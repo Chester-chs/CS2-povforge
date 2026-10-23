@@ -26,8 +26,8 @@ async function test() {
   assert.strictEqual(app.reel.items[1].died,true);
   app.moveReelItem(0,1);
   assert.strictEqual(app.reel.items[0].round,1,'event chronology cannot be reordered');
-  app.setReelContent('deaths');
-  assert.deepStrictEqual(Array.from(app.reel.items,x=>x.round),[1,2]);
+  app.setReelContent('kill_events');
+  assert.deepStrictEqual(Array.from(app.reel.items,x=>x.round),[1,3]);
   app.setReelContent('duel');
   assert.deepStrictEqual(Array.from(app.duelOpponents(src),p=>p.steamid),['b']);
   assert.deepStrictEqual(Array.from(app.reel.items,x=>x.round),[1,2]);

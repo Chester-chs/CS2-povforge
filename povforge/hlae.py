@@ -444,6 +444,7 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg",
     def collect() -> None:
         saved_console = job_dir / "cs2_console.log"
         console_text = saved_console.read_text(encoding="utf-8", errors="replace") if saved_console.exists() else ""
+        events = read_console_log(saved_console)
         failed = set(re.findall(
             r"\[povforge\] END ([A-Za-z][A-Za-z0-9_-]*) tick=[\d.]+ why=(?:camera_error|error)\b",
             console_text,
@@ -460,11 +461,49 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg",
         if failed:
             starts_file.write_text(json.dumps(starts, indent=2), encoding="utf-8")
         for seg, out in ([] if shots_only else zip(plan.segments, clips)):
-            if clip_id(seg) in failed:
+            cid = clip_id(seg)
+            if cid in failed:
                 continue  # never turn a failed camera take into a resumable ordinary clip
-            take = latest_take(raw_dir, clip_id(seg))
+            take = latest_take(raw_dir, cid)
             if take is not None and not out.exists():
-                mux_take(take, out, ffmpeg)
+                try:
+                    from .media import probe
+                    ev = events.get(cid, {})
+                    completed = re.search(
+                        rf"\[povforge\] END {re.escape(cid)} tick=[\d.]+ why=(?:end_tick|demo_end)\b",
+                        console_text,
+                    )
+                    start, end = ev.get("START"), ev.get("END")
+                    if (not completed or start is None or end is None
+                            or not seg.start_tick <= start < seg.end_tick or end < seg.end_tick):
+                        raise ValueError("no complete START/END for the planned interval")
+                    video = next(v for v in take.rglob("video.*") if v.stat().st_size > 0)
+                    info = probe(video, ffmpeg)
+                    expected = (end - start) / plan.tickrate
+                    tolerance = max(0.1, 2 / s.fps)
+                    if (info.width <= 0 or info.height <= 0 or info.frames <= 0
+                            or not math.isfinite(info.duration) or info.duration <= 0
+                            or info.duration + tolerance < expected):
+                        raise ValueError("video does not cover the completed recording")
+                except (ValueError, KeyError, IndexError, StopIteration, RuntimeError,
+                        subprocess.SubprocessError) as e:
+                    # A forced stop can leave a nonempty but unfinalized MP4.
+                    # Remove only this failed take so retry can record it again.
+                    bad_raw = (raw_dir / cid).resolve()
+                    if bad_raw.parent != raw_dir.resolve():
+                        raise ValueError("Interrupted recording path escapes the job folder") from e
+                    out.unlink(missing_ok=True)
+                    out.with_name(out.stem + ".tmp.mp4").unlink(missing_ok=True)
+                    shutil.rmtree(bad_raw)
+                    starts.pop(cid, None)
+                    starts_file.write_text(json.dumps(starts, indent=2), encoding="utf-8")
+                    _log(f"Discarded incomplete recording {cid}; it will be recorded again ({e}).")
+                else:
+                    # Valid footage must survive output errors (disk full, permissions,
+                    # encoder failure). Let the caller report them and preserve the take.
+                    mux_take(take, out, ffmpeg)
+                    starts[cid] = start
+                    starts_file.write_text(json.dumps(starts, indent=2), encoding="utf-8")
             if out.exists():
                 # the clip holds the same picture: the raw take is no longer needed
                 shutil.rmtree(raw_dir / clip_id(seg), ignore_errors=True)

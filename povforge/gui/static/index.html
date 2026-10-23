@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
+  <meta name="povforge-token" content="__POVFORGE_TOKEN__">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -170,7 +171,7 @@
     </ul>
     <p class="footnote" x-show="setup.settings_pending">
       <span x-text="t('settingsPending')"></span>
-      <button class="link" @click="restoreSettings()" x-text="t('restoreNow')"></button>
+      <button class="link" @click="restoreSettings()" :disabled="job.state === 'running' || setup.cs2_running" x-text="t('restoreNow')"></button>
     </p>
     <p class="footnote"><svg><use href="#i-shield-check"/></svg><span x-text="t('safeNote')"></span></p>
     <p class="footnote err" x-show="setup.problems?.length" x-text="(setup.problems || []).join('; ')"></p>
@@ -314,8 +315,8 @@
     <h3 class="group-title" x-text="lang === 'zh' ? '录制内容' : 'Content'"></h3>
     <div class="group row">
       <select class="select wide" x-model="reel.content" @change="setReelContent(reel.content)" :aria-label="lang === 'zh' ? '录制内容' : 'Content'">
-        <option value="kills" x-text="lang === 'zh' ? '击杀高光（原模式）' : 'Kill highlights (original)'"></option>
-        <option value="deaths" x-text="lang === 'zh' ? '仅死亡 · 本人第一人称' : 'Deaths · own first person'"></option>
+        <option value="kills" x-text="lang === 'zh' ? '高光集锦 · 自选回合' : 'Highlights · selected rounds'"></option>
+        <option value="kill_events" x-text="lang === 'zh' ? '仅击杀 · 按事件时间' : 'Kills only · event order'"></option>
         <option value="kills_deaths" x-text="lang === 'zh' ? '击杀＋死亡 · 按回合顺序' : 'Kills + deaths · round order'"></option>
         <option value="duel" x-text="lang === 'zh' ? '双人对位 · 每次 A → B' : 'Duels · each A → B'"></option>
       </select>
@@ -519,7 +520,7 @@
         <div class="group">
           <label class="row">
             <span class="row-main"><b x-text="t('cameraVictimAppend')"></b></span>
-            <input class="switch" type="checkbox" x-model="fx.camera.victim" @change="fxChanged()" :disabled="reel.content === 'duel'" :aria-label="t('cameraVictimAppend')">
+            <input class="switch" type="checkbox" x-model="fx.camera.victim" @change="fxChanged()" :disabled="chronologicalReel" :aria-label="t('cameraVictimAppend')">
           </label>
         </div>
         <p class="hint below" x-text="t('cameraVictimHelp')"></p>

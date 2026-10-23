@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -445,6 +446,12 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
 
     n = len(d.rounds)
     kills = {p.steamid: [0] * n for p in d.players}
+    event_kills = {p.steamid: [0] * n for p in d.players}
+    from ..reel_events import first_person_kills
+    for i, (a, b) in enumerate(zip(starts, ends)):
+        for death in first_person_kills([death for death in d.deaths if a <= death.tick < b]):
+            if death.attacker_steamid in event_kills:
+                event_kills[death.attacker_steamid][i] += 1
     died = {p.steamid: [False] * n for p in d.players}
     for death in d.deaths:
         i = round_of(death.tick)
@@ -469,9 +476,9 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
     def per_round(sid: str) -> dict:
         rows = table.get(sid)
         if not rows:
-            return {"rounds_k": kills.get(sid, []), "rounds_event_k": kills.get(sid, []), "rounds_died": died.get(sid, []),
+            return {"rounds_k": kills.get(sid, []), "rounds_event_k": event_kills.get(sid, []), "rounds_died": died.get(sid, []),
                     "rounds_hs": [0] * n, "rounds_clutch": [0] * n, "rounds_won": [None] * n}
-        return {"rounds_k": [r.kills for r in rows], "rounds_event_k": kills.get(sid, []), "rounds_died": died.get(sid, []),
+        return {"rounds_k": [r.kills for r in rows], "rounds_event_k": event_kills.get(sid, []), "rounds_died": died.get(sid, []),
                 "rounds_hs": [r.headshots for r in rows], "rounds_clutch": [r.clutch for r in rows],
                 "rounds_won": [r.won for r in rows]}
 
@@ -496,7 +503,7 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
     return info
 
 
-INSPECT_VERSION = 3       # bump when inspect_demo's output changes: saved readings are made again
+INSPECT_VERSION = 4       # v4 excludes posthumous kills from event counts and duels
 
 
 def inspect_isolated(path: str, work_dir: Path) -> dict:
@@ -715,6 +722,14 @@ class Job:
     def busy(self) -> bool:
         return (self.state == "running" or self.cancelling
                 or (self.proc is not None and self.proc.poll() is None))
+
+    def restore_settings(self) -> None:
+        """Serialize manual recovery with startup; never restore a live game's files."""
+        from .. import hlae, settings_guard
+        with self.lock:
+            if self.busy or "cs2.exe" in hlae.running_processes():
+                raise RuntimeError("Close CS2 and wait for recording cleanup before restoring settings.")
+            settings_guard.restore()
 
     def snapshot(self) -> dict:
         with self.lock:
@@ -1388,6 +1403,8 @@ class App:
 
 def make_handler(app: App):
     class Handler(BaseHTTPRequestHandler):
+        csrf_token = secrets.token_urlsafe(32)
+
         def log_message(self, *a):  # quiet
             pass
 
@@ -1406,18 +1423,30 @@ def make_handler(app: App):
             n = int(self.headers.get("Content-Length") or 0)
             return json.loads(self.rfile.read(n) or b"{}") if n else {}
 
+        def _valid_host(self) -> bool:
+            # Compare with the socket we actually bound, never a client-supplied origin.
+            address, port = self.server.server_address[:2]
+            allowed = {f"{address}:{port}"}
+            if address == "127.0.0.1":
+                allowed.add(f"localhost:{port}")
+            hosts = self.headers.get_all("Host", []) if hasattr(self.headers, "get_all") else [self.headers.get("Host", "")]
+            return len(hosts) == 1 and hosts[0] in allowed
+
         def _same_origin(self) -> bool:
-            # only the app page may call the API (blocks other sites in the browser)
             origin = self.headers.get("Origin")
-            host = self.headers.get("Host", "")
-            return origin is None or origin == f"http://{host}"
+            return (self._valid_host() and (origin is None or origin == f"http://{self.headers.get('Host')}")
+                    and secrets.compare_digest(self.headers.get("X-Povforge-Token", ""), self.csrf_token))
 
         def do_GET(self) -> None:
+            if not self._valid_host():
+                return self._json({"error": "Forbidden host."}, 403)
             url = urlparse(self.path)
             q = parse_qs(url.query)
             try:
                 if url.path == "/":
-                    return self._file(STATIC / "index.html")
+                    page = (STATIC / "index.html").read_text(encoding="utf-8")
+                    return self._send(200, page.replace("__POVFORGE_TOKEN__", self.csrf_token).encode("utf-8"),
+                                      "text/html; charset=utf-8")
                 if url.path.startswith("/static/"):
                     f = (STATIC / url.path[len("/static/"):]).resolve()
                     if STATIC.resolve() in f.parents and f.is_file():
@@ -1452,8 +1481,9 @@ def make_handler(app: App):
                     name = re.sub(r"[^a-z0-9_]", "", (q.get("map") or [""])[0].lower())
                     return self._file(get_map(name).radar)
                 if url.path == "/api/thumb":
-                    p = Path((q.get("path") or [""])[0])
-                    if p.suffix.lower() in (".png", ".jpg") and p.is_file() and Path(app.prefs["output"]) in p.parents:
+                    p = Path((q.get("path") or [""])[0]).resolve()
+                    root = Path(app.prefs["output"]).resolve()
+                    if root in p.parents and p.suffix.lower() in (".png", ".jpg") and p.is_file():
                         return self._file(p)
                     return self._send(404, b"not found", "text/plain")
                 self._send(404, b"not found", "text/plain")
@@ -1462,7 +1492,7 @@ def make_handler(app: App):
 
         def do_POST(self) -> None:
             if not self._same_origin():
-                return self._send(403, b"forbidden", "text/plain")
+                return self._json({"error": "Request rejected. Reopen PovForge and try again."}, 403)
             url = urlparse(self.path)
             try:
                 b = self._body()
@@ -1609,8 +1639,10 @@ def make_handler(app: App):
                     app.setup.install(b.get("what", "all"))
                     return self._json(app.setup.status())
                 if url.path == "/api/restore-settings":
-                    from .. import settings_guard
-                    settings_guard.restore()
+                    try:
+                        app.job.restore_settings()
+                    except RuntimeError as e:
+                        return self._json({"error": str(e)}, 409)
                     return self._json(app.setup.status())
                 if url.path == "/api/open":
                     p = b.get("path", "")

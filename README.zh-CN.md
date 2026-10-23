@@ -2,126 +2,118 @@
 
 # CS2 POVForge
 
-一个个人、非商业用途的工具，把 Counter-Strike 2 的 demo 自动录制成指定选手的整场第一人称（POV）视频。
+把 Counter-Strike 2 的 demo 制作成指定选手的第一人称视频、高光集锦，或按时间排列的击杀与死亡片段。POVForge 在 Windows 上通过 CS2 播放 demo，自动录制需要的画面并导出 MP4，无需手动操作录屏软件。
 
-## 功能
+## 下载
 
-- 输入一个 CS2 demo（HLTV 职业比赛、FACEIT 比赛或官方匹配）和要跟随的选手
-- 以该选手的第一人称视角录制每一个回合
-- 自动跳过无效时间：每回合从冻结时间结束前 3 秒开始录，不录暂停和半场换边；选手阵亡后片刻即切到下一回合
-- 保留 CS2 原本的 HUD，只隐藏 demo 播放控制栏和游戏雷达
-- 不会改动你的 CS2 设置：CS2 启动前备份所有设置文件（Steam userdata 里的 cfg 和游戏 cfg），关闭后逐字节还原。录制中途被打断的话，下次运行任何 povforge 命令都会先还原（也可以手动运行 `povforge restore-settings`）
-- 同步的 2D 小地图：队友位置、道具飞行轨迹、烟雾和燃烧瓶（带倒计时）
-- 键鼠显示（Shift、Ctrl、W A S D、空格、鼠标左右键），位于底部 HUD 击杀图标正上方
-- 片头：在 FACEIT 比赛房间画面上写 "选手名 POV"。程序根据 demo 文件名里的比赛 ID 自动截图（后台无界面打开 Edge/Chrome，无需登录，隐藏 cookie 弹窗、不点同意）。片头同时写上比赛开始的具体时间（按你电脑的时区）。非 FACEIT demo 使用全场战绩卡
-- 按回合生成章节标记（嵌入视频，并输出可直接粘贴到 YouTube/B 站的 `chapters.txt`），章节名写明这回合发生了什么，比如"第18回合 · ACE""第7回合 · 三杀 · 1v2 残局"
-- 高光集锦（软件里的单独入口）：从一场或多场 demo、一位或多位选手里，自动挑出 3 杀以上和残局获胜的回合（可以手动增减），每个回合从第一个击杀前几秒连续到最后一个击杀后，中间不剪，按你定的顺序拼起来，默认最强的放最后。只用游戏画面和游戏自带 HUD，不加小地图和键鼠；可以照着导入的成片加效果（见下一条）；录制时只录需要的那几秒。
-- 指定参考成片中的一个特效：导入本地视频或 B 站/YouTube 链接，先预览，选取最多 60 秒的范围并描述想要的效果，查看方案后再明确点击应用。支持闪白、缩放、震动、慢动作、转场与调色的模板近似；只更新所选效果，保留其他设置。刀身环绕红色光环等效果需要物体跟踪和分割，暂不支持。下载失败与识别失败分别说明；网站限制下载时可使用本地文件。
-- 事件集锦：可选「仅死亡」或「击杀＋死亡」，始终使用所选选手本人的第一人称，按回合、事件时间拼接，相邻片段自动合并。「双人对位」仅收录确认属于敌方的两名选手互相击杀的交手，每次先 A 后 B；可交换顺序。对位已包含双方视角，不再追加受害者重放。
-- 成片自动按选手分文件夹（文件夹名可在设置里改；几个选手的集锦放进「多人集锦」）。
-- 录制和输出最高 1080p、60 帧，不再生成 4K 升频版本。
-- 上传整首背景音乐后可打开自动卡点：根据慢动作、片头和转场处理后的真实 Demo 击杀时间，从歌曲中选择连续片段，优先强拍和连杀附近的高能量段落。使用音频起音及能量分析，不等同于理解歌曲高潮，也不保证每次击杀精确落拍。音乐过短、静音或分析失败时明确记录回退原因；不会复制参考视频的音乐。
-- 投稿素材：`cover.jpg` 封面（最精彩的瞬间、选手名、地图、比分、击杀/死亡/助攻）和 `description.txt`（标题、比赛信息和章节）
+**[下载 Windows 安装包 — PovForge-Setup.exe](https://github.com/Chester-chs/CS2-povforge/releases/latest/download/PovForge-Setup.exe)**
 
-一场 28 分钟的 FACEIT demo 会生成约 16 分钟的 POV 视频。
+运行安装包，安装完成后，从桌面或开始菜单打开 **PovForge**。软件安装在当前 Windows 用户下，不需要另外安装 Python。
 
-## 软件
+如果不想安装，可以下载 **[PovForge-windows.zip 免安装版](https://github.com/Chester-chs/CS2-povforge/releases/latest/download/PovForge-windows.zip)**，完整解压后打开其中的 `PovForge.exe`。不要直接在压缩包内运行。
 
-在 [Releases](https://github.com/Chester-chs/CS2-povforge/releases/latest) 下载 **PovForge-Setup.exe** 并运行，一路"下一步"即可（装在当前用户下，不需要管理员权限）。装好后桌面和开始菜单都有 **PovForge** 图标，以后从那里打开。打开后的窗口里：
+[Releases 发布页](https://github.com/Chester-chs/CS2-povforge/releases/latest)提供版本说明和全部下载文件。本 README 描述当前源码，已发布安装包可能尚未包含未发布的改动。
 
-1. 选一个 demo（自动列出"下载"文件夹里的 demo，也可以手动选择文件）；
-2. 在战绩表上点一位选手，需要的话再挑要录的回合（每个回合会显示他的击杀数和是否阵亡）；
-3. 点 **录制**，看着进度走完；录好后可以播放视频、一键复制投稿标题，或打开所在文件夹。
+## 第一次录制前需要准备什么
 
-做高光集锦：选好选手后点 **做集锦**，或点侧边栏的 **高光集锦** 把多场 demo 拼在一起。外观（自动、浅色、深色）、强调色和语言在左下角齿轮里设置。
+- Windows 10/11，并已安装 Steam 和 Counter-Strike 2。
+- 一个 CS2 demo，支持 `.dem`、`.dem.zst`、`.dem.gz`、`.dem.bz2`；`.rar` 文件需先解压。Demo 是比赛回放数据，不是已经录好的视频。
+- 足够的磁盘空间，用于保存成片和临时录像。
+- 保持 Steam 运行；录制前关闭 CS2 和 FACEIT 等平台的反作弊客户端。
 
-录制过程中可以继续选别的 demo 或选手，点 **加入队列**，会按顺序一个个录完。有新版本时软件会提示。
+Windows 软件已内置视频编码工具 FFmpeg。首次打开时，点击 **一键下载录制组件**，从 HLAE 官方 GitHub 发布页下载 HLAE。它负责控制 CS2 的 demo 播放；单独下载便于在 CS2 更新后及时更新组件。
 
-FFmpeg（视频编码工具）已经内置在软件里。第一次使用时点 **一键下载录制组件**，会从官方 GitHub 发布页下载 HLAE（约 10 MB）到 `%LOCALAPPDATA%\povforge\tools`；HLAE 要跟着 CS2 更新，所以不打包进安装包。需要已安装 Steam 和 CS2。视频默认保存到 `视频\PovForge`（可以更改）。
+录制时，软件通过 HLAE 以 `-insecure` 启动 CS2。本次会话只用于播放 demo，不要加入在线服务器。录制结束后软件会关闭这次 CS2 会话，之后可以正常从 Steam 启动游戏。
 
-更新：点左下角 **检查更新**，软件会下载新版安装包、校验后安装并自动重新打开。新版本直接覆盖安装，设置会保留；卸载在 Windows 设置 → 应用里。另有免安装的 `PovForge-windows.zip`。命令行里运行 `povforge gui` 也能打开同一个窗口。
+## 制作第一个视频
 
-## 工作原理
+1. **打开 demo。** 从列表中选择，或浏览文件。软件会自动列出“下载”文件夹中的 demo。
+2. **选择选手。** 点击战绩表上的选手名字。制作整场 POV 时保留全部回合；第一次试用建议只选一两个回合。
+3. **选择制作内容。** 点击 **录制** 制作 POV 视频；点击 **做集锦** 使用下表中的模式。按需调整分辨率、帧率和叠加层。
+4. **开始并等待完成。** 软件会启动 CS2，跳转到需要的回合，录制后再合成视频。录制期间不要同时玩其他游戏。
+5. **查看成片。** 点击播放或打开文件夹。默认保存在 `视频/PovForge`，按选手分文件夹；保存位置可以在设置中修改。
 
-### 第一人称集锦与可选受害者视角
+要组合多场 demo 或多位选手，打开侧边栏的 **高光集锦** 并添加来源。任务运行时，可以继续浏览其他 demo 并加入队列，软件会逐个录制。外观和语言在设置中调整。
 
-主集锦始终使用所选玩家的第一人称视角。参考成片仍可用于提取剪辑风格（节奏、转场、调色和特效），镜头复刻及第三人称功能已移除，旧版镜头偏好也不会重新启用它们。
+## 选择录制模式
 
-**在片尾追加被击杀者视角** 是独立选项，默认关闭。全部主集锦播完后，再按其中的击杀顺序，拼接各个被击杀者阵亡前的一小段第一人称视角；中途不插入，也不改变主集锦的击杀特效时间。导入、切换或混搭风格都不会改变这个开关。
+| 模式 | 成片包含什么 |
+| --- | --- |
+| 整场 POV | 所选选手各回合的第一人称画面，跳过等待时间。默认从冻结时间结束前几秒开始，在选手阵亡或回合结束后不久停止。也可以只选部分回合。 |
+| 高光集锦 · 自选回合 | 自动推荐多杀、残局获胜回合，也能手动增减和排序。每个回合从首次击杀前连续保留到最后一次击杀后，中间的交战过程不剪断。 |
+| 仅击杀 · 按事件时间 | 截取所选选手每次击杀前后的一段画面，按回合、事件时间排列。同一回合内相邻或重叠的片段自动合并。 |
+| 击杀＋死亡 · 按回合顺序 | 使用相同的事件剪辑方式，同时收录所选选手的击杀和阵亡。 |
+| 双人对位 · 每次 A → B | 收录两名已确认属于敌方的选手互相击杀的交手。每次先播放 A 的第一人称，再播放 B 的第一人称；交换选手即可反转顺序。 |
 
-受害者身份取自 Demo 的真实死亡事件。开启后，每个 Demo 会额外启动一次 CS2 补录，即使选择了多个玩家也合并处理；素材及录制设置一致时复用已完成的补录。素材缺失、长度不足或未锁定正确玩家时，不会用错误视角凑数；回放声音与对应的 Demo 时间对齐。
+单人事件集锦始终使用所选选手本人的第一人称。死亡后才发生的手雷或燃烧伤害击杀不计入，因为此时已没有攻击者存活时的本人视角；选手的阵亡仍可收录在“击杀＋死亡”中。所选回合没有可用事件时，会在录制前提示。组合多场 demo 时，按来源列表排列，每场内部按回合和事件时间排序。
 
-补录沿用 CS2 设置备份和恢复，覆盖取消、初始化失败等情况，临时录制 CFG 也会还原或删除。`--placeholder` 不启动 CS2，会跳过受害者补录。
+传统高光集锦还提供 **在片尾追加被击杀者视角** 开关，默认关闭。开启后，先播放全部主集锦，再按其中的击杀顺序追加被击杀者阵亡前的第一人称片段，需要额外录制。事件集锦保持所选选手视角，对位模式本身已包含双方视角。
 
-```
-demo ──► 规划 ──► 录制（HLAE 驱动 CS2）──► 叠加层 ──► 合成 ──► 成片.mp4
-        录哪些 tick   每回合一段，固定帧率      小地图 +    叠加 + 拼接
-                                              键盘        + 章节
-```
+## 其他视频功能
 
-1. **规划**：用 [demoparser2](https://github.com/LaihoE/demoparser) 读取回合、死亡和坐标，为每回合确定一个 tick 区间（冻结时间结束 → 阵亡或回合结束）。
-2. **录制**：通过 [HLAE](https://github.com/advancedfx/advancedfx) 启动 CS2，加载一个"导演"脚本：逐回合跳到片段开头、锁定该选手视角、以固定帧率录制，全部录完自动关闭游戏。每段的实际起始 tick 会从 CS2 的控制台日志读回，保证叠加层对齐。
-3. **叠加层**：按每段录像的实际帧数渲染小地图和按键显示。
-4. **合成**：用 FFmpeg 把叠加层盖到每段录像上并拼接成片。
+- **最高 1080p、60 帧。** 保留游戏自带 HUD，隐藏 demo 播放控制栏。
+- **整场 POV 叠加层：** 可选同步小地图、键鼠显示、片头和回合章节。键鼠显示取决于 demo 是否包含相应数据。带有可识别比赛 ID 的 FACEIT demo 可以使用比赛房间片头，其他 demo 可以使用战绩卡。
+- **高光剪辑：** 转场、调色、慢动作、击杀特效、标题和背景音乐。集锦保留游戏画面及 HUD，不叠加整场 POV 的小地图和键鼠显示。
+- **参考特效：** 导入本地视频或支持的 B 站/YouTube 链接，预览后选择最多 60 秒的范围，描述其中一个特效，查看方案后再应用。支持的是模板近似；围绕移动刀身的光环等需要物体跟踪的效果暂不支持。链接下载受限时，可以改用本地文件。
+- **音乐卡点：** 提供歌曲后，可根据最终击杀时间线选取一段连续音乐。采用节拍和能量分析，不保证每次击杀精确落拍，也不会复制参考视频的音乐。
+- **投稿素材：** 整场视频可附带封面、简介和 `chapters.txt` 章节文件。
 
-按键数据优先使用 demo 中记录的选手真实输入指令（FACEIT demo 有），包括一个 tick 内完成的快速点按；没有时退回服务器端的按键状态。
+## 制作需要多长时间
 
-## 环境要求
+**Demo 时长、成片时长、实际等待时间，是三件不同的事。**
 
-- 装有 Counter-Strike 2 的 Windows 10/11（录制需要）
-- 使用命令行时需要 Python 3.11+（软件版不需要）
-- HLAE 和 FFmpeg：软件内置 FFmpeg，HLAE 一键下载。用源码运行时，`povforge setup` 会自动下载两者。如果 PATH 里已有 FFmpeg、或 `C:\Tools\hlae` 里已有 HLAE，会直接使用
-- 录制时 Steam 要开着；关闭 CS2 和各平台反作弊客户端（FACEIT、5E、完美世界）
+整场 POV 通常比 demo 短，因为它跳过暂停、半场换边、大部分购买时间，以及选手死亡后观看队友的时间。事件集锦只保留指定事件附近的片段，通常更短。不存在固定的“多少分钟 demo 一定生成多少分钟视频”的换算。
 
-运行 `povforge doctor` 可以一次检查全部环境。
+软件仍需要通过 CS2 渲染、录制所选画面。“16 分钟成片”表示视频播放长度为 16 分钟，**不代表整个任务只需等待 16 分钟**。实际耗时还包括启动、跳转回合、录制、生成叠加层和编码，受电脑性能、输出设置及已有录像能否复用影响。建议先录一两个回合，了解自己电脑上的速度。
 
-## 安装
+## 游戏设置与常见问题
 
-```
-pip install git+https://github.com/Chester-chs/cs2-povforge
-```
+POVForge 会临时应用录制设置。启动 CS2 前，它会备份所覆盖的 Steam 和游戏配置文件，录制会话关闭后再恢复。如果恢复未完成，会保留备份并提示错误。录制期间请避免自行修改游戏设置。
 
-## 使用
+- **录制被打断：** 关闭 CS2，等待录制清理结束。如果软件提示设置尚未恢复，点击 **立即还原**。CS2 或录制任务仍在运行时，该操作会被阻止。恢复后重试同一任务，可复用已经完成且兼容的片段；未完成的原始录像会重新录制。
+- **CS2/HLAE 无法启动：** 检查 Steam 是否运行、CS2 和反作弊客户端是否关闭，以及录制组件是否已更新。CS2 更新后可能需要新版 HLAE。
+- **参考链接失败：** 在有权下载的前提下自行保存视频，再选择本地文件。
+- **磁盘空间不足：** 完成任务后可清理工作文件。删除缓存后，后续需要这些素材时必须重新录制或渲染。
+- **更新软件：** 点击 **检查更新**，或下载新版 `PovForge-Setup.exe` 覆盖安装。卸载入口在 Windows 设置 → 应用。
 
-```
-povforge doctor                                # 检查环境
-povforge inspect match.dem.zst                 # 查看地图、回合数、选手名
-povforge run match.dem.zst donk --rounds 1-2 --placeholder   # 快速测试，不需要 CS2
-povforge run match.dem.zst donk                # 正式录制
-povforge run match.dem.zst donk --intro-image latest   # 改用你自己最新的一张截图做片头
-povforge faceit match.dem.zst --show       # 单独测试 FACEIT 片头截图
-povforge reel reel.json                    # 高光集锦；reel.json 写明 demo、选手 steamid、回合和效果（effects）
-povforge analyze-style video.mp4           # 读出一个做好的集锦视频用了哪些效果
+## 可选：源码与命令行使用
+
+初次使用建议下载上面的 Windows 软件。从源码安装时，先安装 Python 3.11+ 和 Git，再运行：
+
+```powershell
+python -m pip install git+https://github.com/Chester-chs/CS2-povforge
+povforge setup
+povforge doctor
+povforge gui
 ```
 
-- 支持 `.dem`，以及 FACEIT 直接下载的 `.dem.zst` / `.dem.gz`。HLTV 的 demo 是 `.rar`，需先解压出 `.dem`。
-- 选手可以写名字的一部分，也可以写 steamid。
-- `--placeholder` 用灰色测试画面代替真实录制，用来检查叠加层和时间对齐。
-- 每个任务保存在 `povforge-output/<demo>__<选手>/`，中断后可继续；也可以分步运行：`plan`、`overlays`、`record`、`compose`。
+常用命令：
 
-各项设置（片段前后留白、分辨率、叠加层大小和位置、小地图是否显示敌人等）写在 `povforge.toml`，参考 [config.example.toml](config.example.toml)。
+```powershell
+povforge inspect match.dem.zst
+povforge run match.dem.zst donk --rounds 1-2
+povforge run match.dem.zst donk --rounds 1-2 --placeholder
+povforge reel reel.json
+povforge restore-settings
+```
 
-> **关于 VAC**：录制时通过 HLAE 以 `-insecure` 启动 CS2（本次运行关闭 VAC）。录制期间不要进入任何在线服务器；之后正常从 Steam 启动即可恢复。游戏目录里只会临时添加 `cfg/povforge_job.cfg`，录制结束自动删除。
+选手可填写 Steam ID 或名字的一部分。`--placeholder` 使用测试画面，不启动 CS2，也不会生成真实游戏录像。仅在 CS2 和录制进程都退出后运行 `restore-settings`。高级配置参见 [config.example.toml](config.example.toml)。
 
-## 开发计划
+`reel.json` 示例：
 
-- [x] 回合规划、跳过无效时间、小地图、键盘叠加层、章节
-- [x] HLAE 录制后端（待首次真机测试）
-- [ ] 监控文件夹，自动处理新 demo
-- [ ] 从 HLTV 下载职业比赛 demo
-- [ ] FACEIT：查找并下载关注选手的比赛
-- [ ] 订阅模式
+```json
+{
+  "title": "My kills",
+  "items": [
+    {"demo": "match.dem", "steamid": "YOUR_STEAM_ID", "round": 1, "mode": "kill_events"}
+  ]
+}
+```
 
-## FACEIT 接入说明
+模式字段支持 `kills`（传统高光，也是默认值）、`kill_events`（仅击杀）、`kills_deaths`（击杀＋死亡）和 `duel`（对位）。对位还需填写 `opponent`，即另一名选手的 Steam ID。同一集锦使用一种模式。
 
-使用 FACEIT Data API 查询关注选手的近期比赛；FACEIT Downloads API 仅用于下载这些比赛的 demo 文件，在本地处理成 POV 视频。不会转发或出售任何 FACEIT 数据。
+## 致谢与许可证
 
-## 致谢
+基于 [demoparser2](https://github.com/LaihoE/demoparser)、[HLAE](https://github.com/advancedfx/advancedfx)、FFmpeg，以及 [cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons) 的雷达数据。HLAE 启动配置参考 [CS Demo Manager](https://github.com/akiver/cs-demo-manager)。详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-基于 [demoparser2](https://github.com/LaihoE/demoparser)（MIT）和 [HLAE](https://github.com/advancedfx/advancedfx)（MIT，作为外部程序调用）；HLAE 启动设置参考了 [CS Demo Manager](https://github.com/akiver/cs-demo-manager)（MIT，仅参考）；通过 [cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons) 获取的雷达数据（运行时下载，不存放于本仓库）以及 FFmpeg。详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-
-本项目与 Valve、FACEIT、HLTV 无关联。Counter-Strike 2 及其地图归 Valve Corporation 所有。
-
-## 协议
-
-[MIT](LICENSE)
+本项目独立开发，与 Valve、FACEIT、HLTV 无关联。Counter-Strike 2 及其地图归 Valve Corporation 所有。采用 [MIT 许可证](LICENSE)。

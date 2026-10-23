@@ -53,9 +53,11 @@ the final removal of third-person code; the simplification was tested without
 relaunching CS2. Old camera-test ZIPs are historical and are not this source
 revision's build.
 
-Version is 0.15.0. A source push does not publish an installer. The Windows
-workflow builds releases on version tags or manual dispatch. The owner has
-authorized publishing this feature update to GitHub.
+Version is 0.15.1. A source push does not publish an installer. The Windows
+workflow builds releases on version tags or manual dispatch. After reviewing
+the 2026-10-23 fixes, the owner explicitly authorized committing, pushing to
+GitHub and publishing updated installers. The prohibition on launching CS2/HLAE
+or accessing the owner's real game settings remains in force.
 
 ## 2026-10-22 feature update
 
@@ -81,3 +83,38 @@ authorized publishing this feature update to GitHub.
   parsing were checked; FFmpeg tests verify actual output/order. New event
   modes have not been recorded in live CS2. No persistent CS2 settings were
   changed during this update.
+
+## 2026-10-23 review fixes and v0.15.1 release
+
+The implementation fixed the five read-only review findings, added regression
+tests and rewrote both READMEs for first-time users. The owner subsequently
+authorized commit, push and installer publication. Do not launch CS2/HLAE or
+touch the owner's real game settings during release work.
+Recording and settings tests use a fake external game and isolated temporary
+files only. The owner paused for shutdown, then explicitly resumed this task.
+
+- GUI manual settings restoration shares the recording-start lock and rejects
+  recording, cancellation, a live child or an open CS2 process.
+- Ordinary raw takes require completed console markers and readable media of
+  sufficient duration before reuse. Invalid material no longer poisons retries;
+  output permission failures preserve the raw recording.
+- Final event modes are `kill_events` (kills only), `kills_deaths` and `duel`.
+  Deaths-only has been removed. Legacy `kills` still means selected-round
+  highlights, and whole-match POV remains. Solo event windows are merged and
+  chronological. Posthumous kills are excluded before recording because the
+  attacker no longer has a living POV. Preview counts use the same filter.
+  Victim appendices remain available for traditional highlights; event reels
+  keep their own POV and duels already contain both views.
+- Thumbnail paths resolve within the output directory, including junctions.
+  GET/POST validate the bound listener's Host; POST additionally checks Origin
+  and a per-server token. The frontend authenticates writes and pagehide.
+- English and Chinese READMEs explain downloads, first use, mode choices and
+  troubleshooting. Output playback duration is distinct from recording and
+  encoding time; the fixed 28-to-16 minute claim was removed.
+
+Final full regression: 284 passed in 115.08 seconds, plus 25 director
+simulation assertions, JS syntax and diff whitespace checks. Independent review
+identified two follow-ups, now fixed and rechecked: mux errors must preserve
+validated raw footage, and inspection cache version 4 must replace stale event
+counts. No outstanding actionable findings. Details are recorded in the
+implementation plan. These results are automated checks, not a live CS2 test.

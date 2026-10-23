@@ -40,7 +40,7 @@ class ReelItem:
     opponent: str = ""
 
     def __post_init__(self):
-        if self.mode not in {"kills", "deaths", "kills_deaths", "duel"}:
+        if self.mode not in {"kills", "kill_events", "kills_deaths", "duel"}:
             raise ValueError("Unknown reel content mode.")
         if self.round < 1 or not self.steamid or not self.demo:
             raise ValueError("Choose a demo, player and valid round.")

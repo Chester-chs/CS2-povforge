@@ -2,139 +2,118 @@ English | [简体中文](README.zh-CN.md)
 
 # CS2 POVForge
 
-A personal, non-commercial tool that turns Counter-Strike 2 demos into full-match first-person (POV) videos of a chosen player.
+Turn a Counter-Strike 2 demo into a chosen player's first-person video, a highlight reel, or a sequence of kills and deaths. POVForge runs on Windows, plays the demo through CS2, records the selected moments and exports an MP4. You do not need to record your screen manually.
 
-## What it does
+## Download
 
-- Takes a CS2 demo (HLTV pro match, FACEIT match, or Valve matchmaking) and a player to follow
-- Records every round from that player's point of view
-- Skips dead time: each round starts 3 seconds before freeze time ends (no timeouts, no halftime) and stops shortly after the player dies
-- Keeps CS2's own HUD; the demo playback bar and game radar are hidden
-- Your CS2 settings are never changed: every settings file (Steam userdata cfg and game cfg) is backed up before CS2 starts and put back byte for byte after it closes. If a recording is interrupted, the next povforge command restores them first (`povforge restore-settings` does it on demand)
-- Synced 2D minimap: teammates, grenade flight paths, smokes and molotovs with countdowns
-- Keyboard/mouse display (Shift, Ctrl, W A S D, Space, mouse buttons) just above the HUD's kill icons
-- Intro: "<player> POV" written over the FACEIT match room. The screenshot is taken automatically from the demo's match id (headless Edge/Chrome, no login, cookie banner hidden, nothing accepted). The intro also shows the match start time in your time zone. Other demos get the final scoreboard
-- Writes chapter markers per round (embedded in the video and as a YouTube-ready `chapters.txt`), named after what happened: "Round 18 · ACE", "Round 7 · 3K · 1v2 clutch"
-- Highlight reel (its own entry in the app): the best rounds of one or more demos and players (3+ kills or a won clutch, picked for you and editable), each round kept unbroken from a few seconds before its first kill to just after its last and joined in the order you choose, best last by default. Game picture and HUD only (no minimap or keys); a finished video's style can be added, see below. Only the needed seconds are recorded
-- Targeted reference effects: import a local video or Bilibili/YouTube link, preview it, select up to 60 seconds, describe one effect, review the proposal, then explicitly apply it. Supported template approximations include flashes, zooms, shakes, slow motion, transitions and grading. Only that effect changes; other settings stay intact. Object-bound effects such as a red ring circling a knife need tracking/segmentation and are not supported. Download failures are reported separately from recognition failures; a local file can be used when a site blocks downloading.
-- Event reels: choose deaths only or kills + deaths in round/event order, always from the selected player's first person. Overlapping solo moments are merged. Duel mode includes only mutual kills between two confirmed opposing players, each encounter A then B; swap the pair to reverse that order. Duel mode already includes both views, so no additional victim replay is appended.
-- Finished videos are sorted into a folder per player (renamable in Settings; reels of several players go into "Multi-player reels").
-- Recording and output up to 1080p at 60 fps; no 4K/upscaled copy.
-- Supply a whole background song and enable music sync: choose one continuous excerpt using actual Demo kill times after slow motion, intros and transitions. Strong beats and energetic multi-kills are prioritized. This is onset/energy analysis, not semantic chorus detection; not every kill lands exactly on a beat. Short, silent or unreadable songs fall back with an explanatory log. Reference audio is never copied.
-- Upload kit: `cover.jpg` (the best moment, name, map, score, K/D/A) and `description.txt` (a title, match info and the chapters)
+**[Download the Windows installer — PovForge-Setup.exe](https://github.com/Chester-chs/CS2-povforge/releases/latest/download/PovForge-Setup.exe)**
 
-A 28-minute FACEIT demo becomes a ~16-minute POV video.
+Run the installer, then open **PovForge** from the desktop or Start menu. It installs for the current Windows user. You do not need to install Python separately.
 
-## The app
+For a portable copy, download **[PovForge-windows.zip](https://github.com/Chester-chs/CS2-povforge/releases/latest/download/PovForge-windows.zip)**, extract the entire archive and open `PovForge.exe` inside the extracted folder. Do not run it from inside the ZIP.
 
-Download **PovForge-Setup.exe** from [Releases](https://github.com/Chester-chs/CS2-povforge/releases/latest) and run it. It installs for your Windows user (no admin rights needed) and puts a **PovForge** icon on the desktop and in the Start menu. Open it from there; it shows a window where you:
+[Releases](https://github.com/Chester-chs/CS2-povforge/releases/latest) contains release notes and all downloads. This README describes the current source; the published installer may not yet contain unreleased changes.
 
-1. pick a demo (demos in your Downloads folder are listed; any file can be chosen),
-2. click a player on the scoreboard and, if you like, the rounds to record (each round shows that player's kills and whether they died),
-3. press **Record** and follow the progress; when it's done, play the video, copy the upload title, or open the folder.
+## Before your first recording
 
-For a highlight reel, press **Make a reel** after picking a player, or open **Highlight reel** in the sidebar to combine several demos. Appearance (auto, light, dark), accent colour and language are under the gear at the bottom left.
+- Use Windows 10/11 with Steam and Counter-Strike 2 installed.
+- Have a CS2 demo ready: `.dem`, `.dem.zst`, `.dem.gz` or `.dem.bz2`. Extract `.rar` archives first. A demo is match replay data, not an existing video.
+- Keep enough disk space for both the finished video and temporary recordings.
+- Keep Steam running; close CS2 and anti-cheat clients such as FACEIT before recording.
 
-While one recording runs you can keep browsing and press **Queue** to add more players or demos; they're recorded one after another. The app tells you when a new version is out.
+FFmpeg, the video encoder, is included in the Windows app. On first launch, click **Download the recording add-on** to download HLAE from its official GitHub release. HLAE controls CS2's demo playback and is downloaded separately so it can be updated when CS2 changes.
 
-FFmpeg (the video encoder) comes with the app. The first time, click **Download the recording add-on**: it fetches HLAE (about 10 MB) from its official GitHub release into `%LOCALAPPDATA%\povforge\tools`; HLAE isn't bundled because it has to keep up with CS2 updates. Steam and CS2 must be installed. Videos go to `Videos\PovForge` (changeable).
+Recording starts CS2 through HLAE with `-insecure`. Use this session only for demos; do not join online servers. The app closes its recording session when finished. Afterwards, you can start CS2 normally from Steam.
 
-To update, click **Check for updates** at the bottom left: the app downloads the new installer, checks it, installs it and reopens. Newer versions install over the old one and keep your settings; uninstall from Windows Settings → Apps. There's also a no-install `PovForge-windows.zip`. From the command line, `povforge gui` opens the same window.
+## Make your first video
 
-## How it works
+1. **Open a demo.** Pick one from the list or browse to its file. Demos in Downloads are listed automatically.
+2. **Choose a player.** Click their name in the scoreboard. Keep all rounds selected for a whole-match POV, or select one or two rounds for a short first try.
+3. **Choose the output.** Use **Record** for a POV video, or **Make a reel** for the modes below. Adjust resolution, frame rate and optional overlays as needed.
+4. **Start and wait.** POVForge launches CS2, seeks to the required rounds, records and composes the video. Avoid playing another game during recording.
+5. **Open the result.** Use the play or folder button. Videos default to `Videos/PovForge`, organized by player; change the location in Settings.
 
-### First-person highlights with optional victim replays
+Open **Highlight reel** in the sidebar to combine several demos or players. While a job runs, you can browse and add more jobs to the queue; recordings run one at a time. Appearance and language are available in Settings.
 
-The main reel always uses the selected player's first-person view. Reference
-videos can still supply editing styles (pace, transitions, grading and effects),
-but camera imitation and third-person views have been removed. Legacy camera
-preferences are ignored.
+## Choose what to record
 
-**Append victim views after the reel** is an independent option, off by default.
-All main highlights play first. The victims' first-person views before their
-deaths then follow in the same kill order. These replays never interrupt the
-main reel or move its kill effects. Importing, switching or mixing styles keeps
-your replay choice.
+| Output | What the video contains |
+| --- | --- |
+| Whole-match POV | The selected player's rounds with waiting time removed. By default each round starts shortly before freeze time ends and stops shortly after the player dies or the round ends. Individual rounds can also be selected. |
+| Highlights · selected rounds | Suggested multi-kill and won-clutch rounds, with manual additions, removals and ordering. Each round stays continuous from before its first kill to after its last, preserving the action between kills. |
+| Kills only · event order | Short windows around the selected player's kills, arranged by round and event time. Adjacent or overlapping windows in the same round are merged. |
+| Kills + deaths · round order | The same chronological format, including the selected player's deaths as well as kills. |
+| Duels · each A → B | Encounters where two confirmed opponents kill each other. Each encounter shows A's first-person view, then B's. Swap the pair to reverse the order. |
 
-Victims come from actual demo death events. Replays require an additional CS2
-session per demo, shared across selected players; completed recordings are
-reused when their source and recording settings match. Missing or insufficient
-footage is skipped rather than presenting another player's view. Replay sound
-uses the corresponding original demo time.
+Solo event reels always use the selected player's own first-person view. Posthumous grenade or fire kills are excluded because the attacker's living POV is no longer available; their death can still appear in **Kills + deaths**. A round with no supported events is rejected before recording. Across multiple demos, source-list order is preserved, with events ordered within each demo.
 
-Settings backup and restoration cover recording, setup failures, cancellation
-and the temporary recording CFG. `--placeholder` does not start CS2 and skips
-victim recording.
+Traditional highlights also offer **Append victim views after the reel**, off by default. It adds victims' first-person moments before death after all main highlights, in the main reel's kill order. This requires extra recording. Event reels keep their selected perspective, and duels already include both players.
 
-```
-demo ──► plan ──► record (CS2 via HLAE) ──► overlays ──► compose ──► final.mp4
-         which ticks    one clip per round       minimap +     overlay + join
-         to record      fixed frame rate         keyboard      + chapters
-```
+## Video options
 
-1. **Plan**: reads rounds, deaths and positions with [demoparser2](https://github.com/LaihoE/demoparser) and picks one tick range per round (freeze-time end → death or round end).
-2. **Record**: starts CS2 through [HLAE](https://github.com/advancedfx/advancedfx) and loads a small director script that, round by round, jumps to the clip, locks the camera on the player and renders it at a fixed frame rate, then closes the game. The exact start of every clip is read back from CS2's console log so the overlays line up.
-3. **Overlays**: renders the minimap and key display for exactly the frames of each recorded clip.
-4. **Compose**: puts the overlays on each clip with FFmpeg and joins everything.
+- **Up to 1080p at 60 fps**, with the game's HUD and without the demo playback controls.
+- **Whole-match overlays:** optional synchronized minimap, keyboard/mouse display, intro and round chapters. Keyboard information depends on the demo's data. FACEIT demos with a recognizable match ID can use a match-room intro; other demos can use a scoreboard.
+- **Highlight editing:** transitions, grading, slow motion, kill effects, titles and background music. Reels use the game picture and HUD without the whole-match minimap or keyboard overlay.
+- **Reference effects:** import a local video or supported Bilibili/YouTube link, preview it, select up to 60 seconds and describe one effect. Review the proposal before applying it. Supported effects are template approximations; object-tracked effects such as a ring around a moving knife are not supported. Use a local file if a site blocks downloading.
+- **Music sync:** provide a song and optionally align a continuous excerpt with the final kill timeline. Beat/energy analysis does not guarantee every kill lands on a beat. Reference-video audio is not copied.
+- **Upload materials:** whole-match output can include a cover image, description and `chapters.txt` alongside the video.
 
-Key input comes from the player's real input commands when the demo has them (FACEIT demos do), including sub-tick taps; otherwise from the server's button state.
+## How long does it take?
 
-## Requirements
+**Demo length, finished-video length and processing time are different.**
 
-- Windows 10/11 with Counter-Strike 2 installed (for recording)
-- For the command line: Python 3.11+ (the app needs nothing else)
-- HLAE and FFmpeg: the app bundles FFmpeg and downloads HLAE with one click. From source, `povforge setup` downloads both; an FFmpeg on PATH or HLAE in `C:\Tools\hlae` is used if present
-- Steam running; close CS2 and anti-cheat clients (FACEIT, 5E, Perfect World) before recording
+A whole-match POV is usually shorter than the demo because it skips pauses, halftime, most buy time and time spent watching teammates after the selected player dies. Event reels contain only selected moments and can be much shorter. There is no fixed conversion from demo minutes to video minutes.
 
-Run `povforge doctor` to check everything.
+POVForge still has to render and record the selected footage through CS2. A 16-minute output means 16 minutes of video to watch; it does **not** promise the job will finish in 16 minutes. Startup, seeking, recording, overlays and encoding all contribute to the wait. Hardware, output settings and reusable recordings affect that time. Start with one or two rounds to estimate performance on your PC.
 
-## Install
+## Settings and troubleshooting
 
-```
-pip install git+https://github.com/Chester-chs/cs2-povforge
+POVForge temporarily applies recording settings. Before starting CS2, it backs up the covered Steam and game configuration files, then restores them after the recording session closes. If restoration cannot finish, it keeps the backup and reports the problem. Avoid editing game settings during recording.
+
+- **Interrupted recording:** close CS2 and wait for recording cleanup. If the app reports pending recovery, use **Restore now**. Restoration is blocked while CS2 or a recording job is active. Then retry the same job: completed compatible clips are reused and incomplete raw recordings are recorded again.
+- **CS2/HLAE cannot start:** check that Steam is open, CS2 and anti-cheat clients are closed, and the recording add-on is up to date. A CS2 update can require a newer HLAE.
+- **Reference link fails:** save the video yourself if permitted, then select the local file.
+- **Low disk space:** use work-file cleanup after finishing jobs. Deleted cached work must be recorded or rendered again if needed later.
+- **Updates:** use **Check for updates**, or install a newer `PovForge-Setup.exe` over the existing installation. Uninstall through Windows Settings → Apps.
+
+## Optional: source installation and command line
+
+The Windows download is the easiest starting point. For source installation, install Python 3.11+ and Git, then run:
+
+```powershell
+python -m pip install git+https://github.com/Chester-chs/CS2-povforge
+povforge setup
+povforge doctor
+povforge gui
 ```
 
-## Usage
+Useful commands:
 
-```
-povforge doctor                                # check the setup
-povforge inspect match.dem.zst                 # map, rounds, player names
-povforge run match.dem.zst donk --rounds 1-2 --placeholder   # quick test, no CS2 needed
-povforge run match.dem.zst donk                # the real thing
-povforge run match.dem.zst donk --intro-image latest   # intro from your own screenshot instead
-povforge faceit match.dem.zst --show       # test the FACEIT intro screenshot on its own
-povforge reel reel.json                    # highlight reel; reel.json: {"title": ..., "items": [{"demo": ..., "steamid": ..., "round": 18}, ...], "effects": {...}}
-povforge analyze-style video.mp4           # the effects a finished highlight video uses
+```powershell
+povforge inspect match.dem.zst
+povforge run match.dem.zst donk --rounds 1-2
+povforge run match.dem.zst donk --rounds 1-2 --placeholder
+povforge reel reel.json
+povforge restore-settings
 ```
 
-- Demos can be `.dem`, or FACEIT's `.dem.zst` / `.dem.gz` as downloaded. HLTV demos come as `.rar`: extract the `.dem` first.
-- The player can be part of a name or a steamid.
-- `--placeholder` uses grey test clips instead of recording, to check overlays and timing.
-- Each job lives in `povforge-output/<demo>__<player>/` and can be resumed; steps can also be run one by one: `plan`, `overlays`, `record`, `compose`.
+The player can be a Steam ID or part of a name. `--placeholder` uses test pictures without starting CS2; it does not create gameplay footage. Only use `restore-settings` after CS2 and the recording process have exited. See [config.example.toml](config.example.toml) for advanced configuration.
 
-Settings (clip padding, resolution, overlay size and position, enemies on minimap, ...) go in `povforge.toml`; see [config.example.toml](config.example.toml).
+Example `reel.json`:
 
-> **VAC:** recording starts CS2 through HLAE with `-insecure` (VAC off for that session). Don't join online servers while it runs; a normal Steam start afterwards is back to normal. The only file added to the game folder is a temporary `cfg/povforge_job.cfg`, removed when recording ends.
+```json
+{
+  "title": "My kills",
+  "items": [
+    {"demo": "match.dem", "steamid": "YOUR_STEAM_ID", "round": 1, "mode": "kill_events"}
+  ]
+}
+```
 
-## Roadmap
+Modes are `kills` (traditional highlights, also the default), `kill_events`, `kills_deaths` and `duel`. Duel items also need an `opponent` Steam ID. Use one content mode per reel.
 
-- [x] Round planning, dead-time skipping, minimap, keyboard overlay, chapters
-- [x] HLAE recording backend (needs a first real test)
-- [ ] Watch a folder and process new demos automatically
-- [ ] Download pro demos from HLTV
-- [ ] FACEIT: find and download a followed player's matches
-- [ ] Subscription mode
+## Credits and license
 
-## FACEIT integration
+Built with [demoparser2](https://github.com/LaihoE/demoparser), [HLAE](https://github.com/advancedfx/advancedfx), FFmpeg and radar data from [cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons). HLAE launch settings reference [CS Demo Manager](https://github.com/akiver/cs-demo-manager). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The FACEIT Data API is used to look up a followed player's recent matches. The FACEIT Downloads API is used only to download demo files of those matches for local processing into POV videos. No FACEIT data is redistributed or sold.
-
-## Credits
-
-Built on [demoparser2](https://github.com/LaihoE/demoparser) (MIT) and [HLAE](https://github.com/advancedfx/advancedfx) (MIT, used as an external program); HLAE launch settings follow [CS Demo Manager](https://github.com/akiver/cs-demo-manager) (MIT, reference only); radar data via [cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons) (downloaded at runtime, not stored here) and FFmpeg. Details: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-Not affiliated with Valve, FACEIT or HLTV. Counter-Strike 2 and its maps are property of Valve Corporation.
-
-## License
-
-[MIT](LICENSE)
+An independent project, not affiliated with Valve, FACEIT or HLTV. Counter-Strike 2 and its maps belong to Valve Corporation. Distributed under the [MIT license](LICENSE).
