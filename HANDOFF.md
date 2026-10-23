@@ -2,6 +2,25 @@
 
 ## Current agreed scope
 
+v0.15.3 fixes the gray titlebar confirmed in the owner's v0.15.2 screenshot.
+Windows now hosts the existing page inside a native WinForms/WebView2 window,
+whose caption is painted by Windows and responds to the existing DWM colors.
+pywebview 6.2.1 is bundled; an installed stable WebView2 runtime and .NET 4.6.2+
+are detected without changing system settings. Missing dependencies retain the
+old browser fallback. Native lifetime follows the existing busy-job rules;
+an updater shutdown closes the native window as well as the HTTP server.
+Real isolated native UI was visually checked in light/dark themes and maximized;
+the titlebar matches the page background. Alt+F4 closed the fixture normally.
+No real App/game discovery was used for local visual checks. The Windows release
+workflow now also requires the installed app to load its native WebView2 window.
+An independent review found async WebView2 initialization could leave a blank
+window. A 30-second load timeout now closes it and requests browser fallback;
+intentional closure does not trigger fallback. Regression was red then green.
+Local full regression: 312 passed before the three final integration/failure
+cases were added; final affected-area run: 62 passed including those cases.
+Local PyInstaller build, JS syntax, whitespace checks and 25 director assertions
+passed. The release workflow runs the complete final suite again.
+
 Local changes after v0.15.1: the main area now contains the searchable
 Demo library. Its title follows the chosen recording mode. The sidebar has
 five equal entries in the owner's exact order: Demo整场录制, Demo击杀视角,
@@ -83,7 +102,7 @@ the final removal of third-person code; the simplification was tested without
 relaunching CS2. Old camera-test ZIPs are historical and are not this source
 revision's build.
 
-Version is 0.15.2. A source push does not publish an installer. The Windows
+Version is 0.15.3. A source push does not publish an installer. The Windows
 workflow builds releases on version tags or manual dispatch. After reviewing
 the 2026-10-23 fixes, the owner explicitly authorized committing, pushing to
 GitHub and publishing updated installers. The prohibition on launching CS2/HLAE

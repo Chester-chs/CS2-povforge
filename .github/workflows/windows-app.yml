@@ -200,6 +200,13 @@ jobs:
           for ($i = 0; $i -lt 20 -and -not $opened; $i++) { Start-Sleep 1; $opened = Get-Process PovForge -ErrorAction SilentlyContinue }
           if (-not $opened) { throw "PovForge did not reopen after the update install" }
           Write-Host "Update install reopened PovForge (pid $($opened.Id))"
+          $nativeReady = $false
+          for ($i = 0; $i -lt 30 -and -not $nativeReady; $i++) {
+            Start-Sleep 1
+            $nativeReady = [bool](Select-String -Path "$env:LOCALAPPDATA/povforge/app.log" -Pattern 'Native WebView2 ready' -Quiet -ErrorAction SilentlyContinue)
+          }
+          if (-not $nativeReady) { throw "Installed app did not load the native WebView2 window" }
+          Write-Host "Native WebView2 window loaded successfully"
           Get-Process PovForge, msedge -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Sleep 2
           Start-Process "$env:LOCALAPPDATA\Programs\PovForge\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait

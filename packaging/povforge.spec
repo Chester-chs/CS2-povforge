@@ -3,11 +3,15 @@
 # differ by more than case: Windows file names ignore case. Run inside packaging:
 #   pyinstaller --noconfirm povforge.spec
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_dynamic_libs
+from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_dynamic_libs, copy_metadata
 
 datas = collect_data_files("povforge", includes=["director.js", "gui/static/**/*"])
 binaries = collect_dynamic_libs("demoparser2")
 hidden = ["povforge.gui.server", "povforge.cli", "povforge.app"]
+datas += collect_data_files("webview")  # JS bridge and WebView2 managed assemblies
+hidden += ["webview.platforms.winforms", "webview.platforms.edgechromium", "clr"]
+for package in ("pywebview", "pythonnet", "clr_loader"):
+    datas += copy_metadata(package)
 
 # demoparser2 is a compiled extension that imports polars and pyarrow at run time
 # (to build its tables), so PyInstaller can't see them: collect them explicitly.

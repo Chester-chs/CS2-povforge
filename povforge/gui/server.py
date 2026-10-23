@@ -1,8 +1,8 @@
 """PovForge app: a small local web server plus a page that drives the pipeline.
 
 Run with ``povforge gui`` (or the packaged PovForge.exe). It listens on
-127.0.0.1 only and opens the page in an Edge/Chrome app window (falls back to
-the default browser). Recording runs ``povforge run`` as a child process, so
+127.0.0.1 only and opens a native WebView2 window on Windows (with a browser
+fallback). Recording runs ``povforge run`` as a child process, so
 the app shows the same steps and messages as the command line.
 """
 
@@ -1415,7 +1415,7 @@ class App:
                                quit_app=lambda: self.quit())
         self.last_seen = time.time()   # the page asks for state every second or two
         self.bye_at = 0.0              # the page said it was closing (pagehide)
-        self.window = None             # the Edge/Chrome process showing our window, when we can tell
+        self.window = None             # native window lifetime, or the owned browser process
         self.inspecting = 0
         self.screen = screen_size()
         threading.Thread(target=self._check_update, daemon=True).start()
@@ -1775,15 +1775,23 @@ def main(port: int = 0, open_browser: bool = True) -> None:
     server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(app))
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(f"PovForge is running at {url} (close this window to quit)", flush=True)
+    native = None
     if open_browser:
-        app.window = open_window(url)
-    app.quit = lambda: threading.Thread(target=server.shutdown, daemon=True).start()
+        from .native_window import create
+        native = create(url)
+        app.window = native or open_window(url)
+
+    def quit_app():
+        server.shutdown()
+        if native is not None:
+            native.close()
+    app.quit = lambda: threading.Thread(target=quit_app, daemon=True).start()
 
     def watch() -> None:
         # a browser already running with our window profile takes the window over and
         # this process ends at once: then we can't watch the window, only the page
         time.sleep(6)
-        if app.window is not None and app.window.poll() is not None:
+        if native is None and app.window is not None and app.window.poll() is not None:
             app.window = None
         while True:
             time.sleep(3)
@@ -1795,7 +1803,20 @@ def main(port: int = 0, open_browser: bool = True) -> None:
 
     threading.Thread(target=watch, daemon=True).start()
     try:
-        server.serve_forever()
+        if native is None:
+            server.serve_forever()
+        else:
+            # WebView2 owns the main UI thread; HTTP and recording keep their
+            # existing background lifetimes, including finishing busy jobs.
+            worker = threading.Thread(target=server.serve_forever, daemon=True)
+            worker.start()
+            try:
+                native.run()
+            except Exception as exc:
+                print(f'Native window failed; using browser window: {exc}', flush=True)
+                native = None
+                app.window = open_window(url)
+            worker.join()
     except KeyboardInterrupt:
         pass
     finally:
