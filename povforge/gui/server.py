@@ -520,6 +520,8 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
             "duels": duel_events(d, sides),
             "rounds": n, "minutes": round(d.last_tick / d.tickrate / 60, 1), "faceit_match": match_id(src.name),
             "date": time.strftime("%Y-%m-%d %H:%M", time.localtime(src.stat().st_mtime)), "teams": out_teams}
+    from ..recording_details import build
+    info['recording_details'] = build(d)
     _inspect_cache[key] = info
     score = f"{out_teams[0]['score']}:{out_teams[1]['score']}" if len(out_teams) >= 2 and out_teams[1]["score"] is not None else ""
     _remember_demo(str(src), info["map_pretty"], score)
@@ -541,19 +543,21 @@ def _inspection_file(key: str) -> Path:
     return app_dir() / "demo-info" / (hashlib.sha1(key.encode("utf-8")).hexdigest() + ".json")
 
 
-def inspect_isolated(path: str, work_dir: Path) -> dict:
+def inspect_isolated(path: str, work_dir: Path, details: bool = False) -> dict:
     """inspect_demo in a child process: reading a big demo then can't stall the
     app, and a crash in the demo parser can't take the app down with it."""
     # Concurrent clicks/windows share one parse. Bounded locks avoid accumulating
     # one lock per demo; distinct stripes can still parse independently.
     with _inspect_locks[hash(_inspection_key(Path(path))) % len(_inspect_locks)]:
-        return _inspect_saved(path, work_dir)
+        return _inspect_saved(path, work_dir, details)
 
 
-def _inspect_saved(path: str, work_dir: Path) -> dict:
+def _inspect_saved(path: str, work_dir: Path, details: bool = False) -> dict:
     src = Path(path)
     key = _inspection_key(src)
-    if key in _inspect_cache:
+    def usable(info):
+        return not details or info.get('recording_details', {}).get('version') == 1
+    if key in _inspect_cache and usable(_inspect_cache[key]):
         return _inspect_cache[key]
     saved = _inspection_file(key)
     if saved.exists():                        # read before, even in an earlier session
@@ -561,8 +565,9 @@ def _inspect_saved(path: str, work_dir: Path) -> dict:
             info = json.loads(saved.read_text(encoding="utf-8"))
             if not isinstance(info, dict):
                 raise ValueError("Invalid demo cache")
-            _inspect_cache[key] = info
-            return info
+            if usable(info):
+                _inspect_cache[key] = info
+                return info
         except Exception:
             pass
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
@@ -1035,6 +1040,10 @@ class Queue:
                     item[k] = snap[k]
             if snap["state"] == "cancelled":
                 self.paused = True       # stopping one recording pauses the rest
+            completed = dict(item) if item is not None and snap['state'] == 'done' else None
+        if completed:
+            from ..recordings import remember
+            remember(app_dir(), completed, self.prefs, snap.get('elapsed', 0))
         self._start_next()
 
     def resume(self) -> None:
@@ -1527,6 +1536,9 @@ def make_handler(app: App):
                     return self._json(app.setup.status())
                 if url.path == "/api/demos":
                     return self._json(find_demos(app.prefs["demo_folders"]))
+                if url.path == '/api/library':
+                    from ..recordings import list_videos
+                    return self._json(list_videos(app_dir(), app.prefs))
                 if url.path == "/api/map-thumbnail":
                     from ..maps import get_map_thumbnail
                     try:
@@ -1568,7 +1580,7 @@ def make_handler(app: App):
                         return self._json({"error": "not_a_demo"}, 400)
                     app.inspecting += 1
                     try:
-                        return self._json(inspect_isolated(path, Path(app.prefs["output"])))
+                        return self._json(inspect_isolated(path, Path(app.prefs["output"]), details=True))
                     finally:
                         app.inspecting -= 1
                         app.last_seen = time.time()

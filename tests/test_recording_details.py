@@ -6,9 +6,9 @@ from povforge.model import Death, Player, Round
 def test_details_keep_weapon_order_posthumous_flags_and_round_lengths():
     from povforge.recording_details import build
     demo = SimpleNamespace(tickrate=10, last_tick=420,
-        players=[Player('a', 'A'), Player('b', 'B'), Player('c', 'C')],
+        players=[Player('a', 'A'), Player('b', 'B'), Player('c', 'C'), Player('d', 'D')],
         rounds=[Round(1, 30, 200), Round(2, 250, 400)],
-        deaths=[Death(100, 'b', 'a', 'm4a1', True), Death(80, 'c', 'a', 'ak47'),
+        deaths=[Death(100, 'd', 'a', 'm4a1', True), Death(80, 'c', 'a', 'ak47'),
                 Death(150, 'a', 'b', 'awp'), Death(180, 'c', 'a', 'inferno')])
     info = build(demo)
     assert [e['weapon'] for e in info['events']] == ['ak47', 'm4a1', 'awp', 'inferno']

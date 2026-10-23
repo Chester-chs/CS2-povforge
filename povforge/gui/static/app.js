@@ -259,6 +259,8 @@ const TEXT = {
 
 document.addEventListener("alpine:init", () => {
   Alpine.data("povforge", () => ({
+    videosOpen: false, libraryVideos: [], videosBusy: false, videosError: '', videoQuery: '', videoMode: 'all',
+    videoFreeBytes: null,
     csrfToken: document.querySelector?.('meta[name="povforge-token"]')?.content || "",
     version: "", lang: "zh", prefs: {}, setup: {}, job: { state: "idle", lines: [], recorded: [], planned: [], step: [0, 0] },
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
@@ -358,7 +360,7 @@ document.addEventListener("alpine:init", () => {
         .map(l => (/^\s{2,}\S/.test(l) ? "• " : "") + l.trim().replace(/^- /, "• "));
       return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
     },
-    openSetup() { this.settingsOpen = false; this.setupOpen = true; this.showRun = false; this.reelOpen = false; this.leaveInspection(); },
+    openSetup() { this.videosOpen = false; this.settingsOpen = false; this.setupOpen = true; this.showRun = false; this.reelOpen = false; this.leaveInspection(); },
 
     // --- appearance ---
     applyTheme() {
@@ -375,6 +377,7 @@ document.addEventListener("alpine:init", () => {
       this.post('/api/window-theme', {dark: !!dark}).catch(() => {});
     },
     async openSettings() {
+      this.videosOpen = false;
       this.settingsOpen = true;
       this.work = { bytes: null, path: "", confirm: false, cleaning: false };
       try { const w = await this.get("/api/workfiles"); this.work = { ...this.work, ...w }; } catch (e) { this.work.bytes = 0; }
@@ -469,7 +472,7 @@ document.addEventListener("alpine:init", () => {
         document.querySelector('.content')?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       });
     },
-    openLibrary() { this.settingsOpen = false; this.leaveInspection(); this.libraryOpen = true; this.setupOpen = false; this.showRun = false; this.viewId = null; this.scrollContentTop(); },
+    openLibrary() { this.videosOpen = false; this.settingsOpen = false; this.leaveInspection(); this.libraryOpen = true; this.setupOpen = false; this.showRun = false; this.viewId = null; this.scrollContentTop(); this.loadVideos(); },
     openMatchMode() { this.reelOpen = false; this.openLibrary(); },
     editReel() { if (this.reel.sources.length) { this.libraryOpen = false; this.scrollContentTop(); } },
     get libraryDemos() {
@@ -489,6 +492,7 @@ document.addEventListener("alpine:init", () => {
     },
     // --- highlight reel ---
     openReel(fromMatch, content = 'kills') {
+      this.videosOpen = false;
       this.settingsOpen = false;
       this.leaveInspection();
       this.reelOpen = true; this.showRun = false; this.setupOpen = false;
@@ -675,7 +679,98 @@ document.addEventListener("alpine:init", () => {
       if (c.mode === "kills_deaths" && c.died) parts.push(zh ? "阵亡" : "Death");
       return parts.join("  ");
     },
-    reelSeconds(items) { return Math.round(items.reduce((t, c) => t + (c.k ? 5.5 + (c.k - 1) * 2.5 : 8), 0)); },
+    reelSeconds(items) { return this.reelEstimate.seconds == null ? '—' : Math.round(this.reelEstimate.seconds); },
+    // Finished videos are separate from Demo selection and the transient queue.
+    async loadVideos() {
+      try { const data = await this.get('/api/library'); this.libraryVideos = data.items || []; this.videoFreeBytes = data.free_bytes; }
+      catch (e) { this.videosError = e.message; }
+    },
+    async openVideos() {
+      this.leaveInspection(); this.settingsOpen = false; this.showRun = false; this.videosOpen = true;
+      this.videosBusy = true; this.videosError = ''; this.scrollContentTop();
+      try { await this.loadVideos(); } finally { this.videosBusy = false; }
+    },
+    modeName(mode) {
+      return mode === 'match' ? this.t('modeMatch') : this.reelModes.some(m => m.value === mode)
+        ? this.t(this.reelModes.find(m => m.value === mode).label) : (this.lang === 'zh' ? '已有视频' : 'Existing video');
+    },
+    get filteredVideos() {
+      const query = this.videoQuery.trim().toLocaleLowerCase();
+      return this.libraryVideos.filter(v => (this.videoMode === 'all' || v.mode === this.videoMode) &&
+        (!query || [v.name, ...(v.players || []), ...(v.maps || [])].join(' ').toLocaleLowerCase().includes(query)));
+    },
+    weaponName(raw) {
+      const key = String(raw || '').replace(/^weapon_/, '').toLowerCase();
+      return ({ak47:'AK-47',m4a1:'M4A4',m4a1_silencer:'M4A1-S',awp:'AWP',ssg08:'SSG 08',
+        deagle:'Desert Eagle',usp_silencer:'USP-S',hkp2000:'P2000',glock:'Glock-18',
+        mp9:'MP9',mac10:'MAC-10',hegrenade:'HE',inferno:'Molotov',world:'World'})[key] ||
+        (/knife|bayonet/.test(key) ? (this.lang === 'zh' ? '刀' : 'Knife') : key ? key.toUpperCase() : (this.lang === 'zh' ? '未知武器' : 'Unknown weapon'));
+    },
+    itemInfo(item) { return this.reel.sources.find(s => s.path === item.path)?.info; },
+    itemEvents(item, info = this.itemInfo(item), mode = this.reel.content) {
+      return (info?.recording_details?.events || []).filter(e => e.round === item.round &&
+        (mode === 'duel' ? (info.duels || []).some(d => d.tick === e.tick && d.attacker === e.attacker && d.victim === e.victim &&
+          ((d.attacker === item.steamid && d.victim === item.opponent) || (d.victim === item.steamid && d.attacker === item.opponent)))
+          : (e.attacker === item.steamid && e.victim !== item.steamid && (mode === 'match' || mode === 'kills' || e.pov)) ||
+            ((mode === 'match' || mode === 'kills_deaths') && e.victim === item.steamid)));
+    },
+    weaponSummary(item, info = this.itemInfo(item), mode = this.reel.content) {
+      if (!info?.recording_details) return this.lang === 'zh' ? '武器详情暂不可用' : 'Weapon details unavailable';
+      const kills = new Map(), deaths = new Map();
+      for (const e of this.itemEvents(item, info, mode)) {
+        const map = e.attacker === item.steamid ? kills : deaths, name = this.weaponName(e.weapon);
+        map.set(name, (map.get(name) || 0) + 1);
+      }
+      const text = map => [...map].map(([w,n]) => `${w} ×${n}`).join(' · ');
+      return [kills.size ? `${this.lang === 'zh' ? '击杀' : 'Kills'}：${text(kills)}` : '',
+        deaths.size ? `${this.lang === 'zh' ? '阵亡于' : 'Killed by'}：${text(deaths)}` : ''].filter(Boolean).join('；') ||
+        (this.lang === 'zh' ? '本回合没有所选事件' : 'No selected events this round');
+    },
+    eventLabel(e, info) {
+      const name = sid => this.playerIn(info, sid)?.name || sid || (this.lang === 'zh' ? '环境' : 'World');
+      return `${this.clock(e.time)} · ${name(e.attacker)} → ${name(e.victim)} · ${this.weaponName(e.weapon)}${e.headshot ? (this.lang === 'zh' ? ' · 爆头' : ' · HS') : ''}${e.pov === false ? (this.lang === 'zh' ? ' · 死亡后击杀' : ' · Posthumous') : ''}`;
+    },
+    get matchEstimate() {
+      const rs = this.customRounds ? this.chosenRounds : this.roundList, seconds = this.demo?.recording_details?.seconds?.[this.player?.steamid];
+      return {seconds: seconds ? [...new Set(rs)].reduce((n,r) => n + (seconds[r-1] || 0),0) : null, segments: rs.length};
+    },
+    get reelEstimate() {
+      let seconds = 0, segments = 0; const seen = new Set();
+      const mode = this.reel.content, pace = mode === 'kills' ? ({tight:[2.5,1],long:[6,2.5]})[this.fx?.pace] : null;
+      const [before,after] = pace || [4,1.5];
+      for (const item of this.reel.items) {
+        if (seen.has(item.key || JSON.stringify(item))) continue; seen.add(item.key || JSON.stringify(item));
+        const info = this.itemInfo(item), details = info?.recording_details;
+        if (!details) return {seconds:null,segments:0};
+        const end = details.rounds.find(r => r.number === item.round)?.end || 0;
+        const events = this.itemEvents(item,info,mode); let windows = [];
+        if (mode === 'kills') {
+          windows = events.length ? [[Math.max(0,events[0].time-before),Math.min(end,events[events.length-1].time+after)]]
+            : [[Math.max(0,(details.seconds[item.steamid]?.[item.round-1] || 0)-8), details.seconds[item.steamid]?.[item.round-1] || 0]];
+        } else for (const e of events) {
+          const a = Math.max(0,e.time-before), b = Math.min(end,e.time+after);
+          if (mode !== 'duel' && windows.length && a <= windows[windows.length-1][1]) windows[windows.length-1][1] = Math.max(b,windows[windows.length-1][1]);
+          else windows.push([a,b]);
+        }
+        for (const [a,b] of windows) { seconds += Math.max(0,b-a)*(mode === 'duel' ? 2 : 1); segments += mode === 'duel' ? 2 : 1; }
+      }
+      return {seconds,segments};
+    },
+    estimateText(estimate) {
+      return estimate.seconds == null ? (this.lang === 'zh' ? '暂时无法估算，缺少时间索引' : 'Timing index unavailable') :
+        (this.lang === 'zh' ? `主体画面约 ${this.clock(estimate.seconds)} · ${estimate.segments} 段` : `Main footage ≈ ${this.clock(estimate.seconds)} · ${estimate.segments} segments`);
+    },
+    estimateResources(estimate, mode) {
+      if (!estimate.seconds) return '';
+      const samples = this.libraryVideos.filter(v => !v.missing && v.duration > 0 && v.elapsed > 0 && v.profile?.mode === mode &&
+        v.profile.fps === (this.prefs.record_fps || 60) && (mode !== 'match' ||
+          (v.profile.minimap === !!this.prefs.minimap && v.profile.keyboard === !!this.prefs.keyboard))).slice(0,10);
+      if (samples.length < 3) return this.lang === 'zh' ? '本机完成 3 次同类录制后，可估算制作耗时和成片大小。' : 'Time and output-size estimates become available after 3 similar recordings on this PC.';
+      const rates = samples.map(v => v.elapsed/v.duration).sort((a,b)=>a-b), sizes = samples.map(v=>v.size/v.duration).sort((a,b)=>a-b);
+      const low = estimate.seconds*rates[0]*.8, high = estimate.seconds*rates[rates.length-1]*1.2;
+      return this.lang === 'zh' ? `按本机 ${samples.length} 次记录估算：制作约 ${this.clock(low)}–${this.clock(high)}；成片约 ${this.bytes(estimate.seconds*sizes[0]*.8)}–${this.bytes(estimate.seconds*sizes[sizes.length-1]*1.2)}。`
+        : `Based on ${samples.length} local jobs: processing ≈ ${this.clock(low)}–${this.clock(high)}; output ≈ ${this.bytes(estimate.seconds*sizes[0]*.8)}–${this.bytes(estimate.seconds*sizes[sizes.length-1]*1.2)}.`;
+    },
     get reelWhyNot() {
       const w = this.whyNotSetup;
       if (!w && this.reel.content === "duel" && this.reel.sources.some(x => !x.opponent))
