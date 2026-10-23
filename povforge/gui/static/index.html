@@ -5,6 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f5f5f7">
 <title>PovForge</title>
 <link rel="icon" href="/static/icon.png">
 <link rel="stylesheet" href="/static/app.css">
@@ -21,53 +22,24 @@
     <b>PovForge</b>
   </header>
 
-  <button class="setup-row" x-show="!ready" x-cloak @click="openSetup()" :aria-current="setupOpen">
+  <button class="setup-row" x-show="booted && setupNeedsAttention" x-cloak @click="openSetup()" :aria-current="setupOpen">
     <span class="dot-warn"></span>
     <span><b x-text="t('finishSetup')"></b><small x-text="setupHint"></small></span>
     <svg><use href="#i-chevron-right"/></svg>
   </button>
 
   <nav class="modes" role="tablist" :aria-label="t('modesLabel')">
-    <button role="tab" :aria-selected="!reelOpen" @click="openMatchMode()">
+    <button role="tab" :aria-selected="!settingsOpen && !reelOpen" @click="openMatchMode()">
       <svg><use href="#i-film"/></svg><span x-text="t('modeMatch')"></span>
     </button>
-    <button role="tab" :aria-selected="reelOpen" @click="openReel(false)">
-      <svg><use href="#i-sparkles"/></svg><span x-text="t('reelNav')"></span>
-    </button>
+    <template x-for="mode in reelModes" :key="mode.value">
+      <button role="tab" :aria-selected="!settingsOpen && reelOpen && reel.content === mode.value" @click="openReel(false, mode.value)">
+        <svg><use :href="'#i-' + mode.icon"/></svg><span x-text="t(mode.label)"></span>
+      </button>
+    </template>
   </nav>
 
   <div class="side-scroll">
-
-    <section class="side-group">
-      <div class="side-title">
-        <h2 x-text="reelOpen ? t('demosForReel') : t('demos')"></h2>
-        <span class="side-tools">
-          <button class="icon-btn" @click="browse()" :title="t('openFile')" :aria-label="t('openFile')"><svg><use href="#i-plus"/></svg></button>
-          <button class="icon-btn" @click="chooseFolder('demos')" :title="t('demoFolder')" :aria-label="t('demoFolder')"><svg><use href="#i-folder"/></svg></button>
-          <button class="icon-btn" @click="loadDemos()" :title="t('refresh')" :aria-label="t('refresh')"><svg><use href="#i-refresh-cw"/></svg></button>
-        </span>
-      </div>
-      <ul class="side-list" role="listbox" :aria-label="t('demos')">
-        <template x-for="d in demos" :key="d.path">
-          <li>
-            <button class="side-row" role="option" :class="{ ticking: reelOpen }"
-                    :aria-selected="reelOpen ? !!reelSrc(d.path) : !!(demo && demo.path === d.path && !runVisible && !setupOpen)"
-                    @click="reelOpen ? toggleSource(d.path) : pickDemo(d.path)">
-              <svg class="row-ic" x-show="!reelOpen"><use href="#i-film"/></svg>
-              <span class="tick" x-show="reelOpen" :class="{ on: !!reelSrc(d.path) }"><svg><use href="#i-check"/></svg></span>
-              <span class="row-text">
-                <b><span x-text="d.map || niceDemoName(d)"></span><em x-show="d.score" x-text="d.score"></em></b>
-                <small x-text="(d.faceit ? 'FACEIT  ' : '') + ago(d.mtime) + '  ' + mb(d.size)"></small>
-              </span>
-            </button>
-          </li>
-        </template>
-      </ul>
-      <p class="side-empty" x-show="demosLoaded && !demos.length">
-        <span x-text="t('noDemos')"></span>
-        <button class="link" @click="browse()" x-text="t('openFile')"></button>
-      </p>
-    </section>
 
     <section class="side-group" x-show="queue.items.length" x-cloak>
       <div class="side-title">
@@ -115,15 +87,63 @@
 
 <!-- ================= content ================= -->
 <main class="content">
+<div class="recording-views" x-show="!settingsOpen">
+  <!-- The library is the everyday home; setup is an explicit, separate view. -->
+  <section class="page library" x-cloak x-show="booted && libraryOpen && !setupOpen && !runVisible">
+    <header class="library-head">
+      <div class="title-block">
+        <h1 x-text="currentModeTitle"></h1>
+        <p x-text="currentModeHelp"></p>
+      </div>
+      <button class="btn primary" @click="browse()"><svg><use href="#i-plus"/></svg><span x-text="t('uploadDemo')"></span></button>
+    </header>
+    <button class="library-notice" x-show="setupNeedsAttention" @click="openSetup()">
+      <svg><use href="#i-circle-alert"/></svg><span x-text="t('checkEnvironment')"></span><svg><use href="#i-chevron-right"/></svg>
+    </button>
+    <div class="library-controls">
+      <label class="library-search"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input type="search" x-model="libraryQuery" :placeholder="t('searchDemos')" :aria-label="t('searchDemos')"></label>
+      <div class="library-actions">
+        <button class="btn" @click="$refs.recordingOptions.scrollIntoView({behavior: 'smooth'})" x-text="t('recordingSettings')"></button>
+        <button class="btn" @click="chooseFolder('demos')"><svg><use href="#i-folder"/></svg><span x-text="t('demoFolder')"></span></button>
+        <button class="icon-btn" @click="loadDemos()" :title="t('refresh')" :aria-label="t('refresh')"><svg><use href="#i-refresh-cw"/></svg></button>
+      </div>
+    </div>
+    <div class="library-caption"><b x-text="t('demos')"></b><span x-text="t('demoCount', {n: libraryDemos.length})"></span></div>
+    <p class="footnote err" x-show="libraryError" x-text="libraryError"></p>
+    <div class="library-list">
+      <template x-for="d in libraryDemos" :key="d.path">
+        <button class="demo-card" :class="{selected: reelOpen && !!reelSrc(d.path)}" :aria-pressed="reelOpen ? !!reelSrc(d.path) : null"
+                @click="reelOpen ? toggleSource(d.path) : pickDemo(d.path)">
+          <span class="demo-art"><svg><use href="#i-film"/></svg><span x-text="d.faceit ? 'FACEIT' : 'DEMO'"></span></span>
+          <span class="demo-description"><b x-text="d.map || niceDemoName(d)"></b><small class="demo-filename" :title="d.name" x-text="d.name || d.path.split(/[\\/]/).pop()"></small><small x-text="[d.mtime ? ago(d.mtime) : '', d.size ? mb(d.size) : ''].filter(Boolean).join(' · ')"></small></span>
+          <span class="demo-score" x-text="d.score || '—'"></span>
+          <span class="demo-cache" :class="{saved: d.cached}"><span class="cache-dot"></span><span x-text="d.cached ? t('cachedDemo') : t('newDemo')"></span></span>
+          <span class="tick" x-show="reelOpen" :class="{on: !!reelSrc(d.path)}"><svg><use href="#i-check"/></svg></span>
+          <svg class="demo-chevron" x-show="!reelOpen"><use href="#i-chevron-right"/></svg>
+        </button>
+      </template>
+      <div class="library-empty" x-show="!demosLoaded"><span class="spinner small"></span><p x-text="t('loadingLibrary')"></p></div>
+      <div class="library-empty" x-show="demosLoaded && !libraryDemos.length">
+        <svg class="big-ic"><use href="#i-folder"/></svg><h2 x-text="libraryQuery ? t('noMatches') : t('noDemos')"></h2>
+        <p x-text="libraryQuery ? t('trySearch') : t('ckDemoHelp')"></p>
+        <button class="btn" x-show="!libraryQuery" @click="browse()" x-text="t('openFile')"></button>
+      </div>
+    </div>
+    <div class="library-bottom">
+      <p class="hint"><svg><use href="#i-circle-check"/></svg><span x-text="t('cacheHelp')"></span></p>
+      <button class="btn primary" x-show="reelOpen" @click="editReel()" :disabled="!reel.sources.length" x-text="t('continueReel', {n: reel.sources.length})"></button>
+    </div>
+  </section>
 
   <!-- setup / nothing picked yet -->
-  <section class="page narrow" x-show="(setupOpen || !demo) && !reelOpen && !inspecting && !inspectError && !runVisible">
+  <section class="page narrow" x-cloak x-show="booted && setupOpen && !runVisible">
     <header class="title-block">
-      <h1 x-text="ready ? t('blankTitle') : t('setupTitle')"></h1>
-      <p x-text="ready ? t('blankBody') : t('setupBody')"></p>
+      <h1 x-text="t('setupTitle')"></h1>
+      <p x-text="t('setupBody')"></p>
     </header>
 
     <h3 class="group-title" x-text="t('foldersTitle')"></h3>
+    <p class="hint folder-advice" x-text="t('oneDemoFolder')"></p>
     <ul class="group folders">
       <li class="row">
         <span class="status" :class="prefs.folders_set ? 'ok' : 'todo'"><svg x-show="prefs.folders_set"><use href="#i-check"/></svg></span>
@@ -175,27 +195,31 @@
     </p>
     <p class="footnote"><svg><use href="#i-shield-check"/></svg><span x-text="t('safeNote')"></span></p>
     <p class="footnote err" x-show="setup.problems?.length" x-text="(setup.problems || []).join('; ')"></p>
+    <div class="setup-continue"><button class="btn primary" @click="openLibrary()" x-text="t('enterWorkspace')"></button></div>
   </section>
 
-  <section class="page center" x-show="inspecting && !runVisible && !reelOpen">
+  <section class="page center" x-cloak x-show="inspecting && !libraryOpen && !setupOpen && !runVisible && !reelOpen">
     <div class="placeholder">
       <span class="spinner"></span>
       <h2 x-text="t('reading')"></h2>
       <p x-text="t('readingBody')"></p>
+      <button class="btn" @click="openLibrary()" x-text="t('backLibrary')"></button>
     </div>
   </section>
 
-  <section class="page center" x-show="inspectError && !inspecting && !runVisible && !setupOpen && !reelOpen">
+  <section class="page center" x-cloak x-show="inspectError && !libraryOpen && !inspecting && !runVisible && !setupOpen && !reelOpen">
     <div class="placeholder">
       <svg class="big-ic warn"><use href="#i-circle-alert"/></svg>
       <h2 x-text="t('cantRead')"></h2>
       <p x-text="inspectError"></p>
       <button class="btn" @click="pickDemo(lastPath)" x-text="t('retry')"></button>
+      <button class="btn" @click="openLibrary()" x-text="t('backLibrary')"></button>
     </div>
   </section>
 
   <!-- match: choose player, rounds, options -->
-  <section class="page match" x-show="demo && !setupOpen && !reelOpen && !inspecting && !runVisible">
+  <section class="page match" x-cloak x-show="demo && !libraryOpen && !setupOpen && !reelOpen && !inspecting && !runVisible">
+    <button class="back-library link" @click="openLibrary()"><span aria-hidden="true">‹</span><span x-text="t('backLibrary')"></span></button>
     <header class="match-head">
       <img class="radar" x-show="demo" :src="demo ? '/api/radar?map=' + demo.map : ''" alt="" x-on:error="$el.style.display = 'none'">
       <div class="title-block">
@@ -303,24 +327,15 @@
   </section>
 
   <!-- highlight reel: pick demos, player, rounds and order -->
-  <section class="page narrow reel" x-show="reelOpen && !runVisible">
+  <section class="page narrow reel" x-cloak x-show="reelOpen && !libraryOpen && !runVisible">
+    <button class="back-library link" @click="openLibrary()"><span aria-hidden="true">‹</span><span x-text="t('chooseDemos')"></span></button>
     <header class="title-block">
-      <h1 x-text="t('reelTitle')"></h1>
-      <p x-text="t('reelBody')"></p>
+      <h1 x-text="currentModeTitle"></h1>
+      <p x-text="currentModeHelp"></p>
     </header>
 
     <h3 class="group-title" x-text="t('reelName')"></h3>
     <div class="group"><input class="text-input" x-model="reel.title" @input="reel.titleEdited = true" :aria-label="t('reelName')"></div>
-
-    <h3 class="group-title" x-text="lang === 'zh' ? '录制内容' : 'Content'"></h3>
-    <div class="group row">
-      <select class="select wide" x-model="reel.content" @change="setReelContent(reel.content)" :aria-label="lang === 'zh' ? '录制内容' : 'Content'">
-        <option value="kills" x-text="lang === 'zh' ? '高光集锦 · 自选回合' : 'Highlights · selected rounds'"></option>
-        <option value="kill_events" x-text="lang === 'zh' ? '仅击杀 · 按事件时间' : 'Kills only · event order'"></option>
-        <option value="kills_deaths" x-text="lang === 'zh' ? '击杀＋死亡 · 按回合顺序' : 'Kills + deaths · round order'"></option>
-        <option value="duel" x-text="lang === 'zh' ? '双人对位 · 每次 A → B' : 'Duels · each A → B'"></option>
-      </select>
-    </div>
 
     <div class="group-title with-control"><h3 x-text="t('reelSources')"></h3><span class="hint" x-text="t('reelSourcesHelp')"></span></div>
     <ul class="group">
@@ -568,7 +583,7 @@
 
     <div class="toolbar">
       <div class="who">
-        <b x-text="reel.title || t('reelTitle')"></b>
+        <b x-text="reel.title || currentModeTitle"></b>
         <small x-text="reel.items.length ? t('reelCount', { n: reel.items.length, s: reelSeconds(reel.items) }) : ''"></small>
       </div>
       <p class="why-not" x-show="reelWhyNot" x-text="reelWhyNot"></p>
@@ -664,6 +679,118 @@
       <pre x-ref="log" x-text="job.lines.join('\n')"></pre>
     </details>
   </section>
+
+<section class="page recording-panel" x-ref="recordingOptions" x-show="booted && !setupOpen && !runVisible && !inspecting && !inspectError" x-cloak>
+  <h2 class="settings-heading" x-text="t('recordingSettings')"></h2>
+  <ul class="group">      <li class="row">
+        <span class="row-main"><b x-text="t('recRes')"></b><small x-text="screen ? t('recScreen', { w: screen[0], h: screen[1] }) : t('recResHelp')"></small></span>
+        <div class="segmented tiny" role="radiogroup" :aria-label="t('recRes')">
+          <template x-for="o in ['auto', '1080']" :key="o">
+            <button role="radio" :aria-checked="(prefs.record_res || 'auto') === o" :disabled="o !== 'auto' && !(sizes || []).includes(o)"
+                    :title="o !== 'auto' && !(sizes || []).includes(o) ? t('recTooBig') : ''"
+                    @click="prefs.record_res = o; savePrefs()" x-text="t('res_' + o)"></button>
+          </template>
+        </div>
+      </li>
+      <li class="row">
+        <span class="row-main"><b x-text="t('recFps')"></b><small x-text="t('recFpsHelp')"></small></span>
+        <div class="segmented tiny" role="radiogroup" :aria-label="t('recFps')">
+          <template x-for="o in [60]" :key="o">
+            <button role="radio" :aria-checked="(prefs.record_fps || 60) === o" @click="prefs.record_fps = o; savePrefs()" x-text="t('fpsN', { n: o })"></button>
+          </template>
+        </div>
+      </li>
+      <li class="row">
+        <label class="row-main" for="by-player"><b x-text="t('byPlayer')"></b><small x-text="t('byPlayerHelp')"></small></label>
+        <input type="checkbox" class="switch" id="by-player" :checked="prefs.by_player !== false" @change="prefs.by_player = $event.target.checked; savePrefs()">
+      </li>
+      <template x-for="[sid, f] in playerFolderList" :key="sid">
+        <li class="row sub folder-row">
+          <span class="folder-who" x-text="t('folderOf', { name: f.name })"></span>
+          <input class="text-input inline folder-name" :value="f.folder" @change="renamePlayerFolder(sid, $event.target.value, $event.target)" :aria-label="t('folderOf', { name: f.name })">
+        </li>
+      </template>
+</ul>
+</section>
+
+</div>
+
+<section class="page settings-page" x-show="settingsOpen" x-cloak>
+  <button class="back-library link" @click="settingsOpen = false" x-text="t('backRecording')"></button>
+  <header class="title-block"><h1 x-text="t('settings')"></h1></header>
+  <nav class="settings-tabs" role="tablist" :aria-label="t('settings')">
+    <template x-for="tab in [['appearance','settingsAppearance'],['general','settingsGeneral'],['about','settingsAbout']]" :key="tab[0]">
+      <button role="tab" :data-settings-tab="tab[0]" :aria-selected="settingsTab === tab[0]" @click="settingsTab = tab[0]" x-text="t(tab[1])"></button>
+    </template>
+  </nav>
+  <section class="appearance-page" x-show="settingsTab === 'appearance'">
+    <h2 class="settings-heading" x-text="t('settingsAppearance')"></h2>
+    <div class="group appearance-group">
+      <div class="appearance-themes"><b x-text="t('appearance')"></b><p class="hint" x-text="t('themeHelp')"></p>
+        <div class="theme-options" role="radiogroup" :aria-label="t('appearance')">
+          <template x-for="theme in [['auto','appAuto'],['light','appLight'],['dark','appDark']]" :key="theme[0]">
+            <button class="theme-option" :class="theme[0]" role="radio" :aria-checked="(prefs.appearance || 'auto') === theme[0]" @click="setAppearance(theme[0])">
+              <span class="theme-mini"><i></i><span><b></b><i></i><i></i></span></span>
+              <span x-text="t(theme[1])"></span><svg x-show="(prefs.appearance || 'auto') === theme[0]"><use href="#i-circle-check"/></svg>
+            </button>
+          </template>
+        </div>
+      </div>
+      <div class="row"><span class="row-main"><b x-text="t('accent')"></b><small x-text="t('acc_' + (prefs.accent || 'blue'))"></small></span>
+        <div class="swatches" role="radiogroup" :aria-label="t('accent')"><template x-for="a in accents" :key="a"><button class="swatch" :class="'sw-' + a" role="radio" :aria-checked="(prefs.accent || 'blue') === a" :title="t('acc_' + a)" :aria-label="t('acc_' + a)" @click="setAccent(a)"></button></template></div>
+      </div>
+      <div class="row"><label class="row-main" for="app-font"><b x-text="t('fontLabel')"></b><small x-text="t('fontHelp')"></small></label>
+        <select id="app-font" class="select" :value="prefs.font || 'system'" @change="prefs.font = $event.target.value; saveAppearance()"><template x-for="font in fonts" :key="font"><option :value="font" x-text="t('font_' + font)"></option></template></select>
+      </div>
+      <div class="row"><label class="row-main" for="popup-radius"><b x-text="t('popupRadius')"></b><small x-text="t('popupRadiusHelp')"></small></label>
+        <div class="radius-control"><input id="popup-radius" type="range" min="0" max="28" step="1" :value="prefs.popup_radius ?? 14" @input="previewPopupRadius($event.target.value)" @change="savePopupRadius($event.target.value)"><output x-text="(prefs.popup_radius ?? 14) + ' px'"></output></div>
+      </div>
+    </div>
+    <div class="preview-stage"><div class="popup-preview"><svg><use href="#i-circle-check"/></svg><h3 x-text="t('appearancePreview')"></h3><p x-text="t('appearanceExample')"></p><span class="btn primary" x-text="t('ok')"></span></div></div>
+  </section>
+  <section x-show="settingsTab === 'general'"><h2 class="settings-heading" x-text="t('settingsGeneral')"></h2><ul class="group">
+      <li class="row">
+        <span class="row-main"><b x-text="t('demoFolderLabel')"></b><small class="path" x-text="prefs.demo_folders?.[0]" :title="prefs.demo_folders?.[0]"></small></span>
+        <button class="btn" @click="chooseFolder('demos')" x-text="t('change')"></button>
+      </li>
+      <li class="row">
+        <span class="row-main"><b x-text="t('outputFolderLabel')"></b><small class="path" x-text="prefs.output" :title="prefs.output"></small></span>
+        <button class="btn" @click="chooseFolder('output').then(() => openSettings())" x-text="t('change')"></button>
+      </li>
+      <li class="row">
+        <span class="row-main">
+          <b x-text="t('workFiles')"></b>
+          <small x-text="work.bytes === null ? '…' : (work.bytes ? t('workUsed', { size: gb(work.bytes) }) : t('workNone'))"></small>
+        </span>
+        <button class="btn" x-show="work.bytes" @click="openPath(work.path)" x-text="t('open')"></button>
+        <button class="btn" :class="{ destructive: work.confirm }" x-show="work.bytes" :disabled="work.cleaning" @click="cleanWork()"
+                x-text="work.cleaning ? t('cleaning') : (work.confirm ? t('cleanSure') : t('clean'))"></button>
+      </li>
+      <li class="row note-row"><small x-text="t('workHelp')"></small></li>
+      <li class="row">
+        <span class="row-main"><b x-text="t('language')"></b></span>
+        <div class="segmented" role="radiogroup" :aria-label="t('language')">
+          <button role="radio" :aria-checked="lang === 'zh'" @click="setLang('zh')">中文</button>
+          <button role="radio" :aria-checked="lang === 'en'" @click="setLang('en')">English</button>
+        </div>
+      </li>
+
+    </ul><div class="setup-continue"><button class="btn" @click="openSetup()" x-text="t('environment')"></button></div>
+  </section>
+  <section class="about-page" x-show="settingsTab === 'about'">
+    <header class="about-hero"><img src="/static/icon.png" alt="PovForge"><h2>PovForge</h2><p x-text="t('aboutDescription')"></p><span class="version-badge" x-text="t('aboutVersion', {v: version})"></span></header>
+    <h3 class="group-title" x-text="t('updatesLabel')"></h3>
+    <ul class="group"><li class="row"><svg class="row-ic"><use href="#i-download"/></svg><span class="row-main"><b x-text="update ? t('updateAvail', {v: update.version}) : t('checkUpdate')"></b><small x-text="t('aboutUpdateHelp')"></small></span><button class="btn primary" @click="openUpdate(true)" x-text="t('checkUpdate')"></button></li>
+      <li class="row"><span class="row-main"><b x-text="t('releaseNotes')"></b></span><button class="btn" @click="openUrl('https://github.com/Chester-chs/CS2-povforge/releases')" x-text="t('open')"></button></li>
+    </ul>
+    <h3 class="group-title" x-text="t('aboutResources')"></h3>
+    <div class="resource-cards">
+      <button @click="openUrl('https://github.com/Chester-chs/CS2-povforge')"><svg><use href="#i-folder-open"/></svg><b x-text="t('sourceCode')"></b><span>GitHub</span></button>
+      <button @click="openUrl('https://github.com/Chester-chs/CS2-povforge/blob/main/' + (lang === 'zh' ? 'README.zh-CN.md' : 'README.md'))"><svg><use href="#i-file-text"/></svg><b x-text="t('userGuide')"></b><span>README</span></button>
+      <button @click="openUrl('https://github.com/Chester-chs/CS2-povforge/blob/main/THIRD_PARTY_NOTICES.md')"><svg><use href="#i-layers"/></svg><b x-text="t('thirdParty')"></b><span>demoparser2 · HLAE · FFmpeg</span></button>
+    </div>
+  </section>
+</section>
 </main>
 
 <div class="sheet-backdrop" x-show="referenceWizard.open" x-cloak @click.self="closeReference()" @keydown.escape.window="if (referenceWizard.open) closeReference()">
@@ -713,84 +840,6 @@
   <template x-for="m in toasts" :key="m.id">
     <div class="hud-msg"><svg><use href="#i-circle-check"/></svg><span x-text="m.text"></span></div>
   </template>
-</div>
-
-<div class="sheet-backdrop" x-show="settingsOpen" x-cloak @keydown.escape.window="settingsOpen = false" @click.self="settingsOpen = false">
-  <div class="sheet settings-sheet" role="dialog" aria-modal="true" :aria-label="t('settings')">
-    <h2 x-text="t('settings')"></h2>
-    <ul class="group plain">
-      <li class="row">
-        <span class="row-main"><b x-text="t('appearance')"></b></span>
-        <div class="segmented" role="radiogroup" :aria-label="t('appearance')">
-          <button role="radio" :aria-checked="(prefs.appearance || 'auto') === 'auto'" @click="setAppearance('auto')" x-text="t('appAuto')"></button>
-          <button role="radio" :aria-checked="prefs.appearance === 'light'" @click="setAppearance('light')" x-text="t('appLight')"></button>
-          <button role="radio" :aria-checked="prefs.appearance === 'dark'" @click="setAppearance('dark')" x-text="t('appDark')"></button>
-        </div>
-      </li>
-      <li class="row">
-        <span class="row-main"><b x-text="t('accent')"></b><small x-text="t('acc_' + (prefs.accent || 'blue'))"></small></span>
-        <div class="swatches" role="radiogroup" :aria-label="t('accent')">
-          <template x-for="a in accents" :key="a">
-            <button class="swatch" :class="'sw-' + a" role="radio" :aria-checked="(prefs.accent || 'blue') === a" :title="t('acc_' + a)" :aria-label="t('acc_' + a)" @click="setAccent(a)"></button>
-          </template>
-        </div>
-      </li>
-      <li class="row">
-        <span class="row-main"><b x-text="t('demoFolderLabel')"></b><small class="path" x-text="prefs.demo_folders?.[0]" :title="prefs.demo_folders?.[0]"></small></span>
-        <button class="btn" @click="chooseFolder('demos')" x-text="t('change')"></button>
-      </li>
-      <li class="row">
-        <span class="row-main"><b x-text="t('outputFolderLabel')"></b><small class="path" x-text="prefs.output" :title="prefs.output"></small></span>
-        <button class="btn" @click="chooseFolder('output').then(() => openSettings())" x-text="t('change')"></button>
-      </li>
-      <li class="row">
-        <span class="row-main"><b x-text="t('recRes')"></b><small x-text="screen ? t('recScreen', { w: screen[0], h: screen[1] }) : t('recResHelp')"></small></span>
-        <div class="segmented tiny" role="radiogroup" :aria-label="t('recRes')">
-          <template x-for="o in ['auto', '1080']" :key="o">
-            <button role="radio" :aria-checked="(prefs.record_res || 'auto') === o" :disabled="o !== 'auto' && !(sizes || []).includes(o)"
-                    :title="o !== 'auto' && !(sizes || []).includes(o) ? t('recTooBig') : ''"
-                    @click="prefs.record_res = o; savePrefs()" x-text="t('res_' + o)"></button>
-          </template>
-        </div>
-      </li>
-      <li class="row">
-        <span class="row-main"><b x-text="t('recFps')"></b><small x-text="t('recFpsHelp')"></small></span>
-        <div class="segmented tiny" role="radiogroup" :aria-label="t('recFps')">
-          <template x-for="o in [60]" :key="o">
-            <button role="radio" :aria-checked="(prefs.record_fps || 60) === o" @click="prefs.record_fps = o; savePrefs()" x-text="t('fpsN', { n: o })"></button>
-          </template>
-        </div>
-      </li>
-      <li class="row">
-        <label class="row-main" for="by-player"><b x-text="t('byPlayer')"></b><small x-text="t('byPlayerHelp')"></small></label>
-        <input type="checkbox" class="switch" id="by-player" :checked="prefs.by_player !== false" @change="prefs.by_player = $event.target.checked; savePrefs()">
-      </li>
-      <template x-for="[sid, f] in playerFolderList" :key="sid">
-        <li class="row sub folder-row">
-          <span class="folder-who" x-text="t('folderOf', { name: f.name })"></span>
-          <input class="text-input inline folder-name" :value="f.folder" @change="renamePlayerFolder(sid, $event.target.value, $event.target)" :aria-label="t('folderOf', { name: f.name })">
-        </li>
-      </template>
-      <li class="row">
-        <span class="row-main">
-          <b x-text="t('workFiles')"></b>
-          <small x-text="work.bytes === null ? '…' : (work.bytes ? t('workUsed', { size: gb(work.bytes) }) : t('workNone'))"></small>
-        </span>
-        <button class="btn" x-show="work.bytes" @click="openPath(work.path)" x-text="t('open')"></button>
-        <button class="btn" :class="{ destructive: work.confirm }" x-show="work.bytes" :disabled="work.cleaning" @click="cleanWork()"
-                x-text="work.cleaning ? t('cleaning') : (work.confirm ? t('cleanSure') : t('clean'))"></button>
-      </li>
-      <li class="row note-row"><small x-text="t('workHelp')"></small></li>
-      <li class="row">
-        <span class="row-main"><b x-text="t('language')"></b></span>
-        <div class="segmented" role="radiogroup" :aria-label="t('language')">
-          <button role="radio" :aria-checked="lang === 'zh'" @click="setLang('zh')">中文</button>
-          <button role="radio" :aria-checked="lang === 'en'" @click="setLang('en')">English</button>
-        </div>
-      </li>
-    </ul>
-    <div class="sheet-actions"><button class="btn primary" @click="settingsOpen = false" x-text="t('ok')"></button></div>
-  </div>
 </div>
 
 <div class="sheet-backdrop" x-show="updateOpen && !offline" x-cloak @keydown.escape.window="closeUpdate()">

@@ -27,13 +27,17 @@ Recording starts CS2 through HLAE with `-insecure`. Use this session only for de
 
 ## Make your first video
 
-1. **Open a demo.** Pick one from the list or browse to its file. Demos in Downloads are listed automatically.
+1. **Set up once, then open a demo.** Confirm your demo and output folders on first launch. We recommend one dedicated folder for all demos. Once configured and ready, the app opens the **Whole match** page directly. Search its match list or click **Upload Demo** to select a local file. You can revisit preparation through **Settings → General & storage → Environment check**.
 2. **Choose a player.** Click their name in the scoreboard. Keep all rounds selected for a whole-match POV, or select one or two rounds for a short first try.
 3. **Choose the output.** Use **Record** for a POV video, or **Make a reel** for the modes below. Adjust resolution, frame rate and optional overlays as needed.
 4. **Start and wait.** POVForge launches CS2, seeks to the required rounds, records and composes the video. Avoid playing another game during recording.
 5. **Open the result.** Use the play or folder button. Videos default to `Videos/PovForge`, organized by player; change the location in Settings.
 
-Open **Highlight reel** in the sidebar to combine several demos or players. While a job runs, you can browse and add more jobs to the queue; recordings run one at a time. Appearance and language are available in Settings.
+The sidebar lists **Whole match**, **Demo kill POV**, **Demo kills and deaths POV**, **Highlight reel**, and **Head-to-head data**, in that order. Open **Highlight reel**, select matches in the main area, and click **Continue** to choose players and rounds. Use **Choose matches** to change the selection later. While a job runs, you can browse and add more jobs to the queue; recordings run one at a time.
+
+Resolution, frame rate, player folders and folder names are available under **Recording & saving** in the main area. Settings has dedicated appearance, general/storage, and about/update pages. Choose a theme, accent, font and popup corner radius, adjust language and storage, or check for updates.
+
+Demo analysis is saved locally and reused after restarting the app. **Analysis saved** marks a reusable result. The first read, a changed file, or an update to parsing rules requires analysis again; ordinary app updates keep compatible results. This cache speeds up choosing a match, not the real-time recording itself.
 
 ## Choose what to record
 
@@ -73,7 +77,7 @@ POVForge temporarily applies recording settings. Before starting CS2, it backs u
 - **Interrupted recording:** close CS2 and wait for recording cleanup. If the app reports pending recovery, use **Restore now**. Restoration is blocked while CS2 or a recording job is active. Then retry the same job: completed compatible clips are reused and incomplete raw recordings are recorded again.
 - **CS2/HLAE cannot start:** check that Steam is open, CS2 and anti-cheat clients are closed, and the recording add-on is up to date. A CS2 update can require a newer HLAE.
 - **Reference link fails:** save the video yourself if permitted, then select the local file.
-- **Low disk space:** use work-file cleanup after finishing jobs. Deleted cached work must be recorded or rendered again if needed later.
+- **Low disk space:** use work-file cleanup after finishing jobs. Saved match-list analysis survives, but recording plans, detailed position/key data and raw takes are deleted. Recording again requires rebuilding that data and recording the footage; preparation time varies by demo and PC. Normally saved finished videos are kept. Do not place original demos or files you want to keep inside the work-files directory.
 - **Updates:** use **Check for updates**, or install a newer `PovForge-Setup.exe` over the existing installation. Uninstall through Windows Settings → Apps.
 
 ## Optional: source installation and command line

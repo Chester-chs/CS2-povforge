@@ -1,6 +1,36 @@
-# POVForge handoff — 2026-10-20
+# POVForge handoff — 2026-10-23
 
 ## Current agreed scope
+
+Local changes after v0.15.1: the main area now contains the searchable
+Demo library. Its title follows the chosen recording mode. The sidebar has
+five equal entries in the owner's exact order: Demo整场录制, Demo击杀视角,
+Demo击杀和死亡视角, 高光集锦, 双人对位数据; event modes are no longer nested in the highlights selector. Upload
+Demo opens the local file picker. First-use setup recommends one dedicated
+Demo folder without moving or deleting files. Setup appears
+on first use or when preparation needs attention and remains reachable in
+Settings. Match details and reels can return to the workspace without losing
+reel sources. Existing v4 inspection caches remain compatible; concurrent
+inspection requests share a parse, cache writes are atomic, and the library
+shows saved-analysis status. These UI/cache changes are included in v0.15.2.
+Browser verification uses a fake API and a private headless browser, never
+the real app/game configuration.
+
+Settings now occupies the main area with appearance, general/storage and
+about/update tabs. Recording size/fps and player-folder controls moved to the
+main recording panel. Font presets and popup radius are validated and persisted.
+The window-theme API uses the existing write authentication and only targets
+one live explicitly owned window. Native Chromium caption appearance remains
+visually unverified; DWM acceptance alone is not proof of browser rendering.
+Work cleanup preserves GUI demo-info summaries but removes detailed recording
+plans and raw takes. An isolated 142.8 MB Dust2 benchmark took 9.357 seconds to
+prepare a plan and 0.0248 seconds to reuse it, excluding game recording. Evidence:
+`.test-tmp/cache-benchmark-20261023/result.json`. Never treat this as a guarantee.
+
+v0.15.2 pre-release verification: 306 local tests passed in 253.15 seconds,
+25 director simulation assertions passed, JavaScript syntax and staged diff
+whitespace checks passed. Native titlebar screenshots remain pending the
+owner's post-install feedback; publication is explicitly authorized meanwhile.
 
 The owner cancelled camera imitation and third-person recording. Highlight
 reels always use the selected player's first-person view. Keep the separate
@@ -53,11 +83,14 @@ the final removal of third-person code; the simplification was tested without
 relaunching CS2. Old camera-test ZIPs are historical and are not this source
 revision's build.
 
-Version is 0.15.1. A source push does not publish an installer. The Windows
+Version is 0.15.2. A source push does not publish an installer. The Windows
 workflow builds releases on version tags or manual dispatch. After reviewing
 the 2026-10-23 fixes, the owner explicitly authorized committing, pushing to
 GitHub and publishing updated installers. The prohibition on launching CS2/HLAE
-or accessing the owner's real game settings remains in force.
+or accessing the owner's real game settings remains in force. The owner explicitly
+requested publishing v0.15.2 before native titlebar screenshot verification;
+they will install the release and supply screenshots afterward. Computer Use
+could not determine the app-window browser URL and stopped that visual check.
 
 ## 2026-10-22 feature update
 

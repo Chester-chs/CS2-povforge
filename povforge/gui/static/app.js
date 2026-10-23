@@ -2,6 +2,24 @@
 
 const TEXT = {
   zh: {
+    workspace: "比赛列表", uploadDemo: "上传 Demo", modeKills: "Demo击杀视角", modeKillsDeaths: "Demo击杀和死亡视角", modeDuel: "双人对位数据",
+    settingsAppearance: "外观", settingsGeneral: "通用与存储", settingsAbout: "关于与更新", backRecording: "返回录制",
+    recordingSettings: "录制与保存", themeHelp: "应用于主界面和弹出窗口。", fontLabel: "字体", fontHelp: "应用于整个界面；缺少所选字体时使用系统字体。",
+    font_system: "系统默认", font_segoe: "Segoe UI", font_yahei: "微软雅黑", font_simsun: "宋体", font_arial: "Arial",
+    popupRadius: "弹出窗口圆角", popupRadiusHelp: "调整软件内的对话框，不改变 Windows 系统窗口。", appearancePreview: "弹窗预览", appearanceExample: "比赛已准备好，可以开始选择选手。",
+    aboutDescription: "开源的 CS2 Demo 视频制作工具。将比赛回放制作成第一人称 POV、事件片段或高光集锦。",
+    aboutResources: "项目资源", sourceCode: "源代码", userGuide: "使用指南", thirdParty: "开源组件", releaseNotes: "版本记录", updatesLabel: "软件更新", aboutUpdateHelp: "从 GitHub 官方项目发布页检查和安装更新。", aboutVersion: "当前版本 {v}",
+    modeKillsHelp: "只收录所选选手的击杀，始终使用本人第一人称，按回合和时间排列，相邻片段自动合并。",
+    modeKillsDeathsHelp: "收录所选选手的击杀与死亡，始终使用本人第一人称，按回合和时间排列，相邻片段自动合并。",
+    modeDuelHelp: "选择两名对手，收录双方互相击杀的交手；每次先播放 A 的第一人称，再播放 B 的第一人称。",
+    oneDemoFolder: "建议把所有 Demo 统一保存在一个固定文件夹，例如「CS2 Demo」。以后下载的新比赛也放进去，方便集中查找。",
+    libraryHelp: "选择一场比赛，再选一名选手，制作他的第一人称 POV。",
+    libraryReelHelp: "选择一场或多场比赛，继续挑选选手和集锦内容。",
+    searchDemos: "搜索地图或文件名", demoCount: "{n} 场比赛", cachedDemo: "已保存解析", newDemo: "待解析",
+    cacheHelp: "解析结果自动保存，重启后也可复用。文件或解析规则变化时会重新读取。",
+    continueReel: "继续 · 已选 {n} 场", backLibrary: "返回比赛列表", chooseDemos: "选择比赛",
+    enterWorkspace: "开始选择比赛", checkEnvironment: "有准备项目需要处理，查看详情", environment: "环境检查",
+    loadingLibrary: "正在载入比赛列表…", noMatches: "没有匹配的比赛", trySearch: "试试其他地图或文件名。",
     byPlayer: "按选手分文件夹", byPlayerHelp: "成片放进 保存位置/选手名/，几个选手的集锦放进「多人集锦」。文件夹名可以在下面改。",
     folderOf: "{name} 的文件夹", folderTaken: "已经有这个名字的文件夹了。", folderBusy: "正在录制，录完再改名。",
     linkPaste: "粘贴链接", linkRead: "读取", linkHint: "B 站、YouTube 等视频页的链接，或直接的 .mp4 地址", linkBad: "请粘贴以 http 开头的链接。",
@@ -10,7 +28,7 @@ const TEXT = {
     res_auto: "适应屏幕（最高 1080p）", res_1080: "1080p",
     recFps: "录制帧率", recFpsHelp: "最高 1080p、60 帧", fpsN: "{n} 帧",
     musicAdd: "上传音乐…", musicOff: "不加音乐", musicHelp: "添加整首音乐，可打开自动卡点，按 Demo 击杀时间选择强拍片段。不够长时回退为循环播放，末尾淡出。上传过的音乐会保留。",
-    modesLabel: "做什么", modeMatch: "整场录制", demosForReel: "点选要用的 demo", reelPickLeft: "在左边的 demo 列表里点选要用的场次，可以选好几场。",
+    modesLabel: "做什么", modeMatch: "Demo整场录制", demosForReel: "点选要用的 demo", reelPickLeft: "点「选择比赛」返回比赛列表，可以选择多场比赛。",
     styleTitle: "成片风格", styleHelp: "导入成片后先预览、选择时间段并描述想要的特效，查看可实现方案后再应用。当前支持常见剪辑效果，物体跟踪与复杂粒子效果暂不支持。",
     stylePlain: "不加效果", styleUnsaved: "{name}（未命名）", styleMix: "混搭", mixHelp: "也可以按项挑：每一项都来自你导入过的成片。",
     fromList: "来自 {list}",
@@ -41,8 +59,8 @@ const TEXT = {
     rep_pace: "每段约 {s} 秒（{kind}）", rep_kill: "击杀特效：{kind}（{n} 处）", rep_colour: "调色：{kind}，会照着它调", rep_letterbox: "有电影黑边",
     rep_outro: "结尾：{kind}（约 {s} 秒）", rep_music: "有背景音乐（约 {bpm} BPM）",
     look_natural: "自然", look_vivid: "鲜艳", look_muted: "偏淡", look_warm: "偏暖", look_cool: "偏冷", look_bw: "黑白",
-    reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "选择高光集锦、仅击杀、击杀＋死亡或双人对位。始终使用第一人称；可指定参考成片里的单个特效，并让背景音乐按 Demo 击杀时间自动卡点。",
-    reelName: "名称", reelSources: "素材", reelSourcesHelp: "在左边点选，可以多选", reelPlayer: "选手",
+    reelNav: "高光集锦", makeReel: "做集锦", reelTitle: "高光集锦", reelBody: "选择多杀、残局或自选回合，制作第一人称高光集锦。可指定参考成片里的特效，并让背景音乐按 Demo 击杀时间自动卡点。",
+    reelName: "名称", reelSources: "素材", reelSourcesHelp: "在比赛列表选择比赛，可以多选", reelPlayer: "选手",
     reelSame: "同一个人", reelEach: "每场分别选", reelEachHelp: "在上面每场 demo 的右边选这场用哪位选手。", reelPlayerIn: "{name}（{n} 场）", reelNotIn: "这场没有这名选手", reelPick: "选择选手",
     reelItems: "集锦内容", reelItemsHelp: "已自动挑出 3 杀以上和残局获胜的回合，按精彩程度排好，最强的放最后。拖动或用箭头调整顺序。",
     reelEmpty: "还没有回合。先勾选 demo 和选手，或从下面“其他回合”里加。", reelMore: "其他回合（{n}）",
@@ -54,7 +72,7 @@ const TEXT = {
     foldersHelp: "PovForge 会列出 demo 文件夹里的 demo，做好的视频放进保存文件夹。之后可以随时在这里或设置里更改。",
     hintFolders: "先选择 demo 和成片的文件夹",
     workFiles: "工作文件", workUsed: "占用 {size}", workNone: "没有", open: "打开", clean: "清理", cleanSure: "确定删除？", cleaning: "正在清理…",
-    workHelp: "录制时留下的原始画面和中间文件，用来重试、改选项重新出片和再做集锦时直接复用。删掉不影响已经做好的视频，只是以后重做要重新录。",
+    workHelp: "清理会删除录制计划、位置与按键等详细数据，以及原始录制片段。比赛列表的解析记录和正常保存的成片会保留；再次录制需要重新准备详细数据并录制画面。请勿把原始 Demo 或需要保留的文件放进「工作文件」目录。",
     cleaned: "已清理 {size}", workBusy: "队列里还有录制任务，录完再清理。",
     settings: "设置", appearance: "外观", appAuto: "自动", appLight: "浅色", appDark: "深色", accent: "强调色", language: "语言",
     acc_blue: "蓝色", acc_purple: "紫色", acc_pink: "粉色", acc_red: "红色", acc_orange: "橙色", acc_yellow: "黄色", acc_green: "绿色", acc_graphite: "石墨色",
@@ -82,7 +100,7 @@ const TEXT = {
     ckCs2: "安装 Steam 和 CS2", ckCs2Help: "在 Steam 里安装 Counter-Strike 2，装好后这里会自动变绿。",
     ckTools: "下载录制组件", ckToolsHelp: "点下面的按钮，自动从官方 GitHub 下载 {list}（{size}），不用自己找。", ckToolsDone: "已就绪。",
     ckAc: "退出反作弊客户端", ckAcDone: "FACEIT、5E、完美世界都没有在运行。",
-    ckDemo: "准备一个 demo", ckDemoHelp: "从 FACEIT 比赛房间或 HLTV 下载 demo，放进 demo 文件夹即可。", ckDemoDone: "demo 文件夹里有 {n} 个 demo，在左边选一个。",
+    ckDemo: "准备一个 demo", ckDemoHelp: "从 FACEIT 比赛房间或 HLTV 下载 demo，放进 demo 文件夹即可。", ckDemoDone: "文件夹里有 {n} 个 demo，可在比赛列表中选择。",
     offlineTitle: "PovForge 已经关闭", offlineBody: "后台程序已退出。重新打开 PovForge 即可继续。",
     demos: "Demo", refresh: "刷新", lookingIn: "正在看：", noDemos: "这个文件夹里还没有 demo。下载一个 FACEIT 或 HLTV demo，或者手动选择文件。",
     openFile: "选择 demo 文件…", demoFolder: "更换 demo 文件夹…",
@@ -90,8 +108,8 @@ const TEXT = {
     antiCheat: "反作弊", running: "正在运行", closed: "已关闭", installTools: "一键下载录制组件",
     preparing: "准备中…", settingsPending: "上次录制被打断，你的 CS2 设置还没还原。", restoreNow: "立即还原",
     safeNote: "录制不会改动你的 CS2 设置。",
-    blankTitle: "选一个 demo", blankBody: "左边是 demo 文件夹里的 demo。选好比赛和选手，就能得到这名选手整场的第一人称视频。",
-    reading: "正在读取 demo", readingBody: "解压并分析比赛，通常需要十几秒。", cantRead: "读不了这个 demo",
+    blankTitle: "选一个 demo", blankBody: "在比赛列表中选择比赛和选手，制作第一人称视频。",
+    reading: "正在读取 demo", readingBody: "优先读取已保存的解析。首次打开或文件更新后需要分析，完成后会自动保存。", cantRead: "读不了这个 demo",
     rounds: "回合", minDemo: "分钟", others: "其他",
     pickPlayer: "点一位选手，录他的第一人称视角。", playerPicked: "默认录整场，也可以只选其中几个回合。",
     roundsTitle: "要录的回合", all: "全选", none: "清空",
@@ -111,6 +129,24 @@ const TEXT = {
     keep: "CS2 会在录完后自己关闭，期间别用电脑玩游戏。",
   },
   en: {
+    workspace: "Matches", uploadDemo: "Upload Demo", modeKills: "Demo kill POV", modeKillsDeaths: "Demo kills and deaths POV", modeDuel: "Head-to-head data",
+    settingsAppearance: "Appearance", settingsGeneral: "General & storage", settingsAbout: "About & updates", backRecording: "Back to recording",
+    recordingSettings: "Recording & saving", themeHelp: "Applies to the app and its dialogs.", fontLabel: "Font", fontHelp: "Used throughout the app, with system fallback when unavailable.",
+    font_system: "System default", font_segoe: "Segoe UI", font_yahei: "Microsoft YaHei", font_simsun: "SimSun", font_arial: "Arial",
+    popupRadius: "Dialog corner radius", popupRadiusHelp: "Changes in-app dialogs, not Windows system windows.", appearancePreview: "Dialog preview", appearanceExample: "Your match is ready. Choose a player to continue.",
+    aboutDescription: "An open-source CS2 Demo video tool. Turn match replays into first-person POVs, event clips and highlight reels.",
+    aboutResources: "Project resources", sourceCode: "Source code", userGuide: "User guide", thirdParty: "Open-source components", releaseNotes: "Release history", updatesLabel: "Software updates", aboutUpdateHelp: "Check and install releases from the official GitHub project.", aboutVersion: "Current version {v}",
+    modeKillsHelp: "Only the selected player's kills, in their own first person. Ordered by round and time, with adjacent moments merged.",
+    modeKillsDeathsHelp: "The selected player's kills and deaths, in their own first person. Ordered by round and time, with adjacent moments merged.",
+    modeDuelHelp: "Choose two opponents and their mutual-kill encounters. Each encounter shows A's first-person view, then B's.",
+    oneDemoFolder: "We recommend keeping all demos in one dedicated folder, such as CS2 Demo. Save future downloads there too, so every match is easy to find.",
+    libraryHelp: "Choose a match, then a player, to make their first-person POV.",
+    libraryReelHelp: "Choose one or more matches, then pick players and moments for your reel.",
+    searchDemos: "Search maps or filenames", demoCount: "{n} matches", cachedDemo: "Analysis saved", newDemo: "Needs analysis",
+    cacheHelp: "Analysis is saved across restarts. Changed files or parsing rules require a fresh read.",
+    continueReel: "Continue with {n} matches", backLibrary: "Back to matches", chooseDemos: "Choose matches",
+    enterWorkspace: "Choose a match", checkEnvironment: "Some preparation needs attention. View details", environment: "Environment check",
+    loadingLibrary: "Loading matches…", noMatches: "No matching matches", trySearch: "Try another map or filename.",
     byPlayer: "A folder per player", byPlayerHelp: "Videos go into save folder/player name/; reels of several players into \u201cMulti-player reels\u201d. Rename the folders below.",
     folderOf: "{name}'s folder", folderTaken: "There is already a folder with this name.", folderBusy: "A recording is running; rename it when it's done.",
     linkPaste: "Paste a link", linkRead: "Read", linkHint: "A Bilibili, YouTube or other video page, or a direct .mp4 address", linkBad: "Paste a link starting with http.",
@@ -119,7 +155,7 @@ const TEXT = {
     res_auto: "Fit screen (up to 1080p)", res_1080: "1080p",
     recFps: "Frame rate", recFpsHelp: "Output is limited to 1080p at 60 fps", fpsN: "{n} fps",
     musicAdd: "Add music…", musicOff: "No music", musicHelp: "Add a full song and optionally sync its strong beats to Demo kill times. Short tracks fall back to looping, with a fade at the end. Songs are remembered for next time.",
-    modesLabel: "What to make", modeMatch: "Whole match", demosForReel: "Pick demos for the reel", reelPickLeft: "Pick the demos to use in the list on the left; several are fine.",
+    modesLabel: "What to make", modeMatch: "Whole match", demosForReel: "Pick demos for the reel", reelPickLeft: "Use Choose matches to return to the match list and select several matches.",
     styleTitle: "Style", styleHelp: "Preview a reference, select a time range and describe the wanted effect. Review the proposal before applying. Common editing effects are supported; object tracking and complex particles are not.",
     stylePlain: "No effects", styleUnsaved: "{name} (unnamed)", styleMix: "Mixed", mixHelp: "Or pick item by item; every choice comes from a video you imported.",
     fromList: "from {list}",
@@ -150,8 +186,8 @@ const TEXT = {
     rep_pace: "About {s} s per moment ({kind})", rep_kill: "Kill effect: {kind} ({n}×)", rep_colour: "Colour: {kind}; yours will be matched to it", rep_letterbox: "Cinema bars",
     rep_outro: "Ending: {kind} (about {s} s)", rep_music: "Background music (about {bpm} BPM)",
     look_natural: "natural", look_vivid: "vivid", look_muted: "muted", look_warm: "warm", look_cool: "cool", look_bw: "black and white",
-    reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "Choose highlights, kill events, kills + deaths, or opposing-player duels. Always first person; select a reference effect and optionally sync music to Demo kill times.",
-    reelName: "Name", reelSources: "Demos", reelSourcesHelp: "Pick them on the left; several are fine", reelPlayer: "Player",
+    reelNav: "Highlight reel", makeReel: "Make a reel", reelTitle: "Highlight reel", reelBody: "Build a first-person highlight reel from multi-kills, clutches or hand-picked rounds. Add reference effects and optionally sync music to Demo kill times.",
+    reelName: "Name", reelSources: "Demos", reelSourcesHelp: "Choose one or more matches in the match list", reelPlayer: "Player",
     reelSame: "Same player", reelEach: "Per demo", reelEachHelp: "Choose the player for each demo on its row above.", reelPlayerIn: "{name} ({n} demos)", reelNotIn: "This player isn't in this demo", reelPick: "Choose a player",
     reelItems: "In the reel", reelItemsHelp: "Rounds with 3+ kills and won clutches are picked for you, best last. Drag or use the arrows to change the order.",
     reelEmpty: "No rounds yet. Tick demos and a player, or add some from Other rounds below.", reelMore: "Other rounds ({n})",
@@ -163,7 +199,7 @@ const TEXT = {
     foldersHelp: "PovForge lists the demos in the demo folder and puts finished videos in the save folder. You can change them here or in Settings any time.",
     hintFolders: "Choose your demo and video folders",
     workFiles: "Work files", workUsed: "{size} used", workNone: "None", open: "Open", clean: "Clean up", cleanSure: "Delete them?", cleaning: "Cleaning…",
-    workHelp: "Recordings and in-between files, reused when you retry, re-render with other options or make a reel. Deleting them keeps your finished videos; redoing one just means recording again.",
+    workHelp: "Cleaning removes recording plans, detailed positions and inputs, and raw clips. Match-list analysis and normally saved final videos remain. Recording again rebuilds the detailed data and captures new footage. Do not store original demos or files you want to keep inside the work folder.",
     cleaned: "{size} freed", workBusy: "Recordings are still queued; clean up when they're done.",
     settings: "Settings", appearance: "Appearance", appAuto: "Auto", appLight: "Light", appDark: "Dark", accent: "Accent colour", language: "Language",
     acc_blue: "Blue", acc_purple: "Purple", acc_pink: "Pink", acc_red: "Red", acc_orange: "Orange", acc_yellow: "Yellow", acc_green: "Green", acc_graphite: "Graphite",
@@ -191,7 +227,7 @@ const TEXT = {
     ckCs2: "Install Steam and CS2", ckCs2Help: "Install Counter-Strike 2 in Steam; this turns green once it's found.",
     ckTools: "Download the recording add-on", ckToolsHelp: "Click the button and {list} is downloaded from its official GitHub page ({size}).", ckToolsDone: "Ready.",
     ckAc: "Quit anti-cheat clients", ckAcDone: "FACEIT, 5E and Perfect World aren't running.",
-    ckDemo: "Get a demo", ckDemoHelp: "Download a demo from a FACEIT match room or HLTV into your demo folder.", ckDemoDone: "{n} demos in your demo folder; pick one on the left.",
+    ckDemo: "Get a demo", ckDemoHelp: "Download a demo from a FACEIT match room or HLTV into your demo folder.", ckDemoDone: "{n} demos in your folder, ready to choose in the match list.",
     offlineTitle: "PovForge has closed", offlineBody: "The background program stopped. Open PovForge again to carry on.",
     demos: "Demos", refresh: "Refresh", lookingIn: "Looking in", noDemos: "No demos in this folder yet. Download a FACEIT or HLTV demo, or choose a file.",
     openFile: "Choose a demo file…", demoFolder: "Change demo folder…",
@@ -199,15 +235,15 @@ const TEXT = {
     antiCheat: "Anti-cheat", running: "running", closed: "Closed", installTools: "Download the recording add-on",
     preparing: "Preparing…", settingsPending: "A recording was interrupted and your CS2 settings aren't restored yet.", restoreNow: "Restore now",
     safeNote: "Recording never changes your CS2 settings.",
-    blankTitle: "Pick a demo to start", blankBody: "Demos from your demo folder are listed on the left. Choose a match and a player to get their full first-person video.",
-    reading: "Reading the demo", readingBody: "Unpacking and analysing the match usually takes a few seconds.", cantRead: "Can't read this demo",
+    blankTitle: "Pick a demo to start", blankBody: "Choose a match and a player in the match list to make their first-person video.",
+    reading: "Reading the demo", readingBody: "Reusing saved analysis when available. New or changed demos need analysis, which is saved automatically.", cantRead: "Can't read this demo",
     rounds: "rounds", minDemo: "min", others: "Others",
     pickPlayer: "Click a player to record their first-person view.", playerPicked: "The whole match is recorded unless you pick rounds.",
     roundsTitle: "Rounds to record", all: "All", none: "None",
     legendKill: "kill this round", legendDied: "died this round",
     optIntro: "Intro", optMinimap: "Minimap", optKeyboard: "Keys and mouse", optEnemies: "Enemies on minimap",
     saveTo: "Save to", record: "Record {name}'s POV",
-    needRounds: "Choose at least one round.", needTools: "Download the recording add-on first (bottom left).", needCs2: "CS2 wasn't found.",
+    needRounds: "Choose at least one round.", needTools: "Download the recording add-on in Environment check first.", needCs2: "CS2 wasn't found.",
     needAntiCheat: "Quit {list} completely first (tray icon → Exit); it blocks recording.", needWindows: "Recording needs Windows.",
     recording: "Recording {name}", recorded: "Done", failed: "Didn't finish", stopped: "Stopped",
     stage_read: "Read the demo", stage_record: "Record rounds in CS2", stage_overlays: "Draw minimap and keys",
@@ -228,8 +264,16 @@ document.addEventListener("alpine:init", () => {
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
     updateOpen: false, updatingAway: false, upd: { state: "idle" },
     player: null, chosenRounds: [], lastRun: null, setupOpen: false, customRounds: false, lastPath: "",
-    settingsOpen: false, reelOpen: false, dragFrom: null, work: { bytes: null, path: "", confirm: false, cleaning: false },
+    libraryOpen: true, libraryQuery: "", booted: false, inspectRequest: 0, libraryError: "",
+    settingsOpen: false, settingsTab: 'appearance', popupRadiusDraft: null, reelOpen: false, dragFrom: null, work: { bytes: null, path: "", confirm: false, cleaning: false },
+    fonts: ['system', 'segoe', 'yahei', 'simsun', 'arial'],
     reel: { title: "", titleEdited: false, mode: "same", content: "kills", steamid: "", sources: [], items: [], reordered: false },
+    reelModes: [
+      {value: 'kill_events', label: 'modeKills', help: 'modeKillsHelp', icon: 'crosshair'},
+      {value: 'kills_deaths', label: 'modeKillsDeaths', help: 'modeKillsDeathsHelp', icon: 'skull'},
+      {value: 'kills', label: 'reelNav', help: 'reelBody', icon: 'sparkles'},
+      {value: 'duel', label: 'modeDuel', help: 'modeDuelHelp', icon: 'layers'},
+    ],
     linkOpen: false, linkText: "", screen: null, sizes: [],
     fx: null, fxMeta: { defaults: {}, presets: {}, transitions: [], grades: [] }, fxPreset: "plain", fxSaveOpen: false, fxSaveName: "",
     styleRef: { state: "idle", name: "", path: "", report: [], music: null, effects: null, error: "", presetName: "", savedAs: "" },
@@ -252,10 +296,14 @@ document.addEventListener("alpine:init", () => {
       fetch("/static/vendor/icons.svg").then(r => r.text()).then(s => { document.getElementById("icons").innerHTML = s; });
       await this.refresh();
       this.applyTheme();
+      window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', () => {
+        if ((this.prefs.appearance || 'auto') === 'auto') this.applyTheme();
+      });
       this.showRun = this.job.state === "running";
       this.lang = this.prefs.lang || (navigator.language.startsWith("zh") ? "zh" : "en");
       document.documentElement.lang = this.lang === "zh" ? "zh-CN" : "en";
-      this.setupOpen = !this.ready;
+      this.setupOpen = this.setupNeedsAttention;
+      this.booted = true;
       this.loadDemos();
       const tick = async () => {
         try {
@@ -310,13 +358,21 @@ document.addEventListener("alpine:init", () => {
         .map(l => (/^\s{2,}\S/.test(l) ? "• " : "") + l.trim().replace(/^- /, "• "));
       return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
     },
-    openSetup() { this.setupOpen = true; this.showRun = false; this.reelOpen = false; },
+    openSetup() { this.settingsOpen = false; this.setupOpen = true; this.showRun = false; this.reelOpen = false; this.leaveInspection(); },
 
     // --- appearance ---
     applyTheme() {
       const r = document.documentElement;
       r.dataset.theme = this.prefs.appearance || "auto";
       r.dataset.accent = this.prefs.accent || "blue";
+      r.dataset.font = this.fonts.includes(this.prefs.font) ? this.prefs.font : 'system';
+      const radius = Number.isInteger(this.prefs.popup_radius) ? Math.max(0, Math.min(28, this.prefs.popup_radius)) : 14;
+      r.style?.setProperty('--popup-radius', `${radius}px`);
+      const dark = r.dataset.theme === 'dark' || (r.dataset.theme === 'auto' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
+      const color = dark ? '#1c1c1e' : '#f5f5f7';
+      const meta = document.querySelector?.('meta[name="theme-color"]');
+      if (meta) meta.content = color;
+      this.post('/api/window-theme', {dark: !!dark}).catch(() => {});
     },
     async openSettings() {
       this.settingsOpen = true;
@@ -339,6 +395,18 @@ document.addEventListener("alpine:init", () => {
     gb(n) { return n >= 1 << 30 ? (n / (1 << 30)).toFixed(1) + " GB" : Math.max(1, Math.round(n / (1 << 20))) + " MB"; },
     setAppearance(v) { this.prefs.appearance = v; this.applyTheme(); this.savePrefs(); },
     setAccent(v) { this.prefs.accent = v; this.applyTheme(); this.savePrefs(); },
+    saveAppearance() { this.applyTheme(); return this.savePrefs(); },
+    previewPopupRadius(value) {
+      this.popupRadiusDraft = Number(value);
+      this.prefs.popup_radius = this.popupRadiusDraft;
+      this.applyTheme();
+    },
+    async savePopupRadius(value) {
+      this.previewPopupRadius(value);
+      const draft = this.popupRadiusDraft;
+      await this.saveAppearance();
+      if (this.popupRadiusDraft === draft) this.popupRadiusDraft = null;
+    },
 
     // --- background music: the user's own files ---
     get musicLibrary() { return this.prefs.music_library || []; },
@@ -377,8 +445,23 @@ document.addEventListener("alpine:init", () => {
       const f = this.prefs.player_folders?.[this.player.steamid]?.folder || this.player.name.replace(/[<>:"\/\\|?*]/g, "_");
       return base + (base.includes("\\") ? "\\" : "/") + f;
     },
-    // --- the two modes ---
-    openMatchMode() { this.reelOpen = false; this.showRun = false; this.viewId = null; },
+    // --- recording modes and their shared match library ---
+    get currentReelMode() { return this.reelModes.find(m => m.value === this.reel.content) || this.reelModes.find(m => m.value === 'kills'); },
+    get currentModeTitle() { return this.t(this.reelOpen ? this.currentReelMode.label : 'modeMatch'); },
+    get currentModeHelp() { return this.t(this.reelOpen ? this.currentReelMode.help : 'libraryHelp'); },
+    leaveInspection() { this.inspectRequest++; this.inspecting = false; this.inspectError = ""; },
+    openLibrary() { this.settingsOpen = false; this.leaveInspection(); this.libraryOpen = true; this.setupOpen = false; this.showRun = false; this.viewId = null; },
+    openMatchMode() { this.reelOpen = false; this.openLibrary(); },
+    editReel() { if (this.reel.sources.length) this.libraryOpen = false; },
+    get libraryDemos() {
+      const query = this.libraryQuery.trim().toLocaleLowerCase();
+      const rows = this.demos.slice();
+      for (const src of this.reel.sources) {
+        if (this.reelOpen && !rows.some(d => d.path === src.path))
+          rows.push({path: src.path, name: src.path.split(/[\\/]/).pop(), map: src.info?.map_pretty, size: 0, mtime: 0});
+      }
+      return rows.filter(d => !query || [d.name, d.map, d.faceit ? 'FACEIT' : ''].join(' ').toLocaleLowerCase().includes(query));
+    },
     sourceLabel(x) { return x.info?.map_pretty || this.niceDemoName(this.demos.find(d => d.path === x.path) || { path: x.path }) || x.path.split(/[\\/]/).pop(); },
     sourceSub(x) {
       if (x.loading) return this.t("reading");
@@ -386,13 +469,16 @@ document.addEventListener("alpine:init", () => {
       return d ? [d.score, this.ago(d.mtime)].filter(Boolean).join("  ") : x.path.split(/[\\/]/).pop();
     },
     // --- highlight reel ---
-    openReel(fromMatch) {
+    openReel(fromMatch, content = 'kills') {
+      this.settingsOpen = false;
+      this.leaveInspection();
       this.reelOpen = true; this.showRun = false; this.setupOpen = false;
+      this.libraryOpen = !fromMatch && !this.reel.sources.length;
       if (fromMatch && this.demo && this.player) {
         this.reel = { title: "", titleEdited: false, mode: "same", content: "kills", steamid: this.player.steamid, items: [], reordered: false,
                       sources: [{ path: this.demo.path, info: this.demo, loading: false, error: "", steamid: this.player.steamid }] };
-        this.recompute();
       }
+      if (fromMatch || this.reel.content !== content) this.setReelContent(content);
     },
     reelSrc(path) { return this.reel.sources.find(x => x.path === path); },
     get reelRows() {
@@ -500,7 +586,8 @@ document.addEventListener("alpine:init", () => {
       if (!this.reel.titleEdited) {
         const names = [...new Set(this.reel.items.map(i => i.name))];
         const one = names.length === 1 ? names[0] : (this.reel.mode === "same" ? this.reelPlayers.find(p => p.steamid === this.reel.steamid)?.name : "");
-        this.reel.title = one ? this.t("reelDefault", { name: one }) : this.t("reelDefaultMany");
+        const label = this.t(this.currentReelMode.label);
+        this.reel.title = one ? `${one} ${label}` : label;
       }
     },
     get reelOthers() {
@@ -550,7 +637,7 @@ document.addEventListener("alpine:init", () => {
       if (this.chronologicalReel) effects.camera = { ...this.cameraSettings(effects.camera), victim: false };
       if (effects.intro === "title" && !effects.intro_sub) effects.intro_sub = this.reelPlayersLine;
       if (effects.outro === "card" && !effects.outro_text) effects.outro_text = this.t("outroTextDefault");
-      const body = { title: this.reel.title.trim() || this.t("reelDefaultMany"), summary: this.t("reelSummary", { n: this.reel.items.length }),
+      const body = { title: this.reel.title.trim() || this.t(this.currentReelMode.label), summary: this.t("reelSummary", { n: this.reel.items.length }),
                      items: this.reel.items.map(c => ({ demo: c.path, steamid: c.steamid, round: c.round, name: c.name,
                        mode: c.mode || "kills", opponent: c.opponent || "" })), effects };
       const j = await this.post("/api/queue/add-reel", body);
@@ -886,6 +973,7 @@ document.addEventListener("alpine:init", () => {
       const s = await this.get("/api/state");
       if (s.error) throw new Error(s.error);
       this.version = s.version; this.prefs = s.prefs; this.setup = s.setup; this.job = s.job;
+      if (this.popupRadiusDraft !== null) this.prefs.popup_radius = this.popupRadiusDraft;
       this.queue = s.queue; this.update = s.update; this.screen = s.screen; this.sizes = s.sizes;
       if (s.effects) this.fxMeta = s.effects;
       if (!this.fx && s.effects) {             // once: the effects used last time
@@ -895,16 +983,29 @@ document.addEventListener("alpine:init", () => {
         this.fxPreset = this.presetOf(this.fx);
       }
     },
-    async loadDemos() { this.demos = await this.get("/api/demos"); this.demosLoaded = true; },
+    async loadDemos() {
+      try {
+        const rows = await this.get("/api/demos");
+        if (!Array.isArray(rows)) throw new Error(rows?.error || this.t('noDemos'));
+        this.demos = rows; this.libraryError = "";
+      }
+      catch (e) { this.libraryError = e.message; }
+      finally { this.demosLoaded = true; }
+    },
 
     async pickDemo(path) {
+      const request = ++this.inspectRequest;
+      this.libraryOpen = false;
       this.showRun = false; this.setupOpen = false; this.reelOpen = false; this.customRounds = false; this.lastPath = path;
       this.inspecting = true; this.inspectError = ""; this.demo = null; this.player = null;
       try {
-        this.demo = await this.post("/api/inspect", { path });
+        const info = await this.post("/api/inspect", { path });
+        if (request !== this.inspectRequest) return;
+        this.demo = info;
         this.loadDemos();  // the list now knows this demo's map
         this.chosenRounds = this.roundList.slice();
       } catch (e) {
+        if (request !== this.inspectRequest) return;
         this.inspectError = e.message === "not_a_demo" ? this.t("notDemo") : e.message;
       }
       this.inspecting = false;
@@ -941,6 +1042,7 @@ document.addEventListener("alpine:init", () => {
       return this.t("ckToolsHelp", { list: m.join(this.lang === "zh" ? " 和 " : " and "), size: m.includes("FFmpeg") ? "~100 MB" : "~10 MB" });
     },
     get ready() { return !!(this.prefs.folders_set && (this.setup.cs2 || this.setup.placeholder) && this.setup.hlae && this.setup.ffmpeg && !this.setup.anticheat?.length); },
+    get setupNeedsAttention() { return !this.ready || !!this.setup.settings_pending || !!this.setup.problems?.length; },
     get whyNotSetup() {
       if (!this.prefs.folders_set) return this.t("hintFolders");
       if (this.setup.placeholder) return "";
@@ -972,7 +1074,7 @@ document.addEventListener("alpine:init", () => {
     async clearQueue() { this.queue = await this.post("/api/queue/clear"); },
     async resumeQueue() { this.queue = await this.post("/api/queue/resume"); },
     openItem(it) {
-      this.setupOpen = false; this.reelOpen = false;
+      this.settingsOpen = false; this.setupOpen = false; this.reelOpen = false;
       this.viewId = it.state === "running" ? null : it.id;
       this.showRun = true;
     },

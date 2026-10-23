@@ -45,13 +45,23 @@ def default_output() -> Path:
 
 
 ACCENTS = ("blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite")
+FONTS = ("system", "segoe", "yahei", "simsun", "arial")
+
+
+def update_appearance(prefs: dict, values: dict) -> None:
+    for key, allowed in (("appearance", ("auto", "light", "dark")), ("accent", ACCENTS), ("font", FONTS)):
+        if values.get(key) in allowed:
+            prefs[key] = values[key]
+    radius = values.get("popup_radius")
+    if type(radius) is int and 0 <= radius <= 28:
+        prefs["popup_radius"] = radius
 
 
 def load_prefs() -> dict:
     f = app_dir() / "app.json"
     prefs = {"output": str(default_output()), "demo_folders": [str(Path.home() / "Downloads")],
              "intro": True, "minimap": True, "keyboard": True, "show_enemies": False, "lang": "",
-             "upload": True, "appearance": "auto", "accent": "blue",
+             "upload": True, "appearance": "auto", "accent": "blue", "font": "system", "popup_radius": 14,
              "by_player": True,          # finished videos go into a folder per player
              "record_res": "auto",       # fit the screen, capped at 1080p
              "record_fps": 60,
@@ -68,6 +78,10 @@ def load_prefs() -> dict:
     if prefs.get("record_res") not in ("auto", "1080"):
         prefs["record_res"] = "1080"
     prefs["record_fps"] = 60
+    if prefs.get("font") not in FONTS:
+        prefs["font"] = "system"
+    if type(prefs.get("popup_radius")) is not int or not 0 <= prefs["popup_radius"] <= 28:
+        prefs["popup_radius"] = 14
     return prefs
 
 
@@ -395,6 +409,7 @@ def find_demos(folders: list[str], limit: int = 40) -> list[dict]:
     out.sort(key=lambda d: -d["mtime"])
     known = _known_demos()
     for d in out:
+        d["cached"] = _inspection_file(_inspection_key(Path(d["path"]))).is_file()
         k = known.get(d["path"])
         if k:
             d["map"], d["score"] = k.get("map", ""), k.get("score", "")
@@ -504,21 +519,40 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
 
 
 INSPECT_VERSION = 4       # v4 excludes posthumous kills from event counts and duels
+_inspect_locks = [threading.Lock() for _ in range(32)]
+
+
+def _inspection_key(src: Path) -> str:
+    st = src.stat()
+    # Keep the existing disk key so an app update does not discard valid results.
+    return f"{src.resolve()}|{st.st_mtime}|{st.st_size}|v{INSPECT_VERSION}"
+
+
+def _inspection_file(key: str) -> Path:
+    import hashlib
+    return app_dir() / "demo-info" / (hashlib.sha1(key.encode("utf-8")).hexdigest() + ".json")
 
 
 def inspect_isolated(path: str, work_dir: Path) -> dict:
     """inspect_demo in a child process: reading a big demo then can't stall the
     app, and a crash in the demo parser can't take the app down with it."""
+    # Concurrent clicks/windows share one parse. Bounded locks avoid accumulating
+    # one lock per demo; distinct stripes can still parse independently.
+    with _inspect_locks[hash(_inspection_key(Path(path))) % len(_inspect_locks)]:
+        return _inspect_saved(path, work_dir)
+
+
+def _inspect_saved(path: str, work_dir: Path) -> dict:
     src = Path(path)
-    st = src.stat()
-    key = f"{src.resolve()}|{st.st_mtime}|{st.st_size}|v{INSPECT_VERSION}"
+    key = _inspection_key(src)
     if key in _inspect_cache:
         return _inspect_cache[key]
-    import hashlib
-    saved = app_dir() / "demo-info" / (hashlib.sha1(key.encode("utf-8")).hexdigest() + ".json")
+    saved = _inspection_file(key)
     if saved.exists():                        # read before, even in an earlier session
         try:
             info = json.loads(saved.read_text(encoding="utf-8"))
+            if not isinstance(info, dict):
+                raise ValueError("Invalid demo cache")
             _inspect_cache[key] = info
             return info
         except Exception:
@@ -533,12 +567,21 @@ def inspect_isolated(path: str, work_dir: Path) -> dict:
         tail = (r.stderr or r.stdout).strip().splitlines()
         raise RuntimeError(tail[-1] if tail else f"Reading the demo failed (exit code {r.returncode}).")
     info = json.loads(out[-1])
+    if _inspection_key(src) != key:
+        raise RuntimeError("The demo changed while it was being read. Please open it again.")
     _inspect_cache[key] = info
+    temporary = saved.with_suffix("." + secrets.token_hex(8) + ".tmp")
     try:
         saved.parent.mkdir(parents=True, exist_ok=True)
-        saved.write_text(json.dumps(info, ensure_ascii=False), encoding="utf-8")
+        temporary.write_text(json.dumps(info, ensure_ascii=False), encoding="utf-8")
+        temporary.replace(saved)
     except OSError:
         pass
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass  # Saving an optional cache must not prevent opening the demo.
     return info
 
 
@@ -1499,6 +1542,11 @@ def make_handler(app: App):
                 if url.path == "/api/bye":
                     app.bye_at = time.time()
                     return self._json({"ok": True})
+                if url.path == "/api/window-theme":
+                    if type(b.get("dark")) is not bool:
+                        return self._json({"error": "Invalid theme"}, 400)
+                    from . import window_chrome
+                    return self._json({"applied": window_chrome.apply(getattr(app, "window", None), b["dark"])})
                 if url.path == "/api/inspect":
                     path = b.get("path", "")
                     if not is_demo(Path(path)):
@@ -1576,10 +1624,7 @@ def make_handler(app: App):
                         app.prefs["record_res"] = b["record_res"]
                     app.prefs["record_fps"] = 60
                     app.prefs.pop("upload_4k", None)
-                    if b.get("appearance") in ("auto", "light", "dark"):
-                        app.prefs["appearance"] = b["appearance"]
-                    if b.get("accent") in ACCENTS:
-                        app.prefs["accent"] = b["accent"]
+                    update_appearance(app.prefs, b)
                     if "reel_fx" in b:
                         from .. import effects
                         app.prefs["reel_fx"] = effects.normalize(b["reel_fx"])

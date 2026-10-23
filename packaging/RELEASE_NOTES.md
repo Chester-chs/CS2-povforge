@@ -1,29 +1,29 @@
-## PovForge v0.15.1
+## PovForge v0.15.2
 
 Download **PovForge-Setup.exe** to install or update. For a portable copy, extract **PovForge-windows.zip** and run `PovForge.exe`.
 
 ### English
 
-- Event reels now offer **Kills only**, **Kills + deaths**, and **Duels**. Remove deaths-only. Keep traditional selected-round highlights and whole-match POV.
-- Keep solo event reels in the selected player's first person, ordered by round and event time, merging adjacent moments. Duels remain A then B; traditional highlights retain optional ending victim replays.
-- Exclude posthumous kills that cannot be shown from the attacker's living POV before recording. Refresh cached demo information so event counts and duel choices follow the same rule.
-- Block manual settings restoration while CS2, recording or cancellation cleanup is active, and serialize restoration with recording startup.
-- Validate interrupted raw recordings before reuse. Re-record incomplete or unreadable takes, while preserving valid footage when output packaging fails.
-- Restrict thumbnail access to the resolved output directory. Validate the local server's Host and protect write requests with Origin checks and a session token.
-- Rewrite English and Chinese READMEs with download links, first-use steps, mode comparisons and troubleshooting. Clarify that output playback duration is not the time required to record and encode it.
+- Move the searchable Demo library into the main area; show setup only on first use or when preparation needs attention. Recommend one dedicated Demo folder and add Upload Demo for local files.
+- Give modes separate sidebar entries, ordered as Whole match, Demo kill POV, Demo kills and deaths POV, Highlight reel, and Head-to-head data. Preserve existing recording functionality.
+- Reuse saved Demo analysis across restarts, share concurrent inspection requests, write caches atomically, and show analysis status in the library.
+- Move resolution, frame rate and player-folder controls to Recording & saving in the main area.
+- Add appearance, general/storage, and about/update settings. Save theme, accent, font and popup corner radius; preserve active radius edits during background refresh.
+- Unify sidebar/main backgrounds and add best-effort native titlebar colors. **Native Edge/Chrome titlebar appearance awaits screenshots after installation**; accepted Windows API calls do not guarantee the browser renders the colors.
+- Clarify cleanup: saved match-list analysis and normally saved finished videos survive; detailed recording data and raw takes must be rebuilt when needed again.
 
-Validation: 284 local automated tests passed, along with 25 director simulation assertions. Independent review follow-ups were fixed and rechecked. No live CS2 recording was performed for this update, and the owner's game settings were not accessed or changed. Automated results do not replace live recording validation.
+Validation: 306 local automated tests and 25 director simulation assertions passed, including an isolated frontend fixture. No live CS2 recording was performed for this release, and the owner's game settings were not changed.
 
 ### 简体中文
 
 下载安装或更新请使用 **PovForge-Setup.exe**；免安装版 **PovForge-windows.zip** 需完整解压后运行 `PovForge.exe`。
 
-- 事件集锦保留 **仅击杀、击杀＋死亡、双人对位**，移除仅死亡；保留原有高光集锦和整场 POV。
-- 单人事件保持所选选手本人的第一人称，按回合、事件时间排序并合并相邻片段。对位仍为每次 A → B；传统高光保留片尾追加被击杀者视角的选项。
-- 录制前过滤无法由攻击者存活视角覆盖的死后击杀，并更新 demo 缓存，使界面统计和对位选择采用相同规则。
-- CS2、录制或取消清理仍在运行时，禁止手动恢复设置；恢复与录制启动互斥，避免覆盖冲突。
-- 复用录像前检查完整性；中断、损坏或过短的素材重新录制，输出封装失败时保留已经完整录好的原始素材。
-- 修复缩略图路径越界，并为本地网页接口加入监听地址校验、Origin 检查及会话令牌。
-- 中英文 README 面向第一次使用者重写，补齐下载、上手、模式说明和常见问题，明确成片播放时长不等于实际录制与编码耗时。
+- Demo 比赛列表移入主界面，支持搜索和「上传 Demo」选择本地文件。完成配置且环境就绪后不再反复显示首次设置，并建议统一使用一个 Demo 文件夹。
+- 侧边栏按顺序显示 **Demo整场录制、Demo击杀视角、Demo击杀和死亡视角、高光集锦、双人对位数据**，保留现有录制功能和选手视角规则。
+- 保存并复用 Demo 解析记录，重启后仍可使用；并发打开共享一次解析，缓存采用原子写入，比赛列表显示解析状态。
+- 分辨率、帧率、按选手分文件夹及文件夹名称移到主界面的「录制与保存」。
+- 设置分为「外观、通用与存储、关于与更新」。支持保存主题、强调色、字体和弹窗圆角；修复后台刷新打断圆角调整的问题。
+- 统一侧边栏和主界面背景，加入原生标题栏颜色适配。**Edge/Chrome 标题栏实际显示效果待安装后截图确认**，Windows 接口接受颜色不等于浏览器一定会显示该颜色。
+- 明确清理工作文件的影响：比赛列表解析记录和正常保存的成片保留；再次录制时需重新生成详细录制数据和原始片段。
 
-验证：本地 284 项自动化测试和 25 项导演脚本模拟断言通过，独立复审发现的补充问题已修复并复核。本次未进行 CS2 实机录制，也未访问或修改用户的实际游戏设置；自动化结果不代表已完成实机录制验收。
+验证：本地 306 项自动化测试及 25 项导演脚本模拟检查通过，界面使用隔离环境测试。本次没有启动 CS2 进行实机录制，也没有修改用户的游戏设置。
