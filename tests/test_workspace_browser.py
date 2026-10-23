@@ -114,8 +114,12 @@ def test_per_kill_replay_choices_reach_event_and_duel_requests(workspace_site):
             assert fx.get('transition', 'cut') == 'cut'
             assert not fx.get('kill_slowmo') and fx.get('pace', 'normal') == 'normal'
             page.evaluate("app.reel.content='duel';app.reel.items[0].opponent='33';app.selectAllVictims(true)")
-            assert page.wait_for("document.querySelectorAll('.victim-list input').length===3", 3)
-            assert page.evaluate('app.victimEntries[2].attacker') == 'Victim'
+            assert page.wait_for("document.querySelector('.camera-options') === null", 3)
+            page.evaluate("app.startReel(false)", await_promise=True)
+            assert page.evaluate('window.sent.body.effects.camera.victim') is False
+            assert page.evaluate('app.fx.camera.victim') is True
+            page.evaluate("app.reel.content='kill_events'")
+            assert page.wait_for("document.querySelectorAll('.victim-list input').length===2", 3)
             page.evaluate("app.selectAllVictims(false)")
             assert page.evaluate('JSON.stringify(app.fx.camera.selected)') == '[]'
         finally:
@@ -203,8 +207,12 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
                 assert page.evaluate('Alpine.$data(document.body).reel.content') == mode
                 expected = 'true' if mode == 'kills' else 'false'
                 assert page.wait_for(f"!!document.querySelector('.reel-style')?.getBoundingClientRect().height === {expected}", 3)
-                assert page.evaluate("!document.querySelector('.camera-options input.switch').disabled")
-                assert page.evaluate("document.querySelector('.camera-options .row-main b').textContent") == '受害者视角'
+                if mode == 'duel':
+                    assert page.wait_for("document.querySelector('.camera-options') === null", 3)
+                else:
+                    assert page.wait_for("document.querySelector('.camera-options input.switch') !== null", 3)
+                    assert page.evaluate("!document.querySelector('.camera-options input.switch').disabled")
+                    assert page.evaluate("document.querySelector('.camera-options .row-main b').textContent") == '受害者视角'
             page.call('Emulation.setDeviceMetricsOverride', width=1264, height=812, deviceScaleFactor=1, mobile=False)
             page.evaluate("document.querySelector('.reel .back-library').click()")
             assert page.wait_for("visible('.library') && document.querySelector('.demo-card.selected')", 3)

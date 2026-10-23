@@ -113,7 +113,7 @@ def test_event_pipeline_routes_replays_with_encounter_order_and_no_hidden_styles
 
     def order(cfg, title, items, windows, contexts, fx, placeholder, *, ordered_spans):
         routed.append(ordered_spans)
-        assert fx['camera']['victim'] is True
+        assert fx['camera']['victim'] is (mode != 'duel')
         assert fx['transition'] == 'cut' and fx['pace'] == 'normal'
         assert all(key in contexts for key, _ in ordered_spans)
         return [span for _, span in ordered_spans]
