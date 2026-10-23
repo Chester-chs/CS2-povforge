@@ -40,7 +40,9 @@ async function test() {
   app.fx={camera:{victim:true}};
   await app.startReel(false);
   assert.ok(payload.items.every(x=>x.mode==='duel' && x.opponent==='a'));
-  assert.strictEqual(payload.effects.camera.victim,false,'duels already include both views');
+  assert.strictEqual(payload.effects.camera.victim,true,'duels preserve an explicit victim replay opt-in');
+  assert.strictEqual(payload.effects.camera.placement,'after_kill');
+  assert.strictEqual(payload.effects.camera.selected.length,2);
   app.setReelContent('kills');
   app.reel.steamid='a'; src.steamid='a'; app.recompute();
   assert.deepStrictEqual(Array.from(app.reel.items,x=>x.round),[3],'default highlights stay intact');

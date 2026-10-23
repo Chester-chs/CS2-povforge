@@ -1,4 +1,4 @@
-"""Plan and render optional first-person victim replays for the reel ending."""
+"""Plan, render and place optional first-person victim replays."""
 
 from __future__ import annotations
 
@@ -26,8 +26,41 @@ def normalize_camera(raw) -> dict:
     raw = raw if isinstance(raw, dict) else {}
     durations = raw.get("durations")
     durations = durations if isinstance(durations, dict) else {}
+    selected = raw.get("selected")
+    if selected is not None:
+        selected = list(dict.fromkeys(s for s in selected[:50000]
+                                     if isinstance(s, str) and len(s) <= 2048)) if isinstance(selected, list) else []
     return {"mode": "pov", "victim": raw.get("victim") is True,
+            "placement": "end" if raw.get("placement") == "end" else "after_kill",
+            "selected": selected,
             "durations": {"victim": min(1.5, max(.5, _number(durations.get("victim"), 1.2)))}}
+
+
+def event_key(demo: str, attacker: str, tick: int, victim: str) -> str:
+    """Stable UI selection identity using the original (possibly compressed) path."""
+    return json.dumps([str(demo).replace('\\', '/').lower(), str(attacker), int(tick), str(victim)],
+                      ensure_ascii=False, separators=(',', ':'))
+
+
+def interleave_replays(span: tuple, insertions: list, fps: float) -> list:
+    """Split the main clip on output-frame boundaries; retain each frame once."""
+    if not insertions:
+        return [span]
+    clip, start, end, kills = span
+    result, cursor = [], start
+
+    def main(a, b):
+        return clip, a, b, [start + k - a for k in kills if a <= start + k < b]
+
+    for at, replay in sorted(insertions, key=lambda entry: entry[0]):
+        boundary = min(end, max(cursor, start + math.ceil((at - start) * fps - 1e-8) / fps))
+        if boundary > cursor + 1e-8:
+            result.append(main(cursor, boundary))
+        result.append(replay)
+        cursor = boundary
+    if cursor < end - 1e-8:
+        result.append(main(cursor, end))
+    return result
 
 
 def _victim_map(victims) -> dict[float, list[str]]:
@@ -55,8 +88,7 @@ def plan_shots(*, start_tick: float, end_tick: float, kill_ticks, victims,
                steamid: str, tickrate: float, camera, key: str, index: int = 0) -> list[dict]:
     """Plan one first-person replay per known victim, in kill order.
 
-    All replays follow the complete main reel. Legacy third-person flags and
-    frequency never replace its picture or limit the selected victim replays.
+    Placement is decided during assembly. Legacy third-person flags are ignored.
     """
     cfg = normalize_camera(camera)
     rate = _number(tickrate, 0)

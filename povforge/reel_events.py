@@ -130,7 +130,7 @@ def cut_view(view: View, plan, clip: Path, actual: float, duration: float) -> tu
 
 def run_events(cfg, title, items, placeholder=False, fx=None):
     from . import reel
-    fx = effects.normalize(fx)
+    fx = effects.for_event_reel(fx)
     pace = effects.pace_seconds(fx, cfg.highlights.before, cfg.highlights.after)
     sources = load_sources(cfg, items)
     views = select_views(items, sources, *pace)  # Validate every source before launching CS2.
@@ -180,9 +180,9 @@ def run_events(cfg, title, items, placeholder=False, fx=None):
     work = pipeline.work_root(cfg)
     from .compose import safe_filename
     try:
-        # Event reels retain the requested perspective; victim appendices belong
-        # to traditional highlights. Duels already contain each encounter A then B.
-        order = [spans[v] for v in views]
+        # Preserve encounter A/B order even when recording sessions group players.
+        order = reel._camera_order(cfg, title, items, windows, contexts, fx, placeholder,
+                                   ordered_spans=[((v.demo, v.steamid, v.round), spans[v]) for v in views])
         return reel._plain_join(cfg, title, order) if effects.is_plain(fx) else reel._with_effects(cfg, title, order, fx)
     finally:
         for folder in ('camera pieces', 'reel pieces'):

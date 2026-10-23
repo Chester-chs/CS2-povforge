@@ -30,7 +30,7 @@ app.post = async (_, body) => ({...app.prefs, ...body});
     app.styleRef = {effects:{camera},name:'reference',presetName:'saved'};
     app.prefs.fx_presets = [{name:'source',fx:{camera,transition:'flash',transition_seconds:0.3,transitions:{}}}];
     for (const action of ['import','mix','preset','plain','save']) {
-      app.fx = {...app.fxDefaults(),camera:{...app.cameraSettings(),mode,victim}};
+      app.fx = {...app.fxDefaults(),camera:{...app.cameraSettings(),mode,victim,placement:'end',selected:['chosen-kill']}};
       if (action === 'import') app.applyRef();
       if (action === 'mix') {
         app.pickPart('transition','my:source');
@@ -62,6 +62,8 @@ app.post = async (_, body) => ({...app.prefs, ...body});
     for state in data["states"]:
         assert state["got"]["victim"] is state["wantVictim"], state
         assert state["got"]["mode"] == "pov", state
+        assert state["got"]["placement"] == "end", state
+        assert state["got"]["selected"] == ["chosen-kill"], state
     assert "victim" in data["summary"].lower()
     assert data["withVictim"] == data["withoutVictim"] == "plain"
     assert data["defaultVictim"] is False

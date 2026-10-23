@@ -122,6 +122,13 @@ def normalize(fx: dict | None) -> dict:
     return out
 
 
+def for_event_reel(fx: dict | None) -> dict:
+    """Event modes expose audio and victim replays, without hidden highlight styles."""
+    source = normalize(fx)
+    return normalize({k: source[k] for k in (
+        "camera", "music", "music_volume", "music_start", "music_sync", "game_audio")})
+
+
 def is_plain(fx: dict | None) -> bool:
     """Nothing chosen (the pace aside): the reel is joined the quick way, as before."""
     fx = normalize(fx)
@@ -682,7 +689,7 @@ def describe(fx: dict) -> list[str]:
         out.append(f"music {Path(fx['music']).name}")
     camera = fx["camera"]
     if camera["victim"]:
-        out.append("victim views after the main reel, in kill order")
+        out.append("victim perspectives " + ("at the end" if fx["camera"]["placement"] == "end" else "after selected kills"))
     return out
 
 

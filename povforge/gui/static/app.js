@@ -32,9 +32,9 @@ const TEXT = {
     styleTitle: "成片风格", styleHelp: "导入成片后先预览、选择时间段并描述想要的特效，查看可实现方案后再应用。当前支持常见剪辑效果，物体跟踪与复杂粒子效果暂不支持。",
     stylePlain: "不加效果", styleUnsaved: "{name}（未命名）", styleMix: "混搭", mixHelp: "也可以按项挑：每一项都来自你导入过的成片。",
     fromList: "来自 {list}",
-    fxCamera: "第一人称集锦",
-    cameraHelp: "主集锦始终使用所选玩家的第一人称视角。",
-    cameraVictimAppend: "在片尾追加被击杀者视角", cameraVictimHelp: "全部主集锦播完后，按其中的击杀顺序拼接对方阵亡前的第一人称视角，中途不插入。需要额外录制，默认关闭；切换风格不会改变这个选择。",
+    fxCamera: "视角重放",
+    cameraHelp: "主画面始终使用所选玩家的第一人称视角。",
+    cameraVictimAppend: "受害者视角", cameraVictimHelp: "勾选要重放的击杀，在对应击杀后插入对方阵亡前的第一人称画面，然后继续主画面。也可选择统一放在片尾。需要额外录制，默认关闭。",
     presetNameLabel: "给这组效果起个名字，存成你的预设", presetSaveRef: "存成预设", presetSaved: "已存为预设「{name}」，以后在上面的预设里直接选。",
     presetReplace: "已有同名预设，保存会替换它。", fromFile: "来自 {name}", vNone: "无", vYes: "有", vNo: "没有", vAbout: "约 {s} 秒", vTimes: "{n} 处",
     vAlso: "也有 {list}", vMatch: "{kind}，会照着它调", vPace: "每段约 {s} 秒，{kind}", vMusic: "有，约 {bpm} BPM", nowLabel: "当前效果：{text}", nowPlain: "当前：原样拼接，不加效果",
@@ -159,9 +159,9 @@ const TEXT = {
     styleTitle: "Style", styleHelp: "Preview a reference, select a time range and describe the wanted effect. Review the proposal before applying. Common editing effects are supported; object tracking and complex particles are not.",
     stylePlain: "No effects", styleUnsaved: "{name} (unnamed)", styleMix: "Mixed", mixHelp: "Or pick item by item; every choice comes from a video you imported.",
     fromList: "from {list}",
-    fxCamera: "First-person highlights",
-    cameraHelp: "The main reel always uses the selected player's first-person view.",
-    cameraVictimAppend: "Append victim views after the reel", cameraVictimHelp: "After all main highlights, join the victims' first-person views before their deaths in the same kill order. Requires extra recording and is off by default. Changing styles preserves this choice.",
+    fxCamera: "Perspective replays",
+    cameraHelp: "The main footage always uses the selected player's first-person view.",
+    cameraVictimAppend: "Victim perspective", cameraVictimHelp: "Select kills to replay from the victim's first-person view before death. Insert after each selected kill, then resume the main footage, or collect at the end. Requires extra recording; off by default.",
     presetNameLabel: "Name these effects to keep them as your preset", presetSaveRef: "Save preset", presetSaved: "Saved as \u201c{name}\u201d; pick it from the presets above any time.",
     presetReplace: "A preset with this name exists; saving replaces it.", fromFile: "from {name}", vNone: "None", vYes: "Yes", vNo: "No", vAbout: "about {s} s", vTimes: "{n}×",
     vAlso: "also {list}", vMatch: "{kind}; yours will be matched to it", vPace: "about {s} s per moment, {kind}", vMusic: "yes, about {bpm} BPM", nowLabel: "Now: {text}", nowPlain: "Now: plain join, no effects",
@@ -684,8 +684,11 @@ document.addEventListener("alpine:init", () => {
     },
     async startReel(watch) {
       const wasRunning = this.job.state === "running";
-      const effects = { ...this.fx };
-      if (this.chronologicalReel) effects.camera = { ...this.cameraSettings(effects.camera), victim: false };
+      const effects = this.chronologicalReel ? { ...this.fxDefaults(),
+        ...Object.fromEntries(["camera", "music", "music_volume", "music_start", "music_sync", "game_audio"]
+          .filter(k => this.fx?.[k] !== undefined).map(k => [k, this.fx[k]])) } : { ...this.fx };
+      effects.camera = this.cameraSettings(effects.camera);
+      if (effects.camera.victim) effects.camera.selected = this.victimEntries.filter(e => this.victimSelected(e.key)).map(e => e.key);
       if (effects.intro === "title" && !effects.intro_sub) effects.intro_sub = this.reelPlayersLine;
       if (effects.outro === "card" && !effects.outro_text) effects.outro_text = this.t("outroTextDefault");
       const body = { title: this.reel.title.trim() || this.t(this.currentReelMode.label), summary: this.t("reelSummary", { n: this.reel.items.length }),
@@ -701,7 +704,43 @@ document.addEventListener("alpine:init", () => {
     cameraSettings(raw) {
       const duration = raw?.durations?.victim;
       return { mode: "pov", victim: raw?.victim === true,
+        placement: raw?.placement === "end" ? "end" : "after_kill",
+        selected: raw?.selected == null ? null : Array.isArray(raw.selected)
+          ? [...new Set(raw.selected.slice(0, 50000).filter(s => typeof s === "string" && s.length <= 2048))] : [],
         durations: { victim: typeof duration === "number" && Number.isFinite(duration) ? Math.min(1.5, Math.max(0.5, duration)) : 1.2 } };
+    },
+    victimKey(path, attacker, tick, victim) {
+      return JSON.stringify([String(path).replaceAll("\\", "/").toLowerCase(), String(attacker), Number(tick), String(victim)]);
+    },
+    get victimEntries() {
+      const entries = new Map();
+      for (const item of this.reel.items) {
+        const source = this.reel.sources.find(s => s.path === item.path);
+        for (const event of source?.info?.duels || []) {
+          if (event.round !== item.round) continue;
+          const duel = this.reel.content === "duel";
+          if (duel ? !((event.attacker === item.steamid && event.victim === item.opponent) ||
+                        (event.attacker === item.opponent && event.victim === item.steamid))
+                   : event.attacker !== item.steamid) continue;
+          const key = this.victimKey(item.path, event.attacker, event.tick, event.victim);
+          entries.set(key, {key, round: event.round, tick: event.tick, map: this.sourceLabel(source),
+            attacker: this.playerIn(source.info, event.attacker)?.name || event.attacker,
+            victim: this.playerIn(source.info, event.victim)?.name || event.victim});
+        }
+      }
+      return [...entries.values()];
+    },
+    victimSelected(key) {
+      const selected = this.fx?.camera?.selected;
+      return selected == null || selected.includes(key);
+    },
+    selectVictim(key, checked) {
+      const selected = new Set(this.victimEntries.filter(e => this.victimSelected(e.key)).map(e => e.key));
+      if (checked) selected.add(key); else selected.delete(key);
+      this.fx.camera.selected = [...selected]; this.fxChanged();
+    },
+    selectAllVictims(checked) {
+      this.fx.camera.selected = checked ? null : []; this.fxChanged();
     },
     // the parts of the effects that make a look (not the music file or the texts)
     fxLook(fx) {
@@ -722,13 +761,13 @@ document.addEventListener("alpine:init", () => {
                intro_text: f.intro_text || "", intro_sub: f.intro_sub || "", outro_text: f.outro_text || "" };
     },
     applyPreset(key) {
-      const { victim } = this.cameraSettings(this.fx?.camera);
+      const camera = this.cameraSettings(this.fx?.camera);
       const mine = (this.prefs.fx_presets || []).find(p => "my:" + p.name === key);
       const own = this.keepOwn();
       const texts = { intro_text: own.intro_text, intro_sub: own.intro_sub, outro_text: own.outro_text,
                       music: own.music, music_volume: own.music_volume, music_start: own.music_start, music_sync: own.music_sync, game_audio: own.game_audio };
       this.fx = mine ? { ...this.fxDefaults(), ...mine.fx, ...texts } : { ...this.fxDefaults(), ...texts };
-      this.fx.camera = { ...this.cameraSettings(this.fx.camera), victim };
+      this.fx.camera = camera;
       this.fxPreset = mine ? key : "plain"; this.saveFx();
     },
     fxParts: [
@@ -792,11 +831,11 @@ document.addEventListener("alpine:init", () => {
       this.fxChanged();
     },
     applyRef() {
-      const { victim } = this.cameraSettings(this.fx?.camera);
+      const camera = this.cameraSettings(this.fx?.camera);
       const look = { ...this.styleRef.effects };
       for (const k of ["music", "music_volume", "music_start", "music_sync", "game_audio"]) delete look[k];
       this.fx = { ...this.fxDefaults(), ...look, ...this.keepOwn() };
-      this.fx.camera = { ...this.cameraSettings(this.fx.camera), victim };
+      this.fx.camera = camera;
       this.fxPreset = "ref"; this.saveFx();
     },
     fxChanged() { this.fxPreset = this.presetOf(this.fx); this.saveFx(); },
@@ -947,7 +986,7 @@ document.addEventListener("alpine:init", () => {
     },
     presetTaken(name) { const n = (name || "").trim(); return !!n && (this.prefs.fx_presets || []).some(p => p.name === n); },
     async saveRefPreset() {
-      const { victim } = this.cameraSettings(this.fx?.camera);
+      const camera = this.cameraSettings(this.fx?.camera);
       const name = (this.styleRef.presetName || "").trim().slice(0, 40);
       if (!name) return;
       const fx = { ...this.fxDefaults(), ...this.styleRef.effects };
@@ -955,7 +994,7 @@ document.addEventListener("alpine:init", () => {
       const list = (this.prefs.fx_presets || []).filter(p => p.name !== name).concat([{ name, fx, source: this.styleRef.name }]);
       this.prefs = await this.post("/api/prefs", { fx_presets: list });
       this.fx = { ...fx, ...this.keepOwn() };
-      this.fx.camera = { ...this.cameraSettings(this.fx.camera), victim };
+      this.fx.camera = camera;
       this.fxPreset = "my:" + name; this.styleRef.savedAs = name; this.saveFx();
     },
     // one line saying what a set of effects does

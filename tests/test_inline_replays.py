@@ -41,8 +41,14 @@ def test_camera_selection_normalization_and_cross_platform_event_identity():
 
 
 def test_selected_replays_are_inline_and_keep_explicit_duel_order(tmp_path, monkeypatch):
+    from dataclasses import replace
     from povforge import hlae
     cfg, items, windows, contexts = _sources(tmp_path)
+    # UI identity remains the compressed source even when the plan plays an unpacked .dem.
+    old_windows, old_contexts = windows, contexts
+    items = [replace(it, demo=it.demo + '.zst') for it in items]
+    windows = {(it.demo,it.steamid,it.round): old_windows[(it.demo[:-4],it.steamid,it.round)] for it in items}
+    contexts = {(it.demo,it.steamid,it.round): old_contexts[(it.demo[:-4],it.steamid,it.round)] for it in items}
     spans = [(key, value[0]) for key, value in windows.items()]
     spans.reverse()  # Event sequence may differ from grouping by selected player.
     selected = camera.event_key(items[0].demo, '11', 1280, '33')
@@ -65,6 +71,16 @@ def test_selected_replays_are_inline_and_keep_explicit_duel_order(tmp_path, monk
     assert order[1][2] == pytest.approx(3.875 + 1 / cfg.record.fps, abs=1/cfg.record.fps)
 
 
+@pytest.mark.parametrize('selected', [[], ['forged-event'], ['["match.dem","11",1280,"999"]']])
+def test_unselected_or_forged_events_never_trigger_extra_recording(tmp_path, monkeypatch, selected):
+    from povforge import hlae
+    cfg, items, windows, contexts = _sources(tmp_path)
+    monkeypatch.setattr(hlae, 'record', lambda *a, **kw: pytest.fail('No matching victim was selected'))
+    order = reel._camera_order(cfg, 'None', items, windows, contexts,
+                               {'camera': {'victim': True, 'selected': selected}})
+    assert order == [windows[(it.demo,it.steamid,it.round)][0] for it in items]
+
+
 def test_event_modes_strip_hidden_styles_but_keep_audio_and_victim_choices():
     fx = effects.for_event_reel({'transition': 'flash', 'intro': 'title', 'pace': 'tight',
                                 'kill_slowmo': True, 'music': 'song.mp3', 'game_audio': 'low',
@@ -73,3 +89,106 @@ def test_event_modes_strip_hidden_styles_but_keep_audio_and_victim_choices():
     assert fx['pace'] == 'normal' and fx['kill_slowmo'] is False
     assert fx['music'] == 'song.mp3' and fx['game_audio'] == 'low'
     assert fx['camera']['victim'] is True and fx['camera']['selected'] == []
+
+
+@pytest.mark.parametrize('mode', ['kill_events', 'kills_deaths', 'duel'])
+def test_event_pipeline_routes_replays_with_encounter_order_and_no_hidden_styles(tmp_path, monkeypatch, mode):
+    from types import SimpleNamespace
+    from povforge import pipeline, reel_events
+    from povforge.model import Plan, Player, Segment
+    from povforge.config import Config
+    from test_event_reels import sample
+    cfg = Config(output_dir=tmp_path/'output')
+    jobs = {}
+    for sid in ('a', 'b'):
+        job = tmp_path/sid
+        (job/'clips').mkdir(parents=True)
+        (job/'clips/clip_000.mp4').write_bytes(b'fixture')
+        jobs[sid] = job
+    monkeypatch.setattr(reel_events, 'load_sources', lambda *args: {'test.dem': (sample(), {1:{'a':2,'b':3}})})
+    monkeypatch.setattr(pipeline, 'whole_match_job', lambda cfg,demo,sid: jobs[sid])
+    monkeypatch.setattr(pipeline, 'load_plan', lambda job: Plan('test.dem','de_test',10,Player(job.name,job.name),[Segment(1,0,200,'round_end')]))
+    monkeypatch.setattr(reel_events, 'probe', lambda *args: SimpleNamespace(duration=20))
+    routed = []
+
+    def order(cfg, title, items, windows, contexts, fx, placeholder, *, ordered_spans):
+        routed.append(ordered_spans)
+        assert fx['camera']['victim'] is True
+        assert fx['transition'] == 'cut' and fx['pace'] == 'normal'
+        assert all(key in contexts for key, _ in ordered_spans)
+        return [span for _, span in ordered_spans]
+
+    monkeypatch.setattr(reel, '_camera_order', order)
+    monkeypatch.setattr(reel, '_plain_join', lambda cfg,title,order: order)
+    def compose(cfg, title, order, fx):
+        assert fx['transition'] == 'cut' and fx['intro'] == 'none' and not fx['kill_slowmo']
+        return order
+    monkeypatch.setattr(reel, '_with_effects', compose)
+    result = reel.run(cfg, 'Events', [reel.ReelItem('test.dem','a',1,mode,'b')],
+                      fx={'transition':'flash','pace':'tight','camera':{'victim':True}})
+    assert len(routed) == 1 and result
+    if mode == 'duel':
+        assert [key[1] for key,_ in routed[0]] == ['a','b']
+
+
+def test_inline_assembly_uses_real_replay_video_and_main_timeline_audio(tmp_path, monkeypatch):
+    import json
+    import shutil
+    import subprocess
+    import numpy as np
+    from povforge import hlae
+    from povforge.media import probe
+    ffmpeg = shutil.which('ffmpeg')
+    if not ffmpeg:
+        pytest.skip('FFmpeg required')
+    cfg, items, windows, contexts = _sources(tmp_path)
+    cfg.record.width, cfg.record.height, cfg.record.fps = 96, 54, 20
+    cfg.compose.ffmpeg, cfg.compose.preset = ffmpeg, 'ultrafast'
+    item = items[0]
+    key = (item.demo, item.steamid, item.round)
+    job, _ = contexts[key]
+    clip = windows[key][0][0]
+    windows[key] = [(clip, 1., 5., [1.5, 2.5])]
+    (job / 'victims.json').write_text('[[1192,"33"],[1256,"44"]]')
+
+    def video(path, color, seconds, tone):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run([ffmpeg, '-y', '-v', 'error', '-f', 'lavfi', '-i',
+                        f'color={color}:s=96x54:r=20', '-f', 'lavfi', '-i',
+                        f'sine=frequency={tone}:sample_rate=48000', '-t', str(seconds),
+                        '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+                        '-c:a', 'aac', str(path)], check=True)
+
+    video(clip, 'red', 6, 440)
+
+    def capture(plan, job, settings, ffmpeg, *, extra_shots, shots_only):
+        starts, paths = hlae.actual_starts(job), []
+        for s in extra_shots:
+            path = job / 'shots' / (s['id'] + '.mp4')
+            video(path, 'blue', (s['end']-s['start'])/64 + .2, 880)
+            starts[s['id']] = s['start']
+            paths.append(path)
+        (job/'recorded.json').write_text(json.dumps(starts))
+        return paths
+
+    monkeypatch.setattr(hlae, 'record', capture)
+    order = reel._camera_order(cfg, 'Inline media', [item], windows, contexts, {'camera': {'victim': True}})
+    assert len(order) == 5
+    mains = [s for s in order if s[0] == clip]
+    assert sum(s[2]-s[1] for s in mains) == pytest.approx(4)
+    final = reel._with_effects(cfg, 'Inline media', order, effects.normalize({'camera': {'victim': True}}))
+    info = probe(final, ffmpeg)
+    assert info.frames == 126  # 80 main frames plus two 23-frame replays.
+    assert info.duration == pytest.approx(6.3, abs=.1)
+    for sec, blue in [(0.4, False), (1.8, True), (2.85, False), (3.9, True), (5.9, False)]:
+        pixels = subprocess.run([ffmpeg, '-v', 'error', '-ss', str(sec), '-i', str(final),
+                                 '-frames:v', '1', '-vf', 'scale=1:1', '-f', 'rawvideo',
+                                 '-pix_fmt', 'rgb24', '-'], check=True, capture_output=True).stdout
+        assert (pixels[2] > pixels[0]) == blue
+    # Replay recordings contain 880 Hz; final replay sound must use source-time 440 Hz.
+    audio = subprocess.run([ffmpeg, '-v', 'error', '-ss', '1.8', '-i', str(final),
+                            '-t', '0.4', '-f', 'f32le', '-ac', '1', '-ar', '48000', '-'],
+                           check=True, capture_output=True).stdout
+    samples = np.frombuffer(audio, dtype='<f4')
+    peak = np.argmax(abs(np.fft.rfft(samples))) * 48000 / len(samples)
+    assert peak == pytest.approx(440, abs=5)

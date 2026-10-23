@@ -681,15 +681,15 @@ body .sheet, .popup-preview { border-radius: var(--popup-radius, 14px); }
   .preview-stage { padding: 20px; }
 }
 @media (min-width: 1560px) {
-  .recording-views.library-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-items: start; gap: 28px; max-width: 1560px; margin: 0 auto; padding: 32px; }
-  .library-layout > .library, .library-layout > .recording-panel { width: 100%; max-width: none; padding: 0; margin: 0; min-width: 0; }
-  .library-layout > .recording-panel { position: sticky; top: 32px; }
-  .library-layout .settings-heading { margin: 0 0 20px; font-size: 20px; }
-  .library-layout .recording-panel .row { flex-wrap: wrap; gap: 12px; padding: 16px; }
-  .library-layout .recording-panel .row-main { flex-basis: 100%; }
-  .library-layout .recording-panel .row-main small { line-height: 1.6; overflow-wrap: anywhere; white-space: normal; }
-  .library-layout .recording-panel .row:has(.switch) { flex-wrap: nowrap; }
-  .library-layout .recording-panel .row:has(.switch) .row-main { flex-basis: auto; }
+  .recording-views:is(.library-layout, .editor-layout) { display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-items: start; gap: 28px; max-width: 1560px; margin: 0 auto; padding: 32px; }
+  .library-layout > .library, .editor-layout > .reel, :is(.library-layout, .editor-layout) > .recording-panel { width: 100%; max-width: none; padding: 0; margin: 0; min-width: 0; }
+  :is(.library-layout, .editor-layout) > .recording-panel { position: sticky; top: 32px; }
+  :is(.library-layout, .editor-layout) .settings-heading { margin: 0 0 20px; font-size: 20px; }
+  :is(.library-layout, .editor-layout) .recording-panel .row { flex-wrap: wrap; gap: 12px; padding: 16px; }
+  :is(.library-layout, .editor-layout) .recording-panel .row-main { flex-basis: 100%; }
+  :is(.library-layout, .editor-layout) .recording-panel .row-main small { line-height: 1.6; overflow-wrap: anywhere; white-space: normal; }
+  :is(.library-layout, .editor-layout) .recording-panel .row:has(.switch) { flex-wrap: nowrap; }
+  :is(.library-layout, .editor-layout) .recording-panel .row:has(.switch) .row-main { flex-basis: auto; }
   .library-layout .demo-card { min-height: 88px; padding: 14px 18px; gap: 16px; }
   .library-layout .demo-art { width: 56px; height: 56px; }
   .library-layout .library-head { margin-bottom: 24px; }
@@ -704,3 +704,8 @@ body .sheet, .popup-preview { border-radius: var(--popup-radius, 14px); }
   .recording-panel .row:has(.switch) { flex-wrap: nowrap; }
   .recording-panel .row:has(.switch) .row-main { flex-basis: auto; }
 }
+
+.editor-layout .reel { padding-bottom: 110px; }
+.victim-controls { margin-top: 18px; }
+.victim-list { max-height: 420px; overflow-y: auto; }
+.victim-list input[type=checkbox] { accent-color: var(--accent); width: 17px; height: 17px; flex-shrink: 0; }

@@ -81,6 +81,48 @@ def workspace_site():
 
 
 @pytest.mark.skipif(cdp.find_browser() is None, reason='Edge/Chrome required')
+def test_per_kill_replay_choices_reach_event_and_duel_requests(workspace_site):
+    url, _ = workspace_site
+    with cdp.Browser(size=(1920, 1080)) as browser:
+        page = browser.page()
+        try:
+            page.call('Page.enable')
+            page.call('Page.navigate', url=url)
+            assert page.wait_for("document.querySelectorAll('.demo-card').length === 5", 15)
+            page.evaluate("""window.app = Alpine.$data(document.body);
+              app.reelOpen=true;app.libraryOpen=false;app.reel.content='kill_events';
+              app.reel.title='Test'; app.reel.steamid='11';
+              app.reel.sources=[{path:'C:/Demos/match.dem.zst', info:{map_pretty:'Dust2',teams:[
+                {players:[{steamid:'11',name:'Attacker'}]}, {players:[{steamid:'33',name:'Victim'}]}],
+                duels:[{round:1,tick:100,attacker:'11',victim:'33'},
+                       {round:1,tick:200,attacker:'11',victim:'33'},
+                       {round:1,tick:300,attacker:'33',victim:'11'}]}}];
+              app.reel.items=[{path:'C:/Demos/match.dem.zst',steamid:'11',round:1,mode:'kill_events',key:'one',name:'Attacker'}];
+              app.fx={transition:'flash',intro:'title',pace:'tight',kill_slowmo:true,
+                      camera:app.cameraSettings({victim:true})};
+              app.post=async (url,body)=>{window.sent={url,body};return {queue:{items:[]},state:'idle'}};
+              app.toast=()=>{};""")
+            assert page.wait_for("document.querySelectorAll('.victim-list input').length===2", 3)
+            page.evaluate("document.querySelector('.victim-list input').click()")
+            assert page.evaluate("Array.from(document.querySelectorAll('.victim-list input'),n=>n.checked)") == [False, True]
+            page.evaluate("app.startReel(false)", await_promise=True)
+            sent = page.evaluate('window.sent')
+            fx = sent['body']['effects']
+            assert fx['camera']['victim'] is True
+            assert fx['camera']['placement'] == 'after_kill'
+            assert fx['camera']['selected'] == ['["c:/demos/match.dem.zst","11",200,"33"]']
+            assert fx.get('transition', 'cut') == 'cut'
+            assert not fx.get('kill_slowmo') and fx.get('pace', 'normal') == 'normal'
+            page.evaluate("app.reel.content='duel';app.reel.items[0].opponent='33';app.selectAllVictims(true)")
+            assert page.wait_for("document.querySelectorAll('.victim-list input').length===3", 3)
+            assert page.evaluate('app.victimEntries[2].attacker') == 'Victim'
+            page.evaluate("app.selectAllVictims(false)")
+            assert page.evaluate('JSON.stringify(app.fx.camera.selected)') == '[]'
+        finally:
+            page.close()
+
+
+@pytest.mark.skipif(cdp.find_browser() is None, reason='Edge/Chrome required')
 def test_workspace_setup_match_reel_search_and_layout(workspace_site):
     url, state = workspace_site
     with cdp.Browser(size=(1264, 812)) as browser:
@@ -159,7 +201,8 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
                 assert page.wait_for(f"document.querySelector('.reel h1').textContent === '{title}'", 3)
                 assert page.wait_for("document.querySelector('.content').scrollTop === 0", 3)
                 assert page.evaluate('Alpine.$data(document.body).reel.content') == mode
-                assert page.evaluate("!!document.querySelector('.reel-style')?.getBoundingClientRect().height") == (mode == 'kills')
+                expected = 'true' if mode == 'kills' else 'false'
+                assert page.wait_for(f"!!document.querySelector('.reel-style')?.getBoundingClientRect().height === {expected}", 3)
                 assert page.evaluate("!document.querySelector('.camera-options input.switch').disabled")
                 assert page.evaluate("document.querySelector('.camera-options .row-main b').textContent") == '受害者视角'
             page.call('Emulation.setDeviceMetricsOverride', width=1264, height=812, deviceScaleFactor=1, mobile=False)

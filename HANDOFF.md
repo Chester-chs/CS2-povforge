@@ -2,6 +2,26 @@
 
 ## Current agreed scope
 
+v0.15.8 supersedes all earlier ending-only victim replay rules below. The reel
+editor now shares the library's wide desktop grid and right-side recording panel.
+Style/reference/visual effect controls appear only in Highlights (`kills`). Event
+reels discard hidden visual style and pace settings, preserving music/audio and
+camera choices. Every reel mode (kill_events, kills_deaths, duel, kills) offers
+Victim perspective; whole-match recording does not. It is off by default. Users
+may select individual real kills, default to inserting immediately after each
+selected kill, or explicitly collect them at the end. Main footage resumes after
+inline replays. Selection identities use original Demo path + attacker + tick +
+victim; only actual victims from parsed recording metadata can be captured.
+Duel A/B encounter ordering is preserved through replay planning. Replay footage
+stops before death to avoid switching spectator target; missing captures are
+skipped, with main footage retained. No parsing cache version bump is needed.
+This update was developed without launching CS2 or modifying game settings.
+Final local regression: 350 passed in 160.86s; three additional selection cases
+also passed in the 12-test inline target. Python compile, JS syntax, 25 director
+assertions, browser mode/payload checks and native maximized preview passed.
+See docs/releases/v0.15.8/verification.md for RED/GREEN evidence and boundaries.
+
+
 v0.15.7 supersedes the app quality choices below: resolution is fixed at 1080P,
 with no editable size control. Saved 2K/4K app choices migrate to 1080. FPS is a
 24/30/60/120/144/240 menu; other old values fall back to 60. CLI/media helpers

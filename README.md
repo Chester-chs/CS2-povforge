@@ -51,7 +51,7 @@ Demo analysis is saved locally and reused after restarting the app. **Analysis s
 
 Solo event reels always use the selected player's own first-person view. Posthumous grenade or fire kills are excluded because the attacker's living POV is no longer available; their death can still appear in **Kills + deaths**. A round with no supported events is rejected before recording. Across multiple demos, source-list order is preserved, with events ordered within each demo.
 
-Traditional highlights also offer **Append victim views after the reel**, off by default. It adds victims' first-person moments before death after all main highlights, in the main reel's kill order. This requires extra recording. Event reels keep their selected perspective, and duels already include both players.
+**Victim perspective** is available in every reel mode, off by default. Select individual kills to insert the victim's first-person view before death immediately after that kill, then resume the main footage. You can also collect these replays at the end. Extra recording is required; full-match POV recording has no victim replay option. Visual style controls are available only in Highlights.
 
 ## Video options
 

@@ -159,9 +159,12 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
 
 
 def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
-                  contexts: dict, fx: dict, placeholder: bool = False) -> list:
+                  contexts: dict, fx: dict, placeholder: bool = False, *, ordered_spans=None) -> list:
     """Plan around actual kills, batch extra views per demo, then preserve POV audio."""
-    order = [w for it in items for w in windows.get((it.demo, it.steamid, it.round), [])]
+    sources = (ordered_spans if ordered_spans is not None else
+               [((it.demo, it.steamid, it.round), w) for it in items
+                for w in windows.get((it.demo, it.steamid, it.round), [])])
+    order = [span for _, span in sources]
     choice = camera.normalize_camera(fx.get("camera"))
     if not choice["victim"]:
         return order
@@ -171,33 +174,30 @@ def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
 
     requests, groups = [], {}
     context_cache = {}
-    for it in items:
-        source = (it.demo, it.steamid, it.round)
-        spans = windows.get(source, [])
-        if not spans:
-            continue
+    selected = set(choice["selected"]) if choice["selected"] is not None else None
+    for source, span in sources:
+        demo, steamid, round_number = source
         job, plan = contexts[source]
         if job not in context_cache:
             context_cache[job] = (actual_starts(job), pipeline.load_victims(job) if choice["victim"] else [])
         starts, victims = context_cache[job]
-        seg = next(sg for sg in plan.segments if sg.round_number == it.round)
+        seg = next(sg for sg in plan.segments if sg.round_number == round_number)
         actual = starts.get(clip_id(seg), float(seg.start_tick))
         demo_key = str(Path(plan.demo_path).resolve()).casefold()
-        for span in spans:
-            clip, a, b, kills = span
-            start_tick = actual + a * plan.tickrate
-            shots = camera.plan_shots(
-                start_tick=start_tick, end_tick=actual + b * plan.tickrate,
-                kill_ticks=[round(start_tick + k * plan.tickrate) for k in kills],
-                victims=victims, steamid=it.steamid, tickrate=plan.tickrate,
-                camera=choice, key=f"{demo_key}:{it.steamid}:{it.round}",
-                index=len(requests),
-            )
-            requests.append((span, shots, demo_key, plan.tickrate))
-            if shots:
-                group = groups.setdefault(demo_key, {"job": job, "plan": plan, "shots": {}})
-                for shot in shots:
-                    group["shots"][shot["id"]] = shot
+        clip, a, b, kills = span
+        start_tick = actual + a * plan.tickrate
+        shots = camera.plan_shots(
+            start_tick=start_tick, end_tick=actual + b * plan.tickrate,
+            kill_ticks=[round(start_tick + k * plan.tickrate) for k in kills],
+            victims=victims, steamid=steamid, tickrate=plan.tickrate,
+            camera=choice, key=f"{demo_key}:{steamid}:{round_number}", index=len(requests))
+        if selected is not None:
+            shots = [s for s in shots if camera.event_key(demo, steamid, s["focus"], s["steamid"]) in selected]
+        requests.append((span, shots, demo_key, plan.tickrate, actual))
+        if shots:
+            group = groups.setdefault(demo_key, {"job": job, "plan": plan, "shots": {}})
+            for shot in shots:
+                group["shots"][shot["id"]] = shot
 
     for n, group in enumerate(groups.values(), 1):
         shots = list(group["shots"].values())
@@ -210,14 +210,14 @@ def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
 
     work = pipeline.work_root(cfg) / "camera pieces" / safe_filename(title)
     result, replays = [], []
-    for i, (span, shots, demo_key, tickrate) in enumerate(requests):
+    for i, (span, shots, demo_key, tickrate, actual) in enumerate(requests):
         if not shots:
             result.append(span)
             continue
         group = groups[demo_key]
         clip, a, b, kills = span
         _log(f"Camera editing {i + 1}/{len(requests)}")
-        result.append(span)
+        insertions = []
         for j, shot in enumerate(s for s in shots if s["kind"] == "victim"):
             replay = camera.render_replay(
                 clip=clip, start=a, end=b, shot=shot,
@@ -226,7 +226,11 @@ def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
                 fps=cfg.record.fps, compose=cfg.compose,
             )
             if replay is not None:
-                replays.append(replay)
+                if choice["placement"] == "end":
+                    replays.append(replay)
+                else:
+                    insertions.append(((shot["focus"] - actual) / tickrate + 1 / cfg.record.fps, replay))
+        result.extend(camera.interleave_replays(span, insertions, cfg.record.fps))
     return result + replays
 
 

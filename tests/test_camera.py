@@ -43,7 +43,7 @@ def test_malformed_preferences_never_enable_camera_or_nonfinite_timing():
          "durations": {"follow": float("inf"), "orbit": -99, "wide": 999, "victim": True}})
     assert normal["mode"] == "pov"
     assert normal["victim"] is False
-    assert set(normal) == {"mode", "victim", "durations"}
+    assert set(normal) == {"mode", "victim", "durations", "placement", "selected"}
     assert all(math.isfinite(v) and .3 <= v <= 3 for v in normal["durations"].values())
 
 

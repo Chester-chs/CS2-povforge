@@ -85,7 +85,7 @@ def test_camera_order_batches_players_of_one_demo_and_uses_actual_ticks(tmp_path
     monkeypatch.setattr(camera, "plan_shots", plan_shots)
     monkeypatch.setattr(hlae, "record", record)
     monkeypatch.setattr(camera, "render_replay", render_replay)
-    fx = effects.normalize({"camera": {"victim": True}})
+    fx = effects.normalize({"camera": {"victim": True, "placement": "end"}})
     order = reel._camera_order(cfg, "Test", items, windows, contexts, fx)
     assert len(sessions) == 1
     assert len(order) == 4 and len(renders) == 2
@@ -113,7 +113,7 @@ def test_all_planned_camera_kinds_are_accepted_by_recording_contract(tmp_path):
         start_tick=640, end_tick=1920, kill_ticks=[1152, 1536],
         victims=[[1152, "222"], [1536, "333"]], steamid="111", tickrate=64,
         camera={"mode": "reference", "follow": True, "orbit": True, "wide": True,
-                "victim": True, "frequency": 1.0},
+                "victim": True, "placement": "end", "frequency": 1.0},
         key="same-demo",
     )
     plan = Plan("match.dem", "de_test", 64, Player("111", "Player"), [])
@@ -181,7 +181,7 @@ def test_all_main_moments_precede_every_victim_replay_in_selected_kill_order(tmp
         return paths
 
     monkeypatch.setattr(hlae, "record", record)
-    fx = effects.normalize({"camera": {"mode": "pov", "victim": True, "frequency": 0}})
+    fx = effects.normalize({"camera": {"mode": "pov", "victim": True, "placement": "end", "frequency": 0}})
     order = reel._camera_order(cfg, "Ending Replays", items, windows, contexts, fx)
     assert order[:2] == [windows[(i.demo, i.steamid, i.round)][0] for i in items]
     assert len(order) == 5
@@ -246,7 +246,7 @@ def test_reel_run_records_extra_shots_and_publishes_real_composite(tmp_path, mon
 
     monkeypatch.setattr(hlae, "record", record)
     out = reel.run(cfg, "Camera Test", [reel.ReelItem(str(demo), "11", 1)],
-                   fx={"camera": {"victim": True}})
+                   fx={"camera": {"victim": True, "placement": "end"}})
     assert out.is_file()
     assert len(calls) == 1 and calls[0][0]["cam"] == "pov" and calls[0][0]["steamid"] == "33"
     assert probe(out, cfg.compose.ffmpeg).duration == pytest.approx(6.65, abs=.1)

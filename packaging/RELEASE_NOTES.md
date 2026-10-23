@@ -1,26 +1,22 @@
-## PovForge v0.15.7
+## PovForge v0.15.8
 
 Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** is the portable edition.
 
 ### English
 
-- Fix app output at 1080P. Replace free-form FPS input with 24, 30, 60, 120, 144 and 240 FPS choices. Older 2K/4K app selections migrate to 1080P.
-- Choose the main save folder or a separate destination for each player. By default the first recording creates a folder named after the player's in-game ID; later recordings reuse it. Cancelling a picker keeps the current destination.
-- Show kills and deaths for selected rounds; head-to-head mode reports each player's mutual encounters separately.
-- Use a two-column workspace on large windows, with recording options beside the Demo library. Keep stacked layouts for smaller windows.
-- Add breathing room below grouped controls and make unfilled slider tracks white.
-- Sidebar order: whole match, kill POV, kills/deaths POV, head-to-head, highlights.
+- Expand the content editor on large windows, with recording and save options alongside it, matching the Demo library.
+- Show Style controls only in Highlights. Kill POV, kills/deaths and head-to-head modes keep audio and victim replay choices without applying hidden visual styles.
+- Add **Victim perspective** to all reel modes, off by default. Select individual kills and insert their victims' first-person views immediately after those kills, then resume the main footage. Collecting replays at the end remains available.
+- Preserve chronological event and head-to-head A/B order, complete main footage and source-time replay audio. Whole-match recording keeps its original first-person flow.
 
 ### 简体中文
 
 下载安装或更新请使用 **PovForge-Setup.exe**；免安装版使用 **PovForge-windows.zip**。
 
-- 分辨率固定为 1080P，不可修改。帧率改为下拉选项：24、30、60、120、144、240 FPS；旧的 2K/4K 选择会恢复为 1080P。
-- 可选择统一保存位置，也可为每位选手选择独立文件夹。默认在首次录制时创建以选手游戏 ID 命名的文件夹，后续复用；取消选择不会改变原位置。
-- 显示所选回合的击杀、死亡合计；双人对位分别统计双方的交手数据。
-- 大窗口将 Demo 列表与录制设置左右并排，小窗口保持上下排列。
-- 增加说明文字与上方框的间距，滑块未填充轨道改为白色。
-- 侧边栏顺序：Demo整场录制、Demo击杀视角、Demo击杀和死亡视角、双人对位数据、高光集锦。
+- 大窗口中的内容选择页改为宽幅布局，右侧显示录制与保存，与 Demo 列表页保持一致。
+- “成片风格”仅在高光集锦中显示；其他集锦模式保留音频、受害者视角设置，不再应用隐藏的风格效果。
+- 除整场录制外，各模式均提供“受害者视角”，默认关闭。可逐次勾选击杀，在对应击杀之后插入受害者阵亡前的第一人称画面，再继续主画面；也可统一放在片尾。
+- 保留事件时间顺序、双人对位双方顺序、完整主画面与对应时间的重放声音。
 
-No CS2 launch or changes to the owner's game settings were made while developing this update.
-开发此更新时未启动 CS2，也未修改用户的游戏设置。
+Development and automated checks did not launch CS2 or change the owner's game settings. Game capture was substituted in tests; actual CS2 recording was not performed.
+开发与自动测试未启动 CS2，未修改用户的游戏设置；测试使用模拟录制与生成的视频素材，未进行真实游戏录制。
