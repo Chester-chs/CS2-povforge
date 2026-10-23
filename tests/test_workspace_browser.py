@@ -52,6 +52,9 @@ def workspace_site():
                 return self.respond(state)
             if self.path == '/api/demos':
                 return self.respond(demos)
+            if self.path == '/api/library':
+                return self.respond({'items': [{'path':'C:/Videos/A.mp4','name':'Example clip','players':['Example player'],
+                    'maps':['Dust2'],'mode':'kill_events','size':1024,'mtime':1792600000,'duration':20,'missing':False}], 'free_bytes':1000000000})
             if self.path == '/api/map-thumbnail?map=de_dust2':
                 return self.respond((STATIC / 'icon.png').read_bytes(), 'image/png')
             if self.path == '/api/workfiles':
@@ -62,7 +65,11 @@ def workspace_site():
             body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))) or b'{}')
             if self.path == '/api/inspect':
                 return self.respond({'path': body['path'], 'name': 'match.dem', 'map': 'de_dust2',
-                                     'map_pretty': 'Dust2', 'rounds': 2, 'minutes': 3, 'teams': [
+                                     'map_pretty': 'Dust2', 'rounds': 2, 'minutes': 3,
+                                     'recording_details': {'version':1,'seconds':{'a':[25,18]},
+                                         'rounds':[{'number':1,'start':0,'end':30},{'number':2,'start':0,'end':30}],
+                                         'events':[{'round':1,'tick':100,'time':10,'attacker':'a','victim':'b','weapon':'ak47','headshot':True,'pov':True},
+                                                   {'round':1,'tick':150,'time':15,'attacker':'a','victim':'c','weapon':'m4a1','headshot':False,'pov':True}]}, 'teams': [
                                          {'name': 'Team A', 'score': 1, 'players': [player]},
                                          {'name': 'Team B', 'score': 1, 'players': []}], 'duels': []})
             if self.path == '/api/folders/confirm':
