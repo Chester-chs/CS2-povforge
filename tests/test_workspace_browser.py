@@ -95,12 +95,11 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             assert page.evaluate("visible('.library') && !visible('.setup-continue')")
             assert page.evaluate("document.querySelector('.sidebar .demo-card') === null")
             assert page.evaluate("document.querySelector('.sidebar .app-head') === null")
-            assert page.evaluate("Array.from(document.querySelectorAll('#record-resolution option'), o => o.value)") == ['auto', '1080', '1440', '2160']
-            page.evaluate("let quality=document.querySelector('#record-resolution');quality.value='2160';quality.dispatchEvent(new Event('change',{bubbles:true}))")
-            page.evaluate("Alpine.$data(document.body).savePrefs()", await_promise=True)
+            assert page.evaluate("document.querySelector('#record-resolution') === null")
+            assert page.evaluate("document.querySelector('.fixed-resolution').textContent") == '1080P'
+            assert page.evaluate("Array.from(document.querySelectorAll('select#record-fps option'), o=>o.value)") == ['24','30','60','120','144','240']
             page.evaluate("let rate=document.querySelector('#record-fps');rate.value='144';rate.dispatchEvent(new Event('change',{bubbles:true}))")
             page.evaluate("Alpine.$data(document.body).savePrefs()", await_promise=True)
-            assert state['prefs']['record_res'] == '2160'
             assert state['prefs']['record_fps'] == 144
             assert page.evaluate("document.querySelector('.demo-card').getBoundingClientRect().width > 750")
             assert page.evaluate("Array.from(document.querySelectorAll('.modes button'),b=>b.textContent.trim())") == ['Demo整场录制', 'Demo击杀视角', 'Demo击杀和死亡视角', '高光集锦', '双人对位数据']
@@ -122,6 +121,9 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             page.evaluate("document.querySelector('.content').scrollTop = document.querySelector('.content').scrollHeight")
             page.evaluate("document.querySelector('.demo-card').click()")
             assert page.wait_for("visible('.match')", 5)
+            page.evaluate("document.querySelector('.players tbody tr').click()")
+            assert page.wait_for("document.querySelector('.match-totals')?.textContent.includes('4')", 3)
+            assert page.evaluate("document.querySelector('.output-root button') !== null && document.querySelector('.folder-name') === null")
             assert page.wait_for("document.querySelector('.content').scrollTop === 0", 3)
             assert page.wait_for("document.querySelector('.map-scene').naturalWidth > 0", 5)
             assert '/api/map-thumbnail?map=de_dust2' in page.evaluate("document.querySelector('.map-scene').src")

@@ -24,7 +24,7 @@ def test_preferences_preserve_selected_quality(tmp_path, monkeypatch):
         "record_res": "2160", "record_fps": 120, "upload_4k": True,
     }))
     prefs = server.load_prefs()
-    assert prefs["record_res"] == "2160"
+    assert prefs["record_res"] == "1080"
     assert prefs["record_fps"] == 120
     assert "upload_4k" not in prefs
 
@@ -42,7 +42,7 @@ def test_record_settings_cap_preserves_aspect_and_small_outputs():
 
 
 def test_auto_resolution_fits_a_small_screen():
-    assert server.record_size({"record_res": "auto"}, (1366, 768)) == (1364, 768)
+    assert server.record_size({"record_res": "2160"}, (3840, 2160)) == (1920, 1080)
 
 
 @pytest.mark.skipif(not shutil.which("ffmpeg"), reason="FFmpeg required")
@@ -78,7 +78,7 @@ def test_composition_rebuilds_an_oversized_cached_part(tmp_path):
     assert (info.width, info.height, info.fps) == (3840, 2160, 120)
 
 
-@pytest.mark.parametrize('value', [True, 0, -1, 241, 60.5, '120', None])
+@pytest.mark.parametrize('value', [True, 0, -1, 9, 241, 60.5, '120', None])
 def test_invalid_saved_fps_falls_back_to_default(tmp_path, monkeypatch, value):
     monkeypatch.setenv('POVFORGE_STATE', str(tmp_path))
     server.app_dir().mkdir()

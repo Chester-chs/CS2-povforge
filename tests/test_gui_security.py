@@ -58,11 +58,43 @@ def test_quality_preferences_validate_and_persist(http_app, monkeypatch, tmp_pat
     status, payload = request('/api/prefs', 'POST', headers, json.dumps({'record_res': '2160', 'record_fps': 144}))
     assert status == 200
     assert json.loads(payload)['record_fps'] == 144
-    assert server.load_prefs()['record_res'] == '2160'
+    assert server.load_prefs()['record_res'] == '1080'
     assert server.load_prefs()['record_fps'] == 144
-    for invalid in (0, -1, 241, True, '120', 60.5, None):
+    for invalid in (0, -1, 9, 241, True, '120', 60.5, None):
         request('/api/prefs', 'POST', headers, json.dumps({'record_fps': invalid}))
         assert app.prefs['record_fps'] == 144
+
+
+def test_player_destination_uses_picker_and_can_restore_default(http_app, monkeypatch, tmp_path):
+    from povforge.gui import server
+    app, output, authority, request = http_app
+    app.job = SimpleNamespace(busy=False)
+    app.prefs['by_player'] = True
+    monkeypatch.setenv('POVFORGE_STATE', str(tmp_path / 'state'))
+    chosen = tmp_path / 'chosen videos'
+    chosen.mkdir()
+    monkeypatch.setattr(server, 'pick_folder', lambda initial: str(chosen))
+    headers = {'Origin': 'http://' + authority, 'X-Povforge-Token': session_token(request)}
+    body = {'steamid': '1', 'name': 'donk666', 'path': 'ignored-client-path'}
+    assert request('/api/player-output', 'POST', headers, json.dumps(body))[0] == 200
+    assert server.videos_folder(app.prefs, {'steamid': '1', 'name': 'donk666'}) == chosen
+    assert server.load_prefs()['player_folders']['1']['path'] == str(chosen)
+    body['reset'] = True
+    assert request('/api/player-output', 'POST', headers, json.dumps(body))[0] == 200
+    assert server.videos_folder(app.prefs, {'steamid': '1', 'name': 'donk666'}) == output / 'donk666'
+    app.job.busy = True
+    assert request('/api/player-output', 'POST', headers, json.dumps(body))[0] == 409
+
+
+def test_cancelled_destination_picker_does_not_change_preferences(http_app, monkeypatch):
+    from povforge.gui import server
+    app, _, authority, request = http_app
+    app.job = SimpleNamespace(busy=False)
+    before = dict(app.prefs)
+    monkeypatch.setattr(server, 'pick_folder', lambda initial: '')
+    headers = {'Origin': 'http://' + authority, 'X-Povforge-Token': session_token(request)}
+    assert request('/api/player-output', 'POST', headers, json.dumps({'steamid': 'new', 'name': 'New'}))[0] == 200
+    assert app.prefs == before
 
 
 def test_valid_page_thumbnail_and_authenticated_pagehide(http_app):
