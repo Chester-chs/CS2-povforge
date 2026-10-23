@@ -1,8 +1,10 @@
-## PovForge v0.15.8
+## PovForge v0.15.9
 
 Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** is the portable edition.
 
 ### English
+
+- Handle temporary Windows browser startup file locks with bounded retries and cleanup.
 
 - Expand the content editor on large windows, with recording and save options alongside it, matching the Demo library.
 - Show Style controls only in Highlights. Kill POV, kills/deaths and head-to-head modes keep audio and victim replay choices without applying hidden visual styles.
@@ -10,6 +12,8 @@ Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** i
 - Preserve chronological event and head-to-head A/B order, complete main footage and source-time replay audio. Whole-match recording keeps its original first-person flow.
 
 ### 简体中文
+
+- 修复 Windows 启动浏览器时偶发的临时文件锁，加入有超时限制的重试与清理。
 
 下载安装或更新请使用 **PovForge-Setup.exe**；免安装版使用 **PovForge-windows.zip**。
 

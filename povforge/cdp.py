@@ -133,13 +133,22 @@ class Browser:
         flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         self.proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags)
         port_file = self.profile / "DevToolsActivePort"
-        end = time.time() + timeout
-        while not port_file.exists() or len(port_file.read_text().splitlines()) < 2:
-            if time.time() > end or self.proc.poll() is not None:
+        end = time.monotonic() + timeout
+        while True:
+            # Chromium may hold an exclusive Windows handle or publish only
+            # part of this file. Read one snapshot; do not reopen it after ready.
+            try:
+                lines = port_file.read_text(encoding="utf-8").splitlines()
+                port = int(lines[0]) if len(lines) >= 2 else 0
+            except (OSError, UnicodeError, ValueError):
+                port = 0
+            if 1 <= port <= 65535:
+                self.port = port
+                break
+            if time.monotonic() >= end or self.proc.poll() is not None:
                 self.close()
                 raise RuntimeError("The browser for the FACEIT screenshot did not start.")
             time.sleep(0.1)
-        self.port = int(port_file.read_text().splitlines()[0])
 
     def page(self) -> "Page":
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/json/list", timeout=10) as r:

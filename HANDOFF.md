@@ -2,6 +2,17 @@
 
 ## Current agreed scope
 
+v0.15.9 publishes the v0.15.8 UI/replay features below plus a browser startup
+race fix. v0.15.8 CI run 40030178920 stopped before packaging: 330 passed,
+22 skipped, one PermissionError while Chromium held DevToolsActivePort.
+The port reader now retries locks, missing/partial/invalid endpoint data within
+the existing startup deadline, reads readiness from one snapshot, and cleans
+up on timeout. Regression tests reproduced RED (2 failed), then GREEN (5 passed
+including real browser/FACEIT fixture/UI checks in 14.70s). The earlier 350-test
+local suite remains valid for unchanged feature code. No game launch/settings
+changes. See docs/releases/v0.15.9/verification.md.
+
+
 v0.15.8 supersedes all earlier ending-only victim replay rules below. The reel
 editor now shares the library's wide desktop grid and right-side recording panel.
 Style/reference/visual effect controls appear only in Highlights (`kills`). Event
