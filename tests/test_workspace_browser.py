@@ -146,6 +146,9 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             page.evaluate("document.querySelector('.library-bottom button').click()")
             assert page.wait_for("visible('.reel')", 5)
             assert page.wait_for("document.querySelector('.content').scrollTop === 0", 3)
+            page.evaluate("Alpine.$data(document.body).fx = { ...Alpine.$data(document.body).fx, camera:{mode:'pov',victim:false} }")
+            assert page.wait_for("document.querySelector('.camera-options .group')?.getBoundingClientRect().height > 0", 3)
+            assert page.evaluate("document.querySelector('.camera-options .group + .hint').getBoundingClientRect().top - document.querySelector('.camera-options .group').getBoundingClientRect().bottom >= 10")
             assert page.evaluate("document.querySelectorAll('.reel option[value=kill_events]').length === 0")
             for index, title, mode in [(1, 'Demo击杀视角', 'kill_events'), (2, 'Demo击杀和死亡视角', 'kills_deaths'), (3, '双人对位数据', 'duel'), (4, '高光集锦', 'kills')]:
                 page.evaluate("document.querySelector('.content').scrollTop = document.querySelector('.content').scrollHeight")

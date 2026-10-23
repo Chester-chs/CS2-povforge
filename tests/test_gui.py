@@ -415,6 +415,7 @@ def test_job_config_names_the_videos_folder(tmp_path, monkeypatch):
     cfg = load_config(server.write_job_config(prefs, tmp_path / "out" / "donk"))
     from povforge import pipeline
     assert pipeline.videos_dir(cfg) == tmp_path / "out" / "donk" and pipeline.work_root(cfg) == tmp_path / "out" / "工作文件"
+    assert (tmp_path / "out" / "donk").is_dir()
 
 
 def test_rename_player_folder_moves_and_merges(tmp_path):
