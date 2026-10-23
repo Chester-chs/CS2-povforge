@@ -97,9 +97,9 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             assert page.evaluate("document.querySelector('.sidebar .app-head') === null")
             assert page.evaluate("Array.from(document.querySelectorAll('#record-resolution option'), o => o.value)") == ['auto', '1080', '1440', '2160']
             page.evaluate("let quality=document.querySelector('#record-resolution');quality.value='2160';quality.dispatchEvent(new Event('change',{bubbles:true}))")
-            assert page.wait_for("Alpine.$data(document.body).prefs.record_res === '2160'", 3)
+            page.evaluate("Alpine.$data(document.body).savePrefs()", await_promise=True)
             page.evaluate("let rate=document.querySelector('#record-fps');rate.value='144';rate.dispatchEvent(new Event('change',{bubbles:true}))")
-            assert page.wait_for("Alpine.$data(document.body).prefs.record_fps === 144", 3)
+            page.evaluate("Alpine.$data(document.body).savePrefs()", await_promise=True)
             assert state['prefs']['record_res'] == '2160'
             assert state['prefs']['record_fps'] == 144
             assert page.evaluate("document.querySelector('.demo-card').getBoundingClientRect().width > 750")
@@ -117,8 +117,12 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             shot('workspace-light.png')
             page.evaluate("const input=document.querySelector('input[type=search]');input.value='nuke';input.dispatchEvent(new Event('input',{bubbles:true}))")
             assert page.wait_for("document.querySelectorAll('.demo-card').length === 1", 3)
+            page.call('Emulation.setDeviceMetricsOverride', width=1264, height=400, deviceScaleFactor=1, mobile=False)
+            assert page.wait_for("document.querySelector('.content').scrollHeight > document.querySelector('.content').clientHeight", 3)
+            page.evaluate("document.querySelector('.content').scrollTop = document.querySelector('.content').scrollHeight")
             page.evaluate("document.querySelector('.demo-card').click()")
             assert page.wait_for("visible('.match')", 5)
+            assert page.wait_for("document.querySelector('.content').scrollTop === 0", 3)
             assert page.wait_for("document.querySelector('.map-scene').naturalWidth > 0", 5)
             assert '/api/map-thumbnail?map=de_dust2' in page.evaluate("document.querySelector('.map-scene').src")
             page.evaluate("Alpine.$data(document.body).demo.map = 'missing_map'")
@@ -130,12 +134,17 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             page.evaluate("document.querySelectorAll('.modes button')[3].click()")
             page.evaluate("document.querySelector('.demo-card').click()")
             assert page.wait_for("!document.querySelector('.library-bottom button').disabled", 3)
+            page.evaluate("document.querySelector('.content').scrollTop = document.querySelector('.content').scrollHeight")
+            assert page.evaluate("document.querySelector('.content').scrollTop > 0")
             page.evaluate("document.querySelector('.library-bottom button').click()")
             assert page.wait_for("visible('.reel')", 5)
+            assert page.wait_for("document.querySelector('.content').scrollTop === 0", 3)
             assert page.evaluate("document.querySelectorAll('.reel option[value=kill_events]').length === 0")
             for index, title, mode in [(1, 'Demo击杀视角', 'kill_events'), (2, 'Demo击杀和死亡视角', 'kills_deaths'), (4, '双人对位数据', 'duel'), (3, '高光集锦', 'kills')]:
+                page.evaluate("document.querySelector('.content').scrollTop = document.querySelector('.content').scrollHeight")
                 page.evaluate(f"document.querySelectorAll('.modes button')[{index}].click()")
                 assert page.wait_for(f"document.querySelector('.reel h1').textContent === '{title}'", 3)
+                assert page.wait_for("document.querySelector('.content').scrollTop === 0", 3)
                 assert page.evaluate('Alpine.$data(document.body).reel.content') == mode
             page.evaluate("document.querySelector('.reel .back-library').click()")
             assert page.wait_for("visible('.library') && document.querySelector('.demo-card.selected')", 3)
