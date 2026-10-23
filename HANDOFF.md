@@ -2,6 +2,16 @@
 
 ## Current agreed scope
 
+v0.16.1 fixes low-contrast gray text reported in the v0.16.0 preflight card.
+Secondary/tertiary text uses opaque theme-specific colors instead of 30-62%
+opacity, including the system-dark media-query path. Hints are 13px with 1.6
+line-height; input/textarea placeholders have explicit readable colors.
+Real browser contrast checks cover preflight hints/headings, counts, totals,
+weapon summaries and library metadata in light/dark/auto. Minimum measured
+ratios: 6.07 light, 7.16 dark; library 7.44/9.18. Four browser regressions passed
+in 10.44s, including responsive geometry and existing user flows. Backend and
+recording code use v0.16.0 evidence. See docs/releases/v0.16.1/verification.md.
+
 v0.16.0 adds pre-recording main-footage estimates, a persistent finished-video
 library, and expandable per-round weapon/event details in all five modes. The
 user cancelled the AI editor; it is absent from this branch/release. Earlier AI
