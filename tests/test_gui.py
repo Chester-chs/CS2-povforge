@@ -477,10 +477,10 @@ def test_a_moved_work_folder_still_finds_its_demo(tmp_path):
 # --- recording size and quality ------------------------------------------------------------
 
 def test_recording_size_fits_the_screen(monkeypatch):
-    assert server.record_size({"record_res": "auto"}, (2560, 1440)) == (1920, 1080)
-    assert server.record_size({"record_res": "2160"}, (2560, 1440)) == (1920, 1080)   # too big: the biggest that fits
+    assert server.record_size({"record_res": "auto"}, (2560, 1440)) == (2560, 1440)
+    assert server.record_size({"record_res": "2160"}, (2560, 1440)) == (3840, 2160)
     assert server.record_size({"record_res": "1080"}, (3840, 2160)) == (1920, 1080)
-    assert server.record_size({"record_res": "auto"}, (3440, 1440)) == (1920, 1080)   # ultrawide: 16:9 inside it
+    assert server.record_size({"record_res": "auto"}, (3440, 1440)) == (2560, 1440)   # ultrawide: 16:9 inside it
     monkeypatch.setattr(server, "screen_size", lambda: None)
     assert server.record_size({"record_res": "auto"}, None) == (1920, 1080)           # screen unknown
     monkeypatch.setattr(server, "screen_size", lambda: (1280, 720))
@@ -492,7 +492,7 @@ def test_job_config_quality(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "screen_size", lambda: (2560, 1440))
     prefs = {**server.load_prefs(), "output": str(tmp_path), "record_res": "1440", "record_fps": 120}
     cfg = load_config(server.write_job_config(prefs))
-    assert (cfg.record.width, cfg.record.height, cfg.record.fps) == (1920, 1080, 60)
+    assert (cfg.record.width, cfg.record.height, cfg.record.fps) == (2560, 1440, 120)
     assert "-crf 12" in cfg.record.video_options and cfg.compose.crf == 15 and cfg.compose.preset == "medium"
     assert cfg.upload.upscale == 0
     cfg = load_config(server.write_job_config({**prefs, "record_res": "1080", "record_fps": 60, "upload_4k": False}))

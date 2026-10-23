@@ -1,6 +1,7 @@
 """Exercise the local HTTP boundary without starting the application or game."""
 
 import http.client
+import json
 import re
 import subprocess
 import sys
@@ -24,12 +25,12 @@ def http_app(tmp_path):
     worker.start()
     authority = f'127.0.0.1:{server.server_port}'
 
-    def request(path='/', method='GET', headers=None):
+    def request(path='/', method='GET', headers=None, body=None):
         conn = http.client.HTTPConnection('127.0.0.1', server.server_port, timeout=3)
         try:
             # Rejection happens before parsing a body. An empty mutation also
             # avoids Windows resetting a closed socket with unread body bytes.
-            conn.request(method, path, body='' if method == 'POST' else None, headers=headers or {})
+            conn.request(method, path, body=body if body is not None else ('' if method == 'POST' else None), headers=headers or {})
             response = conn.getresponse()
             return response.status, response.read()
         finally:
@@ -47,6 +48,21 @@ def session_token(request):
     match = re.search(rb'<meta name="povforge-token" content="([^"]+)"', html)
     assert match, 'page must bootstrap a per-server request token'
     return match[1].decode()
+
+
+def test_quality_preferences_validate_and_persist(http_app, monkeypatch, tmp_path):
+    from povforge.gui import server
+    monkeypatch.setenv('POVFORGE_STATE', str(tmp_path / 'state'))
+    app, _, authority, request = http_app
+    headers = {'Origin': 'http://' + authority, 'X-Povforge-Token': session_token(request)}
+    status, payload = request('/api/prefs', 'POST', headers, json.dumps({'record_res': '2160', 'record_fps': 144}))
+    assert status == 200
+    assert json.loads(payload)['record_fps'] == 144
+    assert server.load_prefs()['record_res'] == '2160'
+    assert server.load_prefs()['record_fps'] == 144
+    for invalid in (0, -1, 241, True, '120', 60.5, None):
+        request('/api/prefs', 'POST', headers, json.dumps({'record_fps': invalid}))
+        assert app.prefs['record_fps'] == 144
 
 
 def test_valid_page_thumbnail_and_authenticated_pagehide(http_app):

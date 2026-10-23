@@ -94,6 +94,14 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             page.evaluate("window.visible=s=>!!document.querySelector(s)?.getBoundingClientRect().height")
             assert page.evaluate("visible('.library') && !visible('.setup-continue')")
             assert page.evaluate("document.querySelector('.sidebar .demo-card') === null")
+            assert page.evaluate("document.querySelector('.sidebar .app-head') === null")
+            assert page.evaluate("Array.from(document.querySelectorAll('#record-resolution option'), o => o.value)") == ['auto', '1080', '1440', '2160']
+            page.evaluate("let quality=document.querySelector('#record-resolution');quality.value='2160';quality.dispatchEvent(new Event('change',{bubbles:true}))")
+            assert page.wait_for("Alpine.$data(document.body).prefs.record_res === '2160'", 3)
+            page.evaluate("let rate=document.querySelector('#record-fps');rate.value='144';rate.dispatchEvent(new Event('change',{bubbles:true}))")
+            assert page.wait_for("Alpine.$data(document.body).prefs.record_fps === 144", 3)
+            assert state['prefs']['record_res'] == '2160'
+            assert state['prefs']['record_fps'] == 144
             assert page.evaluate("document.querySelector('.demo-card').getBoundingClientRect().width > 750")
             assert page.evaluate("Array.from(document.querySelectorAll('.modes button'),b=>b.textContent.trim())") == ['Demo整场录制', 'Demo击杀视角', 'Demo击杀和死亡视角', '高光集锦', '双人对位数据']
             assert page.evaluate("document.querySelector('.library h1').textContent") == 'Demo整场录制'
