@@ -2,11 +2,15 @@
 
 ## Current agreed scope
 
-v0.15.4 replaces the match-header radar thumbnail with the actual map scenery
+v0.15.5 replaces the match-header radar thumbnail with the actual map scenery
 from the existing MurkyYT/Valve asset source. It is downloaded on demand with an
 8-second timeout and 8 MiB cap, atomically cached separately from radar assets.
 Missing images stay hidden, and a subsequent supported map restores the image.
 Recording minimap behavior is unchanged. No game launch or settings changes.
+
+The v0.15.4 release was blocked by an existing browser-test readiness race after
+reload (302 passed, 21 skipped). The test now waits for Alpine binding and fetched
+preferences before clicking. v0.15.4 had no published installer.
 
 v0.15.3 was published successfully, including native-host installed-app checks.
 
@@ -110,7 +114,7 @@ the final removal of third-person code; the simplification was tested without
 relaunching CS2. Old camera-test ZIPs are historical and are not this source
 revision's build.
 
-Version is 0.15.4. A source push does not publish an installer. The Windows
+Version is 0.15.5. A source push does not publish an installer. The Windows
 workflow builds releases on version tags or manual dispatch. After reviewing
 the 2026-10-23 fixes, the owner explicitly authorized committing, pushing to
 GitHub and publishing updated installers. The prohibition on launching CS2/HLAE

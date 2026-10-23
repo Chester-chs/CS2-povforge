@@ -141,7 +141,9 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             state['prefs']['folders_set'] = False
             page.call('Emulation.setDeviceMetricsOverride', width=1264, height=812, deviceScaleFactor=1, mobile=False)
             page.call('Page.navigate', url=url)
-            assert page.wait_for("document.querySelector('.setup-continue')?.getBoundingClientRect().height > 0", 5)
+            # Navigation can return before Alpine has bound the new document.
+            # A visible uninitialized element is not yet a clickable control.
+            assert page.wait_for("Alpine.$data(document.body).prefs.demo_folders?.[0] === 'C:/Demos' && document.querySelector('.folders .primary')?.textContent === '就用这两个' && document.querySelector('.setup-continue')?.getBoundingClientRect().height > 0", 10)
             shot('workspace-setup.png')
             page.evaluate("document.querySelector('.folders .primary').click()")
             assert page.wait_for("Alpine.$data(document.body).prefs.folders_set", 3)
