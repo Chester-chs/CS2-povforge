@@ -40,7 +40,14 @@ app.reel.content='kills';assert.strictEqual(app.reelEstimate.seconds,7.5);
 app.libraryVideos=[{name:'A highlight',players:['A'],maps:['Dust2'],mode:'kills',missing:false}];
 app.videoQuery='dust';app.videoMode='all';assert.strictEqual(app.filteredVideos.length,1);
 app.videoMode='duel';assert.strictEqual(app.filteredVideos.length,0);
+app.reel.content='kills_deaths';
+info.recording_details.events.push({round:1,tick:180,time:18,attacker:'a',victim:'a',weapon:'world',pov:false});
+assert.doesNotMatch(app.weaponSummary(app.reel.items[0]),/Kills：[^；]*World/,'suicide is a death, not a kill');
+app.libraryVideos=Array.from({length:3},()=>({missing:false,duration:20,elapsed:80,size:20000000,
+ profile:{mode:'kill_events',fps:60}}));
+assert.match(app.estimateResources({seconds:20},'kill_events'),/1:04–1:36/);
+app.prefs.record_fps=144;assert.match(app.estimateResources({seconds:20},'kill_events'),/after 3/);
 '''
     result = subprocess.run(['node', '-', str(Path(__file__).parents[1] / 'povforge/gui/static/app.js')],
-                            input=script, text=True, capture_output=True)
+                            input=script, text=True, encoding='utf-8', capture_output=True)
     assert result.returncode == 0, result.stderr

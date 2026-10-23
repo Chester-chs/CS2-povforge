@@ -42,3 +42,31 @@ def test_failed_recording_never_enters_catalog(tmp_path):
     from povforge import recordings
     recordings.remember(tmp_path, {'result': ''}, {}, 0)
     assert not (tmp_path / 'recordings.json').exists()
+
+
+def test_malformed_catalog_rows_cannot_break_library(tmp_path):
+    from povforge import recordings
+    (tmp_path / 'recordings.json').write_text(json.dumps([
+        {'path':'missing.mp4','mtime':'bad','players':False},
+        {'path':'other.mp4','mtime':None,'size':None}, {'path':'\u0000'}]))
+    result = recordings.list_videos(tmp_path, {})
+    assert isinstance(result['items'],list)
+
+
+def test_queue_persists_finished_result_and_start_settings_before_clear(tmp_path, monkeypatch):
+    from povforge.gui import server
+    from povforge import recordings
+    from test_gui import FakeJob
+    monkeypatch.setenv('POVFORGE_STATE', str(tmp_path/'state'))
+    monkeypatch.setattr(recordings,'read_duration',lambda p:20)
+    job = FakeJob()
+    prefs = {'output':str(tmp_path),'record_fps':60}
+    q = server.Queue(job,prefs)
+    item = q.add('x.dem','a','Alice',[],'Dust2')
+    video = tmp_path/'video.mp4';video.write_bytes(b'video')
+    prefs['record_fps'] = 240
+    job.snapshot = lambda: {'state':'done','item':item['id'],'result':str(video),
+        'highlights':'','cover':'','description':'','title':'','error':'','elapsed':80}
+    job.state='done';job.on_finish();q.clear_finished()
+    row = recordings.list_videos(server.app_dir(),prefs)['items'][0]
+    assert row['players']==['Alice'] and row['profile']['fps']==60
