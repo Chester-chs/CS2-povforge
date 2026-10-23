@@ -17,11 +17,6 @@
 
 <!-- ================= sidebar ================= -->
 <nav class="sidebar" :aria-label="t('demos')">
-  <header class="app-head">
-    <img src="/static/icon.png" alt="">
-    <b>PovForge</b>
-  </header>
-
   <button class="setup-row" x-show="booted && setupNeedsAttention" x-cloak @click="openSetup()" :aria-current="setupOpen">
     <span class="dot-warn"></span>
     <span><b x-text="t('finishSetup')"></b><small x-text="setupHint"></small></span>
@@ -683,21 +678,20 @@
 <section class="page recording-panel" x-ref="recordingOptions" x-show="booted && !setupOpen && !runVisible && !inspecting && !inspectError" x-cloak>
   <h2 class="settings-heading" x-text="t('recordingSettings')"></h2>
   <ul class="group">      <li class="row">
-        <span class="row-main"><b x-text="t('recRes')"></b><small x-text="screen ? t('recScreen', { w: screen[0], h: screen[1] }) : t('recResHelp')"></small></span>
-        <div class="segmented tiny" role="radiogroup" :aria-label="t('recRes')">
-          <template x-for="o in ['auto', '1080']" :key="o">
-            <button role="radio" :aria-checked="(prefs.record_res || 'auto') === o" :disabled="o !== 'auto' && !(sizes || []).includes(o)"
-                    :title="o !== 'auto' && !(sizes || []).includes(o) ? t('recTooBig') : ''"
-                    @click="prefs.record_res = o; savePrefs()" x-text="t('res_' + o)"></button>
+        <label class="row-main" for="record-resolution"><b x-text="t('recRes')"></b><small x-text="t('recResHelp')"></small></label>
+        <select id="record-resolution" class="select" :value="prefs.record_res || 'auto'" @change="prefs.record_res = $event.target.value; savePrefs()">
+          <template x-for="o in ['auto', '1080', '1440', '2160']" :key="o">
+            <option :value="o" x-text="t('res_' + o)"></option>
           </template>
-        </div>
+        </select>
       </li>
       <li class="row">
-        <span class="row-main"><b x-text="t('recFps')"></b><small x-text="t('recFpsHelp')"></small></span>
-        <div class="segmented tiny" role="radiogroup" :aria-label="t('recFps')">
-          <template x-for="o in [60]" :key="o">
-            <button role="radio" :aria-checked="(prefs.record_fps || 60) === o" @click="prefs.record_fps = o; savePrefs()" x-text="t('fpsN', { n: o })"></button>
-          </template>
+        <label class="row-main" for="record-fps"><b x-text="t('recFps')"></b><small x-text="t('recFpsHelp')"></small></label>
+        <div class="fps-input">
+          <input id="record-fps" class="select" type="number" min="1" max="240" step="1" list="fps-presets" :value="prefs.record_fps || 60"
+                 @change="if ($el.checkValidity() && $el.value !== '') { prefs.record_fps = Number($el.value); savePrefs(); } else { $el.reportValidity(); $el.value = prefs.record_fps || 60; }">
+          <span>FPS</span>
+          <datalist id="fps-presets"><option value="24"></option><option value="30"></option><option value="60"></option><option value="120"></option><option value="144"></option><option value="240"></option></datalist>
         </div>
       </li>
       <li class="row">

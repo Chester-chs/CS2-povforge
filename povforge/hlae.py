@@ -59,6 +59,37 @@ class RecordSettings:
 
 # --- finding things -------------------------------------------------------------
 
+def quality_matches(job: Path, settings: RecordSettings) -> bool:
+    """Legacy takes were produced with the former 1080p/60 defaults."""
+    metadata = job / "record-quality.json"
+    previous = {"width": 1920, "height": 1080, "fps": 60}
+    if metadata.exists():
+        try:
+            previous = json.loads(metadata.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False
+    return previous == {"width": settings.width, "height": settings.height, "fps": settings.fps}
+
+
+def prepare_quality_cache(job: Path, settings: RecordSettings) -> None:
+    """Keep analysis, but move incompatible takes aside before a new recording."""
+    job.mkdir(parents=True, exist_ok=True)
+    if not quality_matches(job, settings):
+        archive = job / "previous-quality" / str(time.time_ns())
+        if job.resolve() not in archive.resolve().parents:
+            raise ValueError("Recording archive path escapes the job folder")
+        for name in ("clips", "raw", "recorded.json", "cs2_console.log"):
+            source = job / name
+            if source.exists():
+                if source.resolve().parent != job.resolve():
+                    raise ValueError("Recording cache path escapes the job folder")
+                archive.mkdir(parents=True, exist_ok=True)
+                source.replace(archive / name)
+    metadata = job / "record-quality.json"
+    temp = metadata.with_suffix(".tmp")
+    temp.write_text(json.dumps({"width": settings.width, "height": settings.height, "fps": settings.fps}), encoding="utf-8")
+    temp.replace(metadata)
+
 def find_hlae(s: RecordSettings) -> Path:
     candidates = []
     if s.hlae_path:
@@ -407,6 +438,7 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg",
     """
     s.limit_output()
     shots = _validated_shots(extra_shots)
+    prepare_quality_cache(job_dir, s)
     clips_dir = job_dir / "clips"
     raw_dir = job_dir / "raw"
     clips_dir.mkdir(parents=True, exist_ok=True)

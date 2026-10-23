@@ -144,6 +144,8 @@ def whole_match_job(cfg: Config, demo: str | Path, steamid: str) -> Path | None:
         for f in root.glob("*/plan.json"):
             if f.parent.name.endswith("__reel"):
                 continue
+            if not hlae.quality_matches(f.parent, cfg.record):
+                continue
             try:
                 plan = load_plan(f.parent)
             except Exception:
@@ -571,6 +573,7 @@ def make_extras(cfg: Config, job: Path, plan: Plan, clips: list[Path], final: Pa
 def make_recording(cfg: Config, job: Path, placeholder: bool = False) -> list[Path]:
     cfg.record.limit_output()
     if placeholder:
+        hlae.prepare_quality_cache(job, cfg.record)
         return make_placeholder_clips(cfg, job)
     return hlae.record(load_plan(job), job, cfg.record, cfg.compose.ffmpeg)
 

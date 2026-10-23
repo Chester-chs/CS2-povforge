@@ -9,10 +9,10 @@ from pathlib import Path
 
 
 def bounded_size(width: int, height: int) -> tuple[int, int]:
-    """Fit within 1080p without stretching; H.264 requires even dimensions."""
+    """Fit within 4K without stretching; H.264 requires even dimensions."""
     if width < 2 or height < 2:
         raise ValueError("Video dimensions must be at least 2 pixels.")
-    scale = min(1.0, 1920 / width, 1080 / height)
+    scale = min(1.0, 3840 / width, 2160 / height)
     return max(2, int(width * scale) // 2 * 2), max(2, int(height * scale) // 2 * 2)
 
 
@@ -20,7 +20,7 @@ def bounded_fps(fps: float) -> float:
     import math
     if not math.isfinite(fps) or fps <= 0:
         raise ValueError("Frame rate must be positive and finite.")
-    return min(fps, 60)
+    return min(fps, 240)
 
 
 def ffprobe_for(ffmpeg: str) -> str:

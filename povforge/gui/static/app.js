@@ -24,9 +24,9 @@ const TEXT = {
     folderOf: "{name} 的文件夹", folderTaken: "已经有这个名字的文件夹了。", folderBusy: "正在录制，录完再改名。",
     linkPaste: "粘贴链接", linkRead: "读取", linkHint: "B 站、YouTube 等视频页的链接，或直接的 .mp4 地址", linkBad: "请粘贴以 http 开头的链接。",
     analyzingLink: "正在下载并分析 {name}…", analyzingLinkHelp: "只下载低清晰度的一份，读完就删，通常不到一分钟。",
-    recRes: "录制分辨率", recResHelp: "不能超过屏幕大小", recScreen: "你的屏幕是 {w}×{h}，不能超过它", recTooBig: "超过你的屏幕大小",
-    res_auto: "适应屏幕（最高 1080p）", res_1080: "1080p",
-    recFps: "录制帧率", recFpsHelp: "最高 1080p、60 帧", fpsN: "{n} 帧",
+    recRes: "输出分辨率", recResHelp: "游戏画面小于所选尺寸时会放大输出，不增加原生细节。",
+    res_auto: "适应屏幕", res_1080: "1080P · 1920×1080", res_1440: "2K · 2560×1440", res_2160: "4K · 3840×2160",
+    recFps: "录制帧率", recFpsHelp: "可输入 1–240 FPS；常用 30、60、120。更高画质需要更多处理时间与空间。", fpsN: "{n} 帧",
     musicAdd: "上传音乐…", musicOff: "不加音乐", musicHelp: "添加整首音乐，可打开自动卡点，按 Demo 击杀时间选择强拍片段。不够长时回退为循环播放，末尾淡出。上传过的音乐会保留。",
     modesLabel: "做什么", modeMatch: "Demo整场录制", demosForReel: "点选要用的 demo", reelPickLeft: "点「选择比赛」返回比赛列表，可以选择多场比赛。",
     styleTitle: "成片风格", styleHelp: "导入成片后先预览、选择时间段并描述想要的特效，查看可实现方案后再应用。当前支持常见剪辑效果，物体跟踪与复杂粒子效果暂不支持。",
@@ -151,9 +151,9 @@ const TEXT = {
     folderOf: "{name}'s folder", folderTaken: "There is already a folder with this name.", folderBusy: "A recording is running; rename it when it's done.",
     linkPaste: "Paste a link", linkRead: "Read", linkHint: "A Bilibili, YouTube or other video page, or a direct .mp4 address", linkBad: "Paste a link starting with http.",
     analyzingLink: "Downloading and reading {name}…", analyzingLinkHelp: "Only a small copy is downloaded and deleted afterwards; usually under a minute.",
-    recRes: "Recording size", recResHelp: "Can't be bigger than your screen", recScreen: "Your screen is {w}×{h}; recordings can't be bigger", recTooBig: "Bigger than your screen",
-    res_auto: "Fit screen (up to 1080p)", res_1080: "1080p",
-    recFps: "Frame rate", recFpsHelp: "Output is limited to 1080p at 60 fps", fpsN: "{n} fps",
+    recRes: "Output resolution", recResHelp: "Smaller game footage is upscaled to this size; upscaling does not add native detail.",
+    res_auto: "Fit screen", res_1080: "1080P · 1920×1080", res_1440: "2K · 2560×1440", res_2160: "4K · 3840×2160",
+    recFps: "Frame rate", recFpsHelp: "Enter 1–240 FPS; common choices are 30, 60 and 120. Higher quality takes more processing time and space.", fpsN: "{n} fps",
     musicAdd: "Add music…", musicOff: "No music", musicHelp: "Add a full song and optionally sync its strong beats to Demo kill times. Short tracks fall back to looping, with a fade at the end. Songs are remembered for next time.",
     modesLabel: "What to make", modeMatch: "Whole match", demosForReel: "Pick demos for the reel", reelPickLeft: "Use Choose matches to return to the match list and select several matches.",
     styleTitle: "Style", styleHelp: "Preview a reference, select a time range and describe the wanted effect. Review the proposal before applying. Common editing effects are supported; object tracking and complex particles are not.",
@@ -450,9 +450,14 @@ document.addEventListener("alpine:init", () => {
     get currentModeTitle() { return this.t(this.reelOpen ? this.currentReelMode.label : 'modeMatch'); },
     get currentModeHelp() { return this.t(this.reelOpen ? this.currentReelMode.help : 'libraryHelp'); },
     leaveInspection() { this.inspectRequest++; this.inspecting = false; this.inspectError = ""; },
-    openLibrary() { this.settingsOpen = false; this.leaveInspection(); this.libraryOpen = true; this.setupOpen = false; this.showRun = false; this.viewId = null; },
+    scrollContentTop() {
+      this.$nextTick(() => {
+        document.querySelector('.content')?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      });
+    },
+    openLibrary() { this.settingsOpen = false; this.leaveInspection(); this.libraryOpen = true; this.setupOpen = false; this.showRun = false; this.viewId = null; this.scrollContentTop(); },
     openMatchMode() { this.reelOpen = false; this.openLibrary(); },
-    editReel() { if (this.reel.sources.length) this.libraryOpen = false; },
+    editReel() { if (this.reel.sources.length) { this.libraryOpen = false; this.scrollContentTop(); } },
     get libraryDemos() {
       const query = this.libraryQuery.trim().toLocaleLowerCase();
       const rows = this.demos.slice();
@@ -479,6 +484,7 @@ document.addEventListener("alpine:init", () => {
                       sources: [{ path: this.demo.path, info: this.demo, loading: false, error: "", steamid: this.player.steamid }] };
       }
       if (fromMatch || this.reel.content !== content) this.setReelContent(content);
+      this.scrollContentTop();
     },
     reelSrc(path) { return this.reel.sources.find(x => x.path === path); },
     get reelRows() {
@@ -1009,6 +1015,7 @@ document.addEventListener("alpine:init", () => {
         this.inspectError = e.message === "not_a_demo" ? this.t("notDemo") : e.message;
       }
       this.inspecting = false;
+      this.scrollContentTop();
     },
     async browse() {
       const r = await this.post("/api/browse");

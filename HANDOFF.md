@@ -2,6 +2,25 @@
 
 ## Current agreed scope
 
+v0.15.6 adds selectable 1080P/1440P/2160P and integer 1-240 FPS through prefs,
+job TOML, HLAE commands, plain/effected composition and exports. Only Auto fits
+the screen; explicit sizes are preserved. If CS2 supplies smaller frames, the
+existing compositor scales them to the selected output size. UI/README explain
+that this does not add native detail. No real CS2 recording was performed.
+The sidebar brand header is removed; the native caption retains the app name.
+Entering a match, continuing to reel editing, switching modes and returning to
+the library reset the main scroll container after Alpine updates the view.
+Quality changes archive incompatible takes under the job's previous-quality/
+folder while retaining analysis. Whole-match reuse checks requested quality.
+Default legacy 1080p/60 takes remain compatible. No game settings changed.
+ECC TDD checkpoints: 42defe6 (quality/branding RED), f6739f5 (scroll RED),
+36d8486 (quality-cache RED). Relevant regression: 116 passed. Full local run:
+334 passed, 2 failures in outdated test fixtures; both fixtures corrected and
+11 affected tests passed. FFmpeg tests actually probe 1440p/120 and 2160p/120.
+Native isolated fake-API window visually checked for a single title, rounded
+quality controls and scroll reset. Coverage tooling is not installed. Release
+CI runs the complete final suite plus installer and native-host checks.
+
 v0.15.5 replaces the match-header radar thumbnail with the actual map scenery
 from the existing MurkyYT/Valve asset source. It is downloaded on demand with an
 8-second timeout and 8 MiB cap, atomically cached separately from radar assets.
@@ -114,7 +133,7 @@ the final removal of third-person code; the simplification was tested without
 relaunching CS2. Old camera-test ZIPs are historical and are not this source
 revision's build.
 
-Version is 0.15.5. A source push does not publish an installer. The Windows
+Version is 0.15.6. A source push does not publish an installer. The Windows
 workflow builds releases on version tags or manual dispatch. After reviewing
 the 2026-10-23 fixes, the owner explicitly authorized committing, pushing to
 GitHub and publishing updated installers. The prohibition on launching CS2/HLAE

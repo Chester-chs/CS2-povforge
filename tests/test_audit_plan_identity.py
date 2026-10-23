@@ -66,3 +66,5 @@ def test_whole_match_lookup_rejects_same_filename_from_another_folder(tmp_path):
     (job / "plan.json").write_text(json.dumps(plan.to_dict()), encoding="utf-8")
     assert pipeline.whole_match_job(cfg, two, "111") is None
     assert pipeline.whole_match_job(cfg, one, "111") == job
+    cfg.record.fps = 120
+    assert pipeline.whole_match_job(cfg, one, "111") is None

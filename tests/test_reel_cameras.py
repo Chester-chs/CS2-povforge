@@ -211,6 +211,7 @@ def test_reel_run_records_extra_shots_and_publishes_real_composite(tmp_path, mon
     demo = tmp_path / "match.dem"
     demo.write_bytes(b"fixture")
     job = pipeline.work_root(cfg) / "match__Player"
+    hlae.prepare_quality_cache(job, cfg.record)
     clips = job / "clips"
     clips.mkdir(parents=True)
     plan = Plan(str(demo), "de_test", 64, Player("11", "Player"),

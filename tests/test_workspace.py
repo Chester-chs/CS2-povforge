@@ -12,8 +12,8 @@ def test_workspace_startup_navigation_and_latest_inspection():
 const fs=require('fs'), vm=require('vm'), assert=require('assert');
 let factory;
 vm.runInNewContext(fs.readFileSync(process.argv[2],'utf8'), {
- document:{addEventListener:(_,fn)=>fn(),getElementById:()=>({}),documentElement:{}},
- Alpine:{data:(_,fn)=>factory=fn}, navigator:{language:'en'}, window:{addEventListener:()=>{}},
+ document:{addEventListener:(_,fn)=>fn(),getElementById:()=>({}),documentElement:{},querySelector:()=>({scrollTo:()=>{}})},
+ Alpine:{data:(_,fn)=>factory=()=>Object.assign(fn(),{$nextTick:callback=>callback()})}, navigator:{language:'en'}, window:{addEventListener:()=>{}},
  fetch:async()=>({text:async()=>''}), setTimeout:()=>1, clearTimeout:()=>{}
 });
 async function boot(configured, extra={}) {

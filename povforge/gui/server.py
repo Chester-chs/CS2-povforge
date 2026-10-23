@@ -63,7 +63,7 @@ def load_prefs() -> dict:
              "intro": True, "minimap": True, "keyboard": True, "show_enemies": False, "lang": "",
              "upload": True, "appearance": "auto", "accent": "blue", "font": "system", "popup_radius": 14,
              "by_player": True,          # finished videos go into a folder per player
-             "record_res": "auto",       # fit the screen, capped at 1080p
+             "record_res": "auto",       # fit the screen, up to 4K
              "record_fps": 60,
              "player_folders": {},       # steamid -> {"folder": name on disk, "name": in-game name}
              "folders_set": False}       # first run: the user picks where demos are and where videos go
@@ -75,9 +75,9 @@ def load_prefs() -> dict:
         except Exception:
             pass
     prefs.pop("upload_4k", None)
-    if prefs.get("record_res") not in ("auto", "1080"):
+    if prefs.get("record_res") not in ("auto", *SIZES):
         prefs["record_res"] = "1080"
-    prefs["record_fps"] = 60
+    prefs["record_fps"] = record_fps(prefs)
     if prefs.get("font") not in FONTS:
         prefs["font"] = "system"
     if type(prefs.get("popup_radius")) is not int or not 0 <= prefs["popup_radius"] <= 28:
@@ -117,7 +117,7 @@ def write_job_config(prefs: dict, videos: Path | None = None) -> Path:
              "[highlights]", "enabled = false", "",      # highlights are made as a reel now
              "[upload]", f"enabled = {str(bool(prefs.get('upload', True))).lower()}"]
     w, h = record_size(prefs)
-    lines += ["", "[record]", f"width = {w}", f"height = {h}", "fps = 60",
+    lines += ["", "[record]", f"width = {w}", f"height = {h}", f"fps = {record_fps(prefs)}",
               'video_options = "-c:v libx264 -pix_fmt yuv420p -preset veryfast -crf 12"',
               "", "[compose]", "crf = 15", 'preset = "medium"', ""]
     f = app_dir() / "last-run.toml"
@@ -128,7 +128,12 @@ def write_job_config(prefs: dict, videos: Path | None = None) -> Path:
 
 # --- recording size ----------------------------------------------------------------
 
-SIZES = {"1080": (1920, 1080)}
+SIZES = {"1080": (1920, 1080), "1440": (2560, 1440), "2160": (3840, 2160)}
+
+
+def record_fps(prefs: dict) -> int:
+    value = prefs.get("record_fps", 60)
+    return value if type(value) is int and 1 <= value <= 240 else 60
 
 
 def screen_size() -> tuple[int, int] | None:
@@ -170,10 +175,13 @@ def fitting_sizes(screen: tuple[int, int] | None) -> list[str]:
 
 
 def record_size(prefs: dict, screen: tuple[int, int] | None = None) -> tuple[int, int]:
-    """The size to record at: the chosen one if it fits on the screen, else the biggest that does."""
+    """Use the requested size; only Auto follows the current screen size."""
+    chosen = prefs.get("record_res")
+    if isinstance(chosen, str) and chosen in SIZES:
+        return SIZES[chosen]
     screen = screen if screen is not None else screen_size()
-    scale = min(1.0, screen[0] / 1920, screen[1] / 1080) if screen else 1.0
-    return max(2, int(1920 * scale) // 2 * 2), max(2, int(1080 * scale) // 2 * 2)
+    scale = min(1.0, screen[0] / 3840, screen[1] / 2160) if screen else 0.5
+    return max(2, int(3840 * scale) // 2 * 2), max(2, int(2160 * scale) // 2 * 2)
 
 
 
@@ -1629,7 +1637,8 @@ def make_handler(app: App):
                         app.prefs["by_player"] = bool(b["by_player"])
                     if b.get("record_res") in ("auto", *SIZES):
                         app.prefs["record_res"] = b["record_res"]
-                    app.prefs["record_fps"] = 60
+                    if type(b.get("record_fps")) is int and 1 <= b["record_fps"] <= 240:
+                        app.prefs["record_fps"] = b["record_fps"]
                     app.prefs.pop("upload_4k", None)
                     update_appearance(app.prefs, b)
                     if "reel_fx" in b:
