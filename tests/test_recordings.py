@@ -47,8 +47,8 @@ def test_failed_recording_never_enters_catalog(tmp_path):
 def test_malformed_catalog_rows_cannot_break_library(tmp_path):
     from povforge import recordings
     (tmp_path / 'recordings.json').write_text(json.dumps([
-        {'path':'missing.mp4','mtime':'bad','players':False},
-        {'path':'other.mp4','mtime':None,'size':None}, {'path':'\u0000'}]))
+        {'path':str(tmp_path/'missing.mp4'),'mtime':'bad','players':False},
+        {'path':str(tmp_path/'other.mp4'),'mtime':None,'size':None}, {'path':'\u0000'}]))
     result = recordings.list_videos(tmp_path, {})
     assert isinstance(result['items'],list)
 
@@ -70,3 +70,20 @@ def test_queue_persists_finished_result_and_start_settings_before_clear(tmp_path
     job.state='done';job.on_finish();q.clear_finished()
     row = recordings.list_videos(server.app_dir(),prefs)['items'][0]
     assert row['players']==['Alice'] and row['profile']['fps']==60
+
+
+def test_reel_history_searches_real_maps_not_queue_summary(tmp_path,monkeypatch):
+    from povforge.gui import server
+    from povforge import recordings
+    from test_gui import FakeJob
+    monkeypatch.setenv('POVFORGE_STATE',str(tmp_path/'state'))
+    monkeypatch.setattr(recordings,'read_duration',lambda p:20)
+    monkeypatch.setattr(server,'_known_demos',lambda:{'x.dem':{'map':'Dust2'},'y.dem':{'map':'Mirage'}})
+    video=tmp_path/'reel.mp4';video.write_bytes(b'video')
+    job=FakeJob();prefs={'output':str(tmp_path)};q=server.Queue(job,prefs)
+    item=q.add_reel('Custom title',[{'demo':d,'steamid':'a','round':1,'mode':'kills','name':'A'} for d in ['x.dem','y.dem']], 'Reel, 2 rounds')
+    job.snapshot=lambda:{'state':'done','item':item['id'],'result':str(video),
+        'highlights':'','cover':'','description':'','title':'','error':'','elapsed':80}
+    job.state='done';job.on_finish()
+    row=recordings.list_videos(server.app_dir(),prefs)['items'][0]
+    assert row['maps']==['Dust2','Mirage']
