@@ -1046,6 +1046,10 @@ class Queue:
             completed = dict(item) if item is not None and snap['state'] == 'done' else None
         if completed:
             from ..recordings import remember
+            if completed.get('kind') == 'reel':
+                known = _known_demos()
+                completed['maps'] = list(dict.fromkeys(known.get(i['demo'], {}).get('map', '')
+                    for i in completed.get('reel', []) if known.get(i['demo'], {}).get('map')))
             remember(app_dir(), completed, self.prefs, snap.get('elapsed', 0))
         self._start_next()
 

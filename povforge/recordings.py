@@ -73,7 +73,7 @@ def remember(root, item, prefs, elapsed):
         mode = sources[0].get('mode', 'kills') if item.get('kind') == 'reel' and sources else 'match'
         players = list(dict.fromkeys(s.get('name') or s.get('steamid', '') for s in sources)) if sources else [item.get('name', '')]
         row = {'path': str(video), 'name': item.get('name') or video.stem, 'players': players,
-            'maps': [item.get('map') or ''], 'mode': mode, 'mtime': st.st_mtime, 'size': st.st_size,
+            'maps': item.get('maps', [item.get('map') or '']), 'mode': mode, 'mtime': st.st_mtime, 'size': st.st_size,
             'duration': read_duration(video), 'elapsed': max(0, elapsed), 'profile': item.get('_record_profile') or signature(prefs, mode),
             'created': time.time()}
         with _lock:
