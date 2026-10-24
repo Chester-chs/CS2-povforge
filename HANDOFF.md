@@ -2,6 +2,22 @@
 
 ## Current agreed scope
 
+v0.16.2 supersedes the gray text palette below: all interface text is pure black
+in light mode and pure white in dark mode, including Auto following the system.
+Labels 2/3 alias the primary label; title/body hierarchy uses size, weight and
+spacing. Colored icons and decorative surfaces remain. Text-specific accent/error
+colors are monochrome too. Disabled/dragged text is not faded; outlines signal
+state. Dark accent-filled controls use half-intensity accent backgrounds to keep
+white text readable across all eight accents. Decorative outlines retain their
+own token so they do not become black/white text borders everywhere.
+
+Real browser audit checks visible text nodes and placeholders across 16 main
+views/states in four theme combinations (64 audits), plus primary-button contrast
+for all eight accents in light/dark. Relevant browser/appearance target: 8 passed
+in 18.62s. One existing video-library test now waits for layout after Alpine shows
+the section, rather than assuming cached rows imply the page is already visible.
+See docs/releases/v0.16.2/verification.md. No game/capture/backend/cache changes.
+
 v0.16.1 fixes low-contrast gray text reported in the v0.16.0 preflight card.
 Secondary/tertiary text uses opaque theme-specific colors instead of 30-62%
 opacity, including the system-dark media-query path. Hints are 13px with 1.6

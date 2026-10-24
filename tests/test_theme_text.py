@@ -1,5 +1,7 @@
 """Audit every visible text node across app views, without any recording call."""
 import json
+import os
+from pathlib import Path
 
 import pytest
 
@@ -60,6 +62,40 @@ def test_black_white_text_across_all_pages_and_dialogs(workspace_site):
                     result=page.evaluate(AUDIT)
                     assert result['count']>15,(theme,name,result)
                     assert not result['bad'],(theme,system,name,result['bad'][:12])
+                    if os.environ.get('POVFORGE_THEME_SHOTS') and (name.startswith('Settings') or name=='Video library'):
+                        folder=Path(os.environ['POVFORGE_THEME_SHOTS']);folder.mkdir(parents=True,exist_ok=True)
+                        page.screenshot(folder/f'{theme}-{system}-{name.replace(" ","-")}.png')
                 page.evaluate('app.offline=false;app.updateOpen=false;app.referenceWizard.open=false')
+        finally:
+            page.close()
+
+
+@pytest.mark.skipif(cdp.find_browser() is None,reason='Edge/Chrome required')
+def test_primary_button_text_stays_readable_for_all_accent_colors(workspace_site):
+    url,_=workspace_site
+    with cdp.Browser(size=(1264,812)) as browser:
+        page=browser.page()
+        try:
+            page.call('Page.enable');page.call('Page.navigate',url=url)
+            assert page.wait_for("document.querySelectorAll('.demo-card').length===5",15)
+            page.evaluate("window.app=Alpine.$data(document.body);app.openSettings();app.settingsTab='about'",await_promise=True)
+            for theme in ('light','dark'):
+                page.evaluate(f'app.setAppearance({json.dumps(theme)})',await_promise=True)
+                for accent in ('blue','purple','pink','red','orange','yellow','green','graphite'):
+                    page.evaluate(f"app.prefs.accent={json.dumps(accent)};app.applyTheme()")
+                    ratio=page.evaluate(r'''(() => {
+                      const el=document.querySelector('.about-page .btn.primary');
+                      const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
+                      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+                      ctx.fillStyle='#fff';ctx.fillRect(0,0,1,1);
+                      let chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
+                      for(const p of chain){ctx.fillStyle=getComputedStyle(p).backgroundColor;ctx.fillRect(0,0,1,1)}
+                      const bg=ctx.getImageData(0,0,1,1).data.slice(0,3);
+                      ctx.fillStyle=getComputedStyle(el).color;ctx.fillRect(0,0,1,1);
+                      const fg=ctx.getImageData(0,0,1,1).data.slice(0,3);
+                      const lum=c=>Array.from(c,(x,i)=>{x/=255;return(x<=.04045?x/12.92:((x+.055)/1.055)**2.4)*[.2126,.7152,.0722][i]}).reduce((a,b)=>a+b,0);
+                      const a=lum(bg),b=lum(fg);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+                    })()''')
+                    assert ratio>=4.5,(theme,accent,ratio)
         finally:
             page.close()
