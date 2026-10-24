@@ -39,7 +39,10 @@ def test_black_white_text_across_all_pages_and_dialogs(workspace_site):
         try:
             page.call('Page.enable');page.call('Page.navigate',url=url)
             assert page.wait_for("document.querySelectorAll('.demo-card').length===5",15)
-            page.evaluate("window.app=Alpine.$data(document.body);window.originalGet=app.get.bind(app);app.get=async p=>p==='/api/job'?{...app.job,queue:app.queue}:originalGet(p)")
+            # Freeze only background health/job polling after boot. Otherwise a
+            # successful tick clears the intentionally simulated offline state.
+            # View-specific reads and real Alpine rendering still run normally.
+            page.evaluate("window.app=Alpine.$data(document.body);window.originalGet=app.get.bind(app);app.get=p=>['/api/state','/api/job'].includes(p)?new Promise(()=>{}):originalGet(p)")
             views=[
                 ('Demo library','app.openMatchMode()', '.library'),
                 ('Setup','app.openSetup()', '.page.narrow'),

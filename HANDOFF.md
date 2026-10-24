@@ -2,6 +2,15 @@
 
 ## Current agreed scope
 
+v0.16.3 publishes the v0.16.2 palette below with an isolated browser audit.
+v0.16.2 CI 40043670824 stopped before packaging: 347 passed, 22 skipped and one
+offline-dialog test failed because the normal successful health poll cleared the
+simulated offline flag. After boot, the audit now suspends only /api/state and
+/api/job reads in its private browser; view-specific reads still run. All 64 view
+audits and 16 accent/theme checks remain enforced. The final affected target
+passed 8 tests in 17.13s. No v0.16.2 installer was published. No production CSS,
+capture logic or game settings changed during this test isolation fix.
+
 v0.16.2 supersedes the gray text palette below: all interface text is pure black
 in light mode and pure white in dark mode, including Auto following the system.
 Labels 2/3 alias the primary label; title/body hierarchy uses size, weight and
