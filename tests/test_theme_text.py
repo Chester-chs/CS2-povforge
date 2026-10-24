@@ -37,7 +37,7 @@ def test_black_white_text_across_all_pages_and_dialogs(workspace_site):
         try:
             page.call('Page.enable');page.call('Page.navigate',url=url)
             assert page.wait_for("document.querySelectorAll('.demo-card').length===5",15)
-            page.evaluate('window.app=Alpine.$data(document.body)')
+            page.evaluate("window.app=Alpine.$data(document.body);window.originalGet=app.get.bind(app);app.get=async p=>p==='/api/job'?{...app.job,queue:app.queue}:originalGet(p)")
             views=[
                 ('Demo library','app.openMatchMode()', '.library'),
                 ('Setup','app.openSetup()', '.page.narrow'),
@@ -45,15 +45,18 @@ def test_black_white_text_across_all_pages_and_dialogs(workspace_site):
                 *[(mode,f"app.openReel(true,{json.dumps(mode)})",'.reel') for mode in ('kill_events','kills_deaths','duel','kills')],
                 ('Video library','await app.openVideos()', '.finished-library'),
                 *[(f'Settings {tab}',f"await app.openSettings();app.settingsTab={json.dumps(tab)}",'.settings-page') for tab in ('appearance','general','about')],
-                ('Update dialog',"app.updateOpen=true;app.upd={state:'available',info:{version:'test',setup:'test',notes:'Release details'},can_install:true};app.job.state='running'",'.update-sheet'),
+                ('Recording progress',"app.videosOpen=false;app.settingsOpen=false;app.setupOpen=false;app.showRun=true;app.job={...app.job,state:'running',stage:'record',kind:'match',recorded:[1],planned:[1,2],step:[1,2],elapsed:5,player:'Example',item:1};app.queue={items:[{id:1,state:'running',name:'Example',map:'Dust2',rounds:[1,2],kind:'match'}],paused:false}",'.run'),
+                ('Recording error',"app.job.state='error';app.job.error='Test error';app.queue.items[0].state='error'",'.run'),
+                ('Update dialog',"app.showRun=false;app.updateOpen=true;app.upd={state:'available',info:{version:'test',setup:'test',notes:'Release details'},can_install:true};app.job.state='running'",'.update-sheet'),
                 ('Reference dialog',"app.updateOpen=false;app.job.state='idle';app.referenceWizard.open=true",'.reference-sheet'),
-                ('Offline dialog',"app.referenceWizard.open=false;app.offline=true",'.sheet-backdrop'),
+                ('Offline dialog',"app.referenceWizard.open=false;app.offline=true",'.sheet-backdrop[x-show^="offline"]'),
             ]
             for theme,system in [('light','light'),('dark','dark'),('auto','dark'),('auto','light')]:
                 page.call('Emulation.setEmulatedMedia',features=[{'name':'prefers-color-scheme','value':system}])
-                page.evaluate(f"(async()=>{{app.offline=false;await app.setAppearance({json.dumps(theme)});document.documentElement.dataset.expectedText={json.dumps('rgb(0, 0, 0)' if system=='light' else 'rgb(255, 255, 255)')}}})()",await_promise=True)
-                for name,action,_ in views:
+                page.evaluate(f"(async()=>{{app.job.state='idle';app.offline=false;await app.setAppearance({json.dumps(theme)});document.documentElement.dataset.expectedText={json.dumps('rgb(0, 0, 0)' if system=='light' else 'rgb(255, 255, 255)')}}})()",await_promise=True)
+                for name,action,target in views:
                     page.evaluate(f'(async()=>{{{action};await Alpine.nextTick()}})()',await_promise=True)
+                    assert page.wait_for(f'document.querySelector({json.dumps(target)})?.checkVisibility()',3),(theme,name)
                     result=page.evaluate(AUDIT)
                     assert result['count']>15,(theme,name,result)
                     assert not result['bad'],(theme,system,name,result['bad'][:12])
