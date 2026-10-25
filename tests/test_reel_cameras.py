@@ -249,10 +249,11 @@ def test_reel_run_records_extra_shots_and_publishes_real_composite(tmp_path, mon
                    fx={"camera": {"victim": True, "placement": "end"}})
     assert out.is_file()
     assert len(calls) == 1 and calls[0][0]["cam"] == "pov" and calls[0][0]["steamid"] == "33"
-    assert probe(out, cfg.compose.ffmpeg).duration == pytest.approx(6.65, abs=.1)
+    # The default 3s tail retains all 6s of available main footage, plus 1.15s replay.
+    assert probe(out, cfg.compose.ffmpeg).duration == pytest.approx(7.15, abs=.1)
     assert not (pipeline.work_root(cfg) / "camera pieces" / "Camera Test").exists()
     # The main reel stays red; only the ending replay is blue.
-    rgb = subprocess.run([cfg.compose.ffmpeg, "-v", "error", "-ss", "6.0", "-i", str(out),
+    rgb = subprocess.run([cfg.compose.ffmpeg, "-v", "error", "-ss", "6.5", "-i", str(out),
                           "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
                          capture_output=True, check=True).stdout
     assert sum(rgb[2::3]) > 4 * sum(rgb[0::3])

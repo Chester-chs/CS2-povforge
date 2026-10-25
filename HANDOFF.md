@@ -1,6 +1,27 @@
-# POVForge handoff — 2026-10-24
+# POVForge handoff — 2026-10-25
 
 ## Current agreed scope
+
+v0.16.4 simplifies the by-player switch to one line. Player destination rows are
+derived only from the active whole-match player or the reel's selected players
+(both sides for duel), never unrelated history or stale selections in the match
+library. Existing custom paths and pick/reset actions remain available there.
+The sidebar Video library has a collapsible folder list with counts. Folders
+come from saved destinations and actual video parent paths, so custom paths and
+legacy videos without player metadata work. Path comparisons normalize Windows
+case and slash style and require exact parent equality, avoiding prefix matches.
+The folder tree stays available with by-player disabled and can show empty saved
+destinations. Main Video library opens all videos; refresh retains folder filters.
+
+Default highlight/event padding is 5s before and 3s after (previously 4s/1.5s).
+Frontend estimates match. Existing overlap merging, continuous highlight rounds,
+round boundaries, duel A/B ordering and explicit highlight pace options remain.
+No recording, file movement/deletion, new API, parser or cache changes were added.
+Current-task TDD: 6 RED, then 6 GREEN; affected regression: 88 passed in 32.35s.
+Full run: 374 passed, two old-timing expectations failed; after updating only
+those expectations, both test files plus the new target passed 17 in 23.03s.
+Private 1920px light/dark folder-library and compact public-panel previews checked.
+See docs/releases/v0.16.4/verification.md for final evidence and limits.
 
 v0.16.3 publishes the v0.16.2 palette below with an isolated browser audit.
 v0.16.2 CI 40043670824 stopped before packaging: 347 passed, 22 skipped and one

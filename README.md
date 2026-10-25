@@ -29,13 +29,13 @@ Recording starts CS2 through HLAE with `-insecure`. Use this session only for de
 
 1. **Set up once, then open a demo.** Confirm your demo and output folders on first launch. We recommend one dedicated folder for all demos. Once configured and ready, the app opens the **Whole match** page directly. Search its match list or click **Upload Demo** to select a local file. You can revisit preparation through **Settings → General & storage → Environment check**.
 2. **Choose a player.** Click their name in the scoreboard. Keep all rounds selected for a whole-match POV, or select one or two rounds for a short first try.
-3. **Choose the output.** Use **Record** for a POV video, or **Make a reel** for the modes below. Adjust resolution, frame rate and optional overlays as needed.
+3. **Choose the output.** Use **Record** for a POV video, or **Make a reel** for the modes below. Output is fixed at 1080P; choose the frame rate and optional overlays as needed.
 4. **Start and wait.** POVForge launches CS2, seeks to the required rounds, records and composes the video. Avoid playing another game during recording.
 5. **Open the result.** Use the play or folder button. Videos default to `Videos/PovForge`, organized by player; change the location in Settings.
 
-The sidebar lists **Whole match**, **Demo kill POV**, **Demo kills and deaths POV**, **Highlight reel**, and **Head-to-head data**, in that order. Open **Highlight reel**, select matches in the main area, and click **Continue** to choose players and rounds. Use **Choose matches** to change the selection later. While a job runs, you can browse and add more jobs to the queue; recordings run one at a time.
+The sidebar lists **Whole match**, **Demo kill POV**, **Demo kills and deaths POV**, **Head-to-head data**, and **Highlight reel**, in that order. Open **Highlight reel**, select matches in the main area, and click **Continue** to choose players and rounds. Use **Choose matches** to change the selection later. While a job runs, you can browse and add more jobs to the queue; recordings run one at a time.
 
-Resolution, frame rate, player folders and folder names are available under **Recording & saving** in the main area. Settings has dedicated appearance, general/storage, and about/update pages. Choose a theme, accent, font and popup corner radius, adjust language and storage, or check for updates.
+Frame rate and output folders are available under **Recording & saving** in the main area. The shared match list shows a single **Create a folder per player ID** switch; a player's destination appears only after selecting that player for recording. Settings has dedicated appearance, general/storage, and about/update pages. Choose a theme, accent, font and popup corner radius, adjust language and storage, or check for updates.
 
 Demo analysis is saved locally and reused after restarting the app. **Analysis saved** marks a reusable result. The first read, a changed file, or an update to parsing rules requires analysis again; ordinary app updates keep compatible results. This cache speeds up choosing a match, not the real-time recording itself.
 
@@ -43,7 +43,7 @@ Demo analysis is saved locally and reused after restarting the app. **Analysis s
 
 - **Estimated result:** after choosing players and rounds, check the main-footage duration and merged segment count. These exclude extra replays, intros/outros, slow motion and transitions. After three local recordings with matching mode and FPS, previous jobs provide ranges for processing time and output size. Temporary footage needs extra disk space.
 - **Weapons per round:** all five modes show summaries such as `AK-47 ×2 · M4A4 ×1`. Expand a round for event times, players, weapons and headshots. Head-to-head shows only the selected pair's encounters. Previously cached demos need one additional read for the new timing/weapon index, which is then reused.
-- **Video library:** open it from the sidebar to search by player, map or title, filter by mode, play videos and show their folders. New results persist across restarts and queue clearing. Existing videos are discovered in configured output/player folders; their mode, map or duration may be unknown. Moved/deleted files are marked, without rerecording or changing the originals.
+- **Video library:** open it from the sidebar to search by player, map or title, filter by mode, play videos and show their folders. Expand the arrow beside **Video library** to see player folders and video counts; select a folder to browse its contents, or click **Video library** for all videos. New results persist across restarts and queue clearing. Existing videos are discovered in configured output/player folders; their mode, map or duration may be unknown. Moved/deleted files are marked, without rerecording or changing the originals.
 
 ## Choose what to record
 
@@ -54,6 +54,8 @@ Demo analysis is saved locally and reused after restarting the app. **Analysis s
 | Kills only · event order | Short windows around the selected player's kills, arranged by round and event time. Adjacent or overlapping windows in the same round are merged. |
 | Kills + deaths · round order | The same chronological format, including the selected player's deaths as well as kills. |
 | Duels · each A → B | Encounters where two confirmed opponents kill each other. Each encounter shows A's first-person view, then B's. Swap the pair to reverse the order. |
+
+By default, reels keep **5 seconds before** each kill and **3 seconds after**. Overlapping solo event windows merge into a continuous clip; highlight rounds preserve everything between the first and last kill. The Highlight pace options can explicitly choose a different window. Round/demo boundaries may shorten the padding.
 
 Solo event reels always use the selected player's own first-person view. Posthumous grenade or fire kills are excluded because the attacker's living POV is no longer available; their death can still appear in **Kills + deaths**. A round with no supported events is rejected before recording. Across multiple demos, source-list order is preserved, with events ordered within each demo.
 
