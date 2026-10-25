@@ -33,11 +33,25 @@
       </button>
     </template>
   </nav>
-  <button class="side-row videos-nav" :aria-current="videosOpen ? 'page' : null" @click="openVideos()">
-    <svg class="row-ic"><use href="#i-folder"/></svg><span x-text="lang === 'zh' ? '成片库' : 'Video library'"></span>
-  </button>
-
   <div class="side-scroll">
+    <div class="video-navigation">
+      <div class="videos-nav-row">
+        <button class="side-row videos-nav" :aria-current="videosOpen && !videoFolder ? 'page' : null" @click="openVideos('')">
+          <svg class="row-ic"><use href="#i-folder"/></svg><span x-text="lang === 'zh' ? '成片库' : 'Video library'"></span>
+        </button>
+        <button class="icon-btn videos-toggle" @click="videoFoldersOpen = !videoFoldersOpen" :aria-expanded="videoFoldersOpen" aria-controls="video-folders" :aria-label="lang === 'zh' ? '展开或收起成片文件夹' : 'Expand or collapse video folders'">
+          <svg :class="{'expanded':videoFoldersOpen}"><use href="#i-chevron-right"/></svg>
+        </button>
+      </div>
+      <ul id="video-folders" class="video-folders side-list" x-show="videoFoldersOpen" x-cloak>
+        <template x-for="f in videoFolders" :key="folderKey(f.path)">
+          <li><button class="side-row video-folder" :aria-current="videosOpen && folderKey(videoFolder) === folderKey(f.path) ? 'page' : null" :title="f.path" @click="openVideos(f.path)">
+            <svg class="row-ic"><use href="#i-folder"/></svg><span x-text="f.name"></span><small class="num" x-text="f.count"></small>
+          </button></li>
+        </template>
+        <li class="side-empty" x-show="!videoFolders.length" x-text="lang === 'zh' ? '录制完成后，文件夹会显示在这里。' : 'Folders appear here after recording.'"></li>
+      </ul>
+    </div>
 
     <section class="side-group" x-show="queue.items.length" x-cloak>
       <div class="side-title">
@@ -746,7 +760,7 @@
         <button class="btn" @click="chooseFolder('output')" x-text="t('chooseFolder')"></button>
       </li>
       <li class="row">
-        <label class="row-main" for="by-player"><b x-text="t('byPlayer')"></b><small x-text="t('byPlayerHelp')"></small></label>
+        <label class="row-main" for="by-player"><b x-text="t('byPlayer')"></b></label>
         <input type="checkbox" class="switch" id="by-player" :checked="prefs.by_player !== false" @change="prefs.by_player = $event.target.checked; savePrefs()">
       </li>
       <template x-for="[sid, f] in playerFolderList" :key="sid">
@@ -763,7 +777,7 @@
 
 <section class="page finished-library" x-show="videosOpen && !settingsOpen" x-cloak>
   <header class="videos-head">
-    <div><h1 x-text="lang === 'zh' ? '成片库' : 'Video library'"></h1><p class="muted" x-text="lang === 'zh' ? '已经完成的视频，随时回来查看。清除录制队列不会删除这里的记录。' : 'Your finished videos, kept independently of the recording queue.'"></p></div>
+    <div><h1 x-text="selectedVideoFolder?.name || (lang === 'zh' ? '成片库' : 'Video library')"></h1><p class="video-folder-location path" x-show="videoFolder" x-text="videoFolder"></p><p class="muted" x-text="lang === 'zh' ? '已经完成的视频，随时回来查看。清除录制队列不会删除这里的记录。' : 'Your finished videos, kept independently of the recording queue.'"></p></div>
     <button class="btn" @click="openVideos()" :disabled="videosBusy"><svg><use href="#i-refresh-cw"/></svg><span x-text="lang === 'zh' ? '刷新' : 'Refresh'"></span></button>
   </header>
   <div class="video-filters">

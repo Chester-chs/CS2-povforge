@@ -53,8 +53,8 @@ chapter_lang = "zh"              # chapter titles: "zh" (第18回合 · ACE) or 
 
 [highlights]
 enabled = false                  # old: also cut every kill from the full video. For highlight reels use `povforge reel`
-before = 4.0                     # seconds before each kill (also used by highlight reels)
-after = 1.5                      # seconds after each kill
+before = 5.0                     # seconds before each kill (also used by highlight reels)
+after = 3.0                      # seconds after each kill
 merge_gap = 2.5                  # kills closer than this become one piece
 
 [upload]

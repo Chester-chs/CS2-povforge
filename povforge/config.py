@@ -47,8 +47,8 @@ class IntroSettings:
 @dataclass
 class HighlightSettings:
     enabled: bool = False   # the old highlights cut; highlight reels are made with `povforge reel`
-    before: float = 4.0
-    after: float = 1.5
+    before: float = 5.0
+    after: float = 3.0
     merge_gap: float = 2.5
 
 

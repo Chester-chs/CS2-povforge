@@ -53,8 +53,8 @@ def workspace_site():
             if self.path == '/api/demos':
                 return self.respond(demos)
             if self.path == '/api/library':
-                return self.respond({'items': [{'path':'C:/Videos/A.mp4','name':'Example clip','players':['Example player'],
-                    'maps':['Dust2'],'mode':'kill_events','size':1024,'mtime':1792600000,'duration':20,'missing':False}], 'free_bytes':1000000000})
+                return self.respond(state.get('library', {'items': [{'path':'C:/Videos/A.mp4','name':'Example clip','players':['Example player'],
+                    'maps':['Dust2'],'mode':'kill_events','size':1024,'mtime':1792600000,'duration':20,'missing':False}], 'free_bytes':1000000000}))
             if self.path == '/api/map-thumbnail?map=de_dust2':
                 return self.respond((STATIC / 'icon.png').read_bytes(), 'image/png')
             if self.path == '/api/workfiles':

@@ -18,6 +18,14 @@ vm.runInNewContext(fs.readFileSync(process.argv[2],'utf8'),{
  document:{addEventListener:(_,fn)=>fn()},Alpine:{data:(_,fn)=>factory=fn},setTimeout,clearTimeout
 });
 const app=factory(); app.lang='en';
+app.reel.sources=[{path:'x.dem',info:{recording_details:{rounds:[{number:1,end:50}],seconds:{},
+ events:[{round:1,time:10,attacker:'a',victim:'b',pov:true},{round:1,time:17.5,attacker:'a',victim:'c',pov:true},
+ {round:1,time:30,attacker:'a',victim:'d',pov:true}]}}}];
+app.reel.items=[{path:'x.dem',round:1,steamid:'a'}];
+for(const mode of ['kill_events','kills_deaths']) {
+ app.reel.content=mode; assert.strictEqual(app.reelEstimate.seconds,23.5); assert.strictEqual(app.reelEstimate.segments,2);
+}
+app.reel.content='kills'; assert.strictEqual(app.reelEstimate.seconds,28);
 app.prefs={output:'C:/Videos',by_player:false,player_folders:{
  a:{name:'donk666',folder:'donk666'},b:{name:'m0NESY',folder:'m0NESY',path:'D:/Custom/m0NESY'},
  c:{name:'New player',folder:'New player'}}};
@@ -55,6 +63,10 @@ def test_destinations_follow_active_players_and_sidebar_folders_show_contents(wo
         'a': {'name': 'Example player', 'folder': 'Example player'},
         'b': {'name': 'm0NESY', 'folder': 'm0NESY', 'path': 'D:/Custom/m0NESY'},
     }
+    state['library'] = {'items': [
+        {'path':'C:/Videos/Example player/A.mp4','name':'AK round','mode':'kill_events','players':['Example player'],'maps':['Dust2'],'size':1024,'mtime':1792600000},
+        {'path':'D:/Custom/m0NESY/B.mp4','name':'AWP round','mode':'match','players':['m0NESY'],'maps':['Nuke'],'size':2048,'mtime':1792600000},
+    ]}
     with cdp.Browser(size=(1920,1080)) as browser:
         page = browser.page()
         try:
@@ -77,11 +89,6 @@ def test_destinations_follow_active_players_and_sidebar_folders_show_contents(wo
             assert page.wait_for("document.querySelectorAll('.recording-panel .folder-row').length===2",3)
             page.evaluate("app.openLibrary()")
             assert page.wait_for("document.querySelectorAll('.recording-panel .folder-row').length===0",3)
-            videos = [
-                {'path':'C:/Videos/Example player/A.mp4','name':'AK round','mode':'kill_events','players':['Example player'],'maps':['Dust2'],'size':1024,'mtime':1792600000},
-                {'path':'D:/Custom/m0NESY/B.mp4','name':'AWP round','mode':'match','players':['m0NESY'],'maps':['Nuke'],'size':2048,'mtime':1792600000},
-            ]
-            page.evaluate("app.loadVideos=async()=>{};app.libraryVideos="+json.dumps(videos))
             page.evaluate("document.querySelector('.videos-nav').click()")
             assert page.wait_for("document.querySelector('.videos-toggle')?.getAttribute('aria-expanded')==='true'",3)
             assert page.wait_for("document.querySelectorAll('.video-folder').length===2",3)

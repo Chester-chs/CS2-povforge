@@ -729,8 +729,18 @@ body .sheet, .popup-preview { border-radius: var(--popup-radius, 14px); }
 .weapon-details ul { padding: 10px 0 0 18px; color: var(--label-2); list-style: none; }
 .weapon-details li { padding: 3px 0; overflow-wrap: anywhere; }
 .round-events .weapon-details { margin-top: 0; }
-.videos-nav { margin: 14px 0 4px; }
-.videos-nav[aria-current="page"] { background: var(--fill); font-weight: 600; }
+.video-navigation { margin: 12px 0 16px; }
+.videos-nav-row { display: flex; align-items: center; gap: 2px; }
+.videos-nav { flex: 1; }
+.videos-nav[aria-current="page"], .video-folder[aria-current="page"] { background: var(--fill); font-weight: 600; }
+.videos-toggle { flex-shrink: 0; }
+.videos-toggle svg { width: 14px; height: 14px; }
+.videos-toggle svg.expanded { transform: rotate(90deg); }
+.video-folders { margin-top: 4px; padding-left: 16px; }
+.video-folder { min-height: 32px; }
+.video-folder span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.video-folder small { color: var(--label); font-size: 12px; }
+.video-folder-location { margin-top: 8px; overflow-wrap: anywhere; }
 .finished-library { width: 100%; max-width: 1600px; padding: 36px 42px; }
 .videos-head { display:flex; justify-content:space-between; align-items:center; gap:20px; margin-bottom:28px; }
 .video-search { display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:9px; background:var(--group); box-shadow:var(--shadow); color:var(--label-2); }

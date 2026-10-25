@@ -260,7 +260,7 @@ const TEXT = {
 document.addEventListener("alpine:init", () => {
   Alpine.data("povforge", () => ({
     videosOpen: false, libraryVideos: [], videosBusy: false, videosError: '', videoQuery: '', videoMode: 'all',
-    videoFreeBytes: null,
+    videoFreeBytes: null, videoFolder: '', videoFoldersOpen: false,
     csrfToken: document.querySelector?.('meta[name="povforge-token"]')?.content || "",
     version: "", lang: "zh", prefs: {}, setup: {}, job: { state: "idle", lines: [], recorded: [], planned: [], step: [0, 0] },
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
@@ -433,11 +433,18 @@ document.addEventListener("alpine:init", () => {
     },
     // --- a folder per player ---
     get playerFolderList() {
-      if (this.prefs.by_player === false) return [];
-      const entries = { ...(this.prefs.player_folders || {}) };
-      const add = p => { if (p && !entries[p.steamid]) entries[p.steamid] = {name:p.name,folder:p.name.replace(/[<>:"\/\\|?*]/g, '_')}; };
-      add(this.player);
-      for (const source of this.reel.sources) add(this.playerIn(source.info, this.srcPlayerId(source)));
+      if (this.prefs.by_player === false || this.libraryOpen || this.setupOpen || this.videosOpen || this.settingsOpen || this.runVisible) return [];
+      const entries = {};
+      const add = p => {
+        if (p) entries[p.steamid] = {folder:p.name.replace(/[<>:"\/\\|?*]/g, '_'),
+          ...this.prefs.player_folders?.[p.steamid], name:p.name};
+      };
+      if (this.reelOpen) {
+        for (const source of this.reel.sources) {
+          add(this.playerIn(source.info, this.srcPlayerId(source)));
+          if (this.reel.content === 'duel') add(this.playerIn(source.info, source.opponent));
+        }
+      } else if (this.demo) add(this.player);
       return Object.entries(entries).sort((a, b) => a[1].name.localeCompare(b[1].name));
     },
     folderPath(entry) {
@@ -686,8 +693,10 @@ document.addEventListener("alpine:init", () => {
       try { const data = await this.get('/api/library'); this.libraryVideos = data.items || []; this.videoFreeBytes = data.free_bytes; }
       catch (e) { this.videosError = e.message; }
     },
-    async openVideos() {
+    async openVideos(folder = null) {
       this.leaveInspection(); this.settingsOpen = false; this.showRun = false; this.videosOpen = true;
+      if (folder !== null) this.videoFolder = folder;
+      this.videoFoldersOpen = true;
       this.videosBusy = true; this.videosError = ''; this.scrollContentTop();
       try { await this.loadVideos(); } finally { this.videosBusy = false; }
     },
@@ -695,9 +704,28 @@ document.addEventListener("alpine:init", () => {
       return mode === 'match' ? this.t('modeMatch') : this.reelModes.some(m => m.value === mode)
         ? this.t(this.reelModes.find(m => m.value === mode).label) : (this.lang === 'zh' ? '已有视频' : 'Existing video');
     },
+    folderKey(path) { return String(path || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase(); },
+    videoParent(path) { return String(path || '').replace(/\\/g, '/').replace(/\/[^/]*$/, ''); },
+    get videoFolders() {
+      const folders = new Map();
+      const add = path => {
+        if (!path) return null;
+        const key = this.folderKey(path);
+        if (!folders.has(key)) folders.set(key, {path, name:String(path).replace(/\\/g,'/').replace(/\/+$/,'').split('/').pop(), count:0});
+        return folders.get(key);
+      };
+      for (const f of Object.values(this.prefs.player_folders || {})) add(this.folderPath(f));
+      for (const v of this.libraryVideos) {
+        const folder = add(this.videoParent(v.path));
+        if (folder) folder.count++;
+      }
+      return [...folders.values()].sort((a,b) => a.name.localeCompare(b.name) || a.path.localeCompare(b.path));
+    },
+    get selectedVideoFolder() { return this.videoFolders.find(f => this.folderKey(f.path) === this.folderKey(this.videoFolder)); },
     get filteredVideos() {
       const query = this.videoQuery.trim().toLocaleLowerCase();
       return this.libraryVideos.filter(v => (this.videoMode === 'all' || v.mode === this.videoMode) &&
+        (!this.videoFolder || this.folderKey(this.videoParent(v.path)) === this.folderKey(this.videoFolder)) &&
         (!query || [v.name, ...(v.players || []), ...(v.maps || [])].join(' ').toLocaleLowerCase().includes(query)));
     },
     weaponName(raw) {
@@ -738,7 +766,7 @@ document.addEventListener("alpine:init", () => {
     get reelEstimate() {
       let seconds = 0, segments = 0; const seen = new Set();
       const mode = this.reel.content, pace = mode === 'kills' ? ({tight:[2,.8],long:[6,2.5]})[this.fx?.pace] : null;
-      const [before,after] = pace || [4,1.5];
+      const [before,after] = pace || [5,3];
       for (const item of this.reel.items) {
         if (seen.has(item.key || JSON.stringify(item))) continue; seen.add(item.key || JSON.stringify(item));
         const info = this.itemInfo(item), details = info?.recording_details;
