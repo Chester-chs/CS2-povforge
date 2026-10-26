@@ -269,7 +269,7 @@ document.addEventListener("alpine:init", () => {
     libraryOpen: true, libraryQuery: "", booted: false, inspectRequest: 0, libraryError: "",
     settingsOpen: false, settingsTab: 'appearance', popupRadiusDraft: null, reelOpen: false, dragFrom: null, work: { bytes: null, path: "", confirm: false, cleaning: false },
     fonts: ['system', 'segoe', 'yahei', 'simsun', 'arial'],
-    reel: { title: "", titleEdited: false, mode: "same", content: "kills", steamid: "", sources: [], items: [], reordered: false },
+    reel: { title: "", titleEdited: false, mode: "same", content: "kills", steamid: "", sources: [], items: [], reordered: false, weapons: [] },
     reelModes: [
       {value: 'kill_events', label: 'modeKills', help: 'modeKillsHelp', icon: 'crosshair'},
       {value: 'kills_deaths', label: 'modeKillsDeaths', help: 'modeKillsDeathsHelp', icon: 'skull'},
@@ -507,7 +507,7 @@ document.addEventListener("alpine:init", () => {
       this.libraryOpen = !fromMatch && !this.reel.sources.length;
       if (fromMatch && this.demo && this.player) {
         this.reel = { title: "", titleEdited: false, mode: "same", content: "kills", steamid: this.player.steamid, items: [], reordered: false,
-                      sources: [{ path: this.demo.path, info: this.demo, loading: false, error: "", steamid: this.player.steamid }] };
+                      sources: [{ path: this.demo.path, info: this.demo, loading: false, error: "", steamid: this.player.steamid }], weapons: [] };
       }
       if (fromMatch || this.reel.content !== content) this.setReelContent(content);
       this.scrollContentTop();
@@ -641,10 +641,10 @@ document.addEventListener("alpine:init", () => {
       for (const x of this.reel.sources) {
         if (this.reel.content === "duel" && !this.duelOpponents(x).some(p => p.steamid === x.opponent)) x.opponent = "";
       }
-      const candidates = this.reelCandidates;
+      const candidates = this.reelCandidates.filter(c => this.weaponMatch(c));
       this.reel.items = this.chronologicalReel ? this.sortReelItems(candidates.filter(c =>
         c.mode === "duel" || c.k > 0 || (c.mode === "kills_deaths" && c.died)))
-        : candidates.filter(c => c.k >= 3 || c.clutch >= 1).sort((a, b) => a.score - b.score);
+        : candidates.filter(c => this.reel.weapons?.length || c.k >= 3 || c.clutch >= 1).sort((a, b) => a.score - b.score);
       this.reel.reordered = false;
       if (!this.reel.titleEdited) {
         const names = [...new Set(this.reel.items.map(i => i.name))];
@@ -655,7 +655,7 @@ document.addEventListener("alpine:init", () => {
     },
     get reelOthers() {
       const inReel = new Set(this.reel.items.map(i => i.key));
-      return this.reelCandidates.filter(c => !inReel.has(c.key) && (this.chronologicalReel
+      return this.reelCandidates.filter(c => !inReel.has(c.key) && this.weaponMatch(c) && (this.chronologicalReel
         ? c.mode === "duel" || c.k > 0 || (c.mode === "kills_deaths" && c.died)
         : c.k > 0 || c.clutch > 0));
     },
@@ -736,12 +736,38 @@ document.addEventListener("alpine:init", () => {
         (/knife|bayonet/.test(key) ? (this.lang === 'zh' ? '刀' : 'Knife') : key ? key.toUpperCase() : (this.lang === 'zh' ? '未知武器' : 'Unknown weapon'));
     },
     itemInfo(item) { return this.reel.sources.find(s => s.path === item.path)?.info; },
-    itemEvents(item, info = this.itemInfo(item), mode = this.reel.content) {
+    rawItemEvents(item, info = this.itemInfo(item), mode = this.reel.content) {
       return (info?.recording_details?.events || []).filter(e => e.round === item.round &&
         (mode === 'duel' ? (info.duels || []).some(d => d.tick === e.tick && d.attacker === e.attacker && d.victim === e.victim &&
           ((d.attacker === item.steamid && d.victim === item.opponent) || (d.victim === item.steamid && d.attacker === item.opponent)))
           : (e.attacker === item.steamid && e.victim !== item.steamid && (mode === 'match' || mode === 'kills' || e.pov)) ||
             ((mode === 'match' || mode === 'kills_deaths') && e.victim === item.steamid)));
+    },
+    get reelWeaponOptions() {
+      return [...new Set(this.reel.sources.flatMap(s => (s.info?.recording_details?.events || []).filter(e =>
+        e.pov && e.attacker !== e.victim && (e.attacker === this.srcPlayerId(s) || (this.reel.content === 'duel' && e.attacker === s.opponent)))
+        .map(e => String(e.weapon || '').replace(/^weapon_/,'').toLowerCase()).filter(Boolean)))].sort();
+    },
+    weaponMatch(item) { return !this.reel.weapons?.length || this.eventWindows(item).length > 0; },
+    eventWindows(item, info = this.itemInfo(item), mode = this.reel.content) {
+      const events = this.rawItemEvents(item,info,mode).slice().sort((a,b)=>a.time-b.time);
+      const end = info?.recording_details?.rounds.find(r => r.number === item.round)?.end || 0;
+      const [before,after] = (mode === 'kills' ? ({tight:[2,.8],long:[6,2.5]})[this.fx?.pace] : null) || [5,3];
+      const windows = [];
+      if (mode === 'kills' && events.length) windows.push({start:Math.max(0,events[0].time-before),end:Math.min(end,events.at(-1).time+after),events});
+      else for (const e of events) {
+        const a=Math.max(0,e.time-before),b=Math.min(end,e.time+after),prev=windows.at(-1);
+        if (mode !== 'duel' && prev && a <= prev.end) { prev.end=Math.max(b,prev.end);prev.events.push(e); }
+        else windows.push({start:a,end:b,events:[e]});
+      }
+      const selected=this.reel.weapons || [];
+      return !selected.length ? windows : windows.filter(w => w.events.some(e =>
+        (mode === 'duel' || e.attacker === item.steamid) && e.attacker !== e.victim && e.pov &&
+        selected.includes(String(e.weapon || '').replace(/^weapon_/,'').toLowerCase())));
+    },
+    itemEvents(item, info = this.itemInfo(item), mode = this.reel.content) {
+      if (mode === 'match' || !this.reel.weapons?.length) return this.rawItemEvents(item,info,mode);
+      return [...new Set(this.eventWindows(item,info,mode).flatMap(w => w.events))];
     },
     weaponSummary(item, info = this.itemInfo(item), mode = this.reel.content) {
       if (!info?.recording_details) return this.lang === 'zh' ? '武器详情暂不可用' : 'Weapon details unavailable';
@@ -765,23 +791,17 @@ document.addEventListener("alpine:init", () => {
     },
     get reelEstimate() {
       let seconds = 0, segments = 0; const seen = new Set();
-      const mode = this.reel.content, pace = mode === 'kills' ? ({tight:[2,.8],long:[6,2.5]})[this.fx?.pace] : null;
-      const [before,after] = pace || [5,3];
+      const mode = this.reel.content;
       for (const item of this.reel.items) {
         if (seen.has(item.key || JSON.stringify(item))) continue; seen.add(item.key || JSON.stringify(item));
         const info = this.itemInfo(item), details = info?.recording_details;
         if (!details) return {seconds:null,segments:0};
-        const end = details.rounds.find(r => r.number === item.round)?.end || 0;
-        const events = this.itemEvents(item,info,mode); let windows = [];
-        if (mode === 'kills') {
-          windows = events.length ? [[Math.max(0,events[0].time-before),Math.min(end,events[events.length-1].time+after)]]
-            : [[Math.max(0,(details.seconds[item.steamid]?.[item.round-1] || 0)-8), details.seconds[item.steamid]?.[item.round-1] || 0]];
-        } else for (const e of events) {
-          const a = Math.max(0,e.time-before), b = Math.min(end,e.time+after);
-          if (mode !== 'duel' && windows.length && a <= windows[windows.length-1][1]) windows[windows.length-1][1] = Math.max(b,windows[windows.length-1][1]);
-          else windows.push([a,b]);
+        let windows = this.eventWindows(item,info,mode);
+        if (mode === 'kills' && !windows.length && !this.reel.weapons?.length) {
+          const duration=details.seconds[item.steamid]?.[item.round-1] || 0;
+          windows=[{start:Math.max(0,duration-8),end:duration}];
         }
-        for (const [a,b] of windows) { seconds += Math.max(0,b-a)*(mode === 'duel' ? 2 : 1); segments += mode === 'duel' ? 2 : 1; }
+        for (const w of windows) { seconds += Math.max(0,w.end-w.start)*(mode === 'duel' ? 2 : 1); segments += mode === 'duel' ? 2 : 1; }
       }
       return {seconds,segments};
     },
@@ -818,10 +838,10 @@ document.addEventListener("alpine:init", () => {
       if (effects.outro === "card" && !effects.outro_text) effects.outro_text = this.t("outroTextDefault");
       const body = { title: this.reel.title.trim() || this.t(this.currentReelMode.label), summary: this.t("reelSummary", { n: this.reel.items.length }),
                      items: this.reel.items.map(c => ({ demo: c.path, steamid: c.steamid, round: c.round, name: c.name,
-                       mode: c.mode || "kills", opponent: c.opponent || "" })), effects };
+                       mode: c.mode || "kills", opponent: c.opponent || "", weapons: this.reel.weapons || [] })), effects };
       const j = await this.post("/api/queue/add-reel", body);
       this.queue = j.queue; this.job = j;
-      if (watch && !wasRunning) { this.viewId = null; this.reelOpen = false; this.showRun = true; }
+      if (watch && !wasRunning && !j.queue?.paused) { this.viewId = null; this.reelOpen = false; this.showRun = true; }
       else this.toast(this.t("queuedNote", { name: body.title }));
     },
     // --- reel effects ---

@@ -1009,9 +1009,9 @@ class Queue:
         from ..reel import ReelItem
         reel = [{"demo": str(i["demo"]), "steamid": str(i["steamid"]), "round": int(i["round"]),
                  "name": str(i.get("name") or ""), "mode": str(i.get("mode", "kills")),
-                 "opponent": str(i.get("opponent", ""))} for i in items]
+                 "opponent": str(i.get("opponent", "")), "weapons": i.get('weapons', [])} for i in items]
         for i in reel:
-            ReelItem(**{k: v for k, v in i.items() if k != "name"})
+            i['weapons'] = list(ReelItem(**{k: v for k, v in i.items() if k != "name"}).weapons)
         if not reel:
             raise ValueError("No rounds in the reel.")
         return self._add({"kind": "reel", "name": title or "Highlights", "reel": reel, "rounds": [],

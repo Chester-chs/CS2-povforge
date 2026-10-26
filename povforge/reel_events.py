@@ -96,6 +96,8 @@ def select_views(items, sources: dict, before: float, after: float) -> list[View
             raise ValueError(f"Round {item.round} has no first-person events for the selected content mode.")
         solo = []
         for d in ds:
+            if item.mode=='duel' and item.weapons and (d.weapon or '').lower().removeprefix('weapon_') not in item.weapons:
+                continue
             players = [item.steamid, item.opponent] if item.mode == "duel" else [item.steamid]
             for sid in players:
                 a = max(r.freeze_end_tick, int(d.tick - before * data.tickrate))
@@ -111,6 +113,10 @@ def select_views(items, sources: dict, before: float, after: float) -> list[View
                                        kill_ticks=tuple(sorted(set(prev.kill_ticks + kills))))
                 else:
                     solo.append(view)
+        if item.weapons:
+            matching={d.tick for d in ds if d.attacker_steamid==item.steamid and
+                      (d.weapon or '').lower().removeprefix('weapon_') in item.weapons}
+            solo=[v for v in solo if matching.intersection(v.kill_ticks)]
         views.extend(solo)
     return views
 
@@ -136,6 +142,8 @@ def run_events(cfg, title, items, placeholder=False, fx=None):
     pace = effects.pace_seconds(fx, cfg.highlights.before, cfg.highlights.after)
     sources = load_sources(cfg, items)
     views = select_views(items, sources, *pace)  # Validate every source before launching CS2.
+    if not views:
+        raise ValueError('No first-person events match the selected weapon filter.')
     grouped = {}
     for view in views:
         grouped.setdefault((view.demo, view.steamid), []).append(view)

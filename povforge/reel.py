@@ -19,6 +19,7 @@ from pathlib import Path
 import shutil
 import os
 import tempfile
+import re
 from contextlib import contextmanager
 
 from . import effects, camera, hlae
@@ -38,8 +39,18 @@ class ReelItem:
     round: int
     mode: str = "kills"
     opponent: str = ""
+    weapons: tuple[str, ...] = ()
 
     def __post_init__(self):
+        if not isinstance(self.weapons,(list,tuple)) or len(self.weapons)>100:
+            raise ValueError('Invalid weapon filter.')
+        values=[]
+        for weapon in self.weapons:
+            if not isinstance(weapon,str): raise ValueError('Invalid weapon filter.')
+            weapon=weapon.lower().removeprefix('weapon_')
+            if not re.fullmatch(r'[a-z0-9_]{1,48}',weapon): raise ValueError('Invalid weapon filter.')
+            values.append(weapon)
+        object.__setattr__(self,'weapons',tuple(sorted(set(values))))
         if self.mode not in {"kills", "kill_events", "kills_deaths", "duel"}:
             raise ValueError("Unknown reel content mode.")
         if self.round < 1 or not self.steamid or not self.demo:
@@ -51,7 +62,7 @@ class ReelItem:
 def load_spec(path: Path) -> tuple[str, list[ReelItem]]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     items = [ReelItem(str(i["demo"]), str(i["steamid"]), int(i["round"]),
-                      str(i.get("mode", "kills")), str(i.get("opponent", ""))) for i in data.get("items", [])]
+                      str(i.get("mode", "kills")), str(i.get("opponent", "")), i.get('weapons',())) for i in data.get("items", [])]
     if not items:
         raise ValueError("The highlight reel has no rounds.")
     return str(data.get("title") or "Highlights"), items
@@ -106,6 +117,20 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
     if any(it.mode != "kills" for it in items):
         from .reel_events import run_events
         return run_events(cfg, title, items, placeholder, fx)
+    if any(it.weapons for it in items):
+        from .reel_events import load_sources, first_person_kills
+        from .demo import event_round_end
+        sources=load_sources(cfg,items)
+        def matches(item):
+            if not item.weapons: return True
+            data,_=sources[item.demo]
+            r=next((r for r in data.rounds if r.number==item.round),None)
+            if r is None: return False
+            deaths=[d for d in data.deaths if r.freeze_end_tick<=d.tick<event_round_end(data,r)]
+            return any(d.attacker_steamid==item.steamid and (d.weapon or '').lower().removeprefix('weapon_') in item.weapons
+                       for d in first_person_kills(deaths))
+        items=[it for it in items if matches(it)]
+        if not items: raise ValueError('No kills match the selected weapon filter.')
     h = cfg.highlights
     fx = effects.normalize(fx)
     pace = effects.pace_seconds(fx, h.before, h.after)
