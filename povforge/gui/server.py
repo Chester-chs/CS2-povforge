@@ -816,7 +816,11 @@ class Job:
 
     def _launch(self, item: dict, prefs: dict, kind: str) -> None:
         videos = videos_folder(prefs, item)
-        save_prefs(prefs)                         # a new player got a folder name
+        live = item.get('_live_prefs', prefs)
+        if live is not prefs:
+            for sid, entry in prefs.get('player_folders', {}).items():
+                live.setdefault('player_folders', {}).setdefault(sid, entry)
+        save_prefs(live)                          # never replace current UI preferences with an old task
         cfg = write_job_config(prefs, videos)
         if kind == "reel":
             spec = app_dir() / "reels" / f"reel-{item.get('id', 0)}.json"
@@ -974,17 +978,25 @@ class Job:
 class Queue:
     """Recordings waiting their turn; runs them one after another through Job."""
 
-    def __init__(self, job: Job, prefs: dict):
+    def __init__(self, job: Job, prefs: dict, *, store: Path | None = None):
+        from .. import queue_store
         self.job, self.prefs = job, prefs
         self.lock = threading.Lock()
-        self.items: list[dict] = []
-        self.next_id = 1
-        self.paused = False
+        self.store = store
+        self.items, self.save_error = queue_store.load(store)
+        self.next_id = max((i['id'] for i in self.items), default=0) + 1
+        self.recovered = any(i['state']=='queued' for i in self.items)
+        self.paused = self.recovered
         job.on_finish = self._finished
+
+    def _save(self):
+        from ..queue_store import save
+        self.save_error = save(self.store, self.items)
 
     def snapshot(self) -> dict:
         with self.lock:
-            return {"items": [dict(i) for i in self.items], "paused": self.paused}
+            return {"items": [dict(i) for i in self.items], "paused": self.paused,
+                    "recovered": self.recovered, "save_error": self.save_error}
 
     def add(self, path: str, steamid: str, name: str, rounds: list[int], map_pretty: str) -> dict:
         return self._add({"kind": "match", "path": path, "steamid": steamid, "name": name, "rounds": rounds,
@@ -1006,12 +1018,16 @@ class Queue:
                           "path": "", "steamid": "", "map": summary, "effects": effects.normalize(fx)})
 
     def _add(self, fields: dict) -> dict:
+        from ..queue_store import settings
         with self.lock:
             item = {"id": self.next_id, **fields, "state": "queued", "result": "", "highlights": "",
-                    "cover": "", "description": "", "title": "", "error": ""}
+                    "cover": "", "description": "", "title": "", "error": "",
+                    "settings": settings(self.prefs)}
             self.next_id += 1
             self.items.append(item)
-            self.paused = False
+            if not self.recovered:
+                self.paused = False
+            self._save()
         self._start_next()
         return item
 
@@ -1025,13 +1041,17 @@ class Queue:
                 return
             item["state"] = "running"
             from ..recordings import signature
+            from ..queue_store import settings
+            task_prefs = {**self.prefs, **settings(item.get('settings', {}))}
             mode = (item.get('reel') or [{}])[0].get('mode', 'kills') if item.get('kind') == 'reel' else 'match'
-            item['_record_profile'] = signature(self.prefs, mode)
+            item['_record_profile'] = signature(task_prefs, mode)
+            self._save()
         try:
-            self.job.start(dict(item), self.prefs)
+            self.job.start({**item, '_live_prefs':self.prefs}, task_prefs)
         except Exception as e:
             with self.lock:
                 item["state"], item["error"] = "error", str(e)
+                self._save()
 
     def _finished(self) -> None:
         snap = self.job.snapshot()
@@ -1044,6 +1064,7 @@ class Queue:
             if snap["state"] == "cancelled":
                 self.paused = True       # stopping one recording pauses the rest
             completed = dict(item) if item is not None and snap['state'] == 'done' else None
+            self._save()
         if completed:
             from ..recordings import remember
             if completed.get('kind') == 'reel':
@@ -1057,6 +1078,8 @@ class Queue:
     def resume(self) -> None:
         with self.lock:
             self.paused = False
+            self.recovered = False
+            self._save()
         self._start_next()
 
     def retry(self, item_id: int) -> None:
@@ -1065,15 +1088,19 @@ class Queue:
                 if i["id"] == item_id and i["state"] in ("error", "cancelled"):
                     i["state"], i["error"] = "queued", ""
             self.paused = False
+            self.recovered = False
+            self._save()
         self._start_next()
 
     def remove(self, item_id: int) -> None:
         with self.lock:
             self.items = [i for i in self.items if i["id"] != item_id or i["state"] == "running"]
+            self._save()
 
     def clear_finished(self) -> None:
         with self.lock:
             self.items = [i for i in self.items if i["state"] in ("queued", "running")]
+            self._save()
 
 
 # --- updates -----------------------------------------------------------------------------
@@ -1432,7 +1459,7 @@ class App:
                 print(f"Sorting the videos by player failed: {e}", flush=True)
             save_prefs(self.prefs)
         self.job = Job()
-        self.queue = Queue(self.job, self.prefs)
+        self.queue = Queue(self.job, self.prefs, store=app_dir() / 'queue.json')
         self.setup = Setup()
         self.update: dict | None = None
         self.quit = lambda: None            # set by main() once the server exists
