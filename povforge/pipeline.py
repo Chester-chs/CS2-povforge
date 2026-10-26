@@ -63,6 +63,8 @@ def publish(cfg: Config, job: Path, made: Path) -> Path:
     dest = videos_dir(cfg) / name if name else free_name(videos_dir(cfg), made.stem)
     dest.parent.mkdir(parents=True, exist_ok=True)
     made.replace(dest)
+    from .video_index import relocate
+    relocate(made,dest)
     rec.write_text(json.dumps({"video": dest.name}, ensure_ascii=False), encoding="utf-8")
     return dest
 
@@ -221,6 +223,8 @@ def make_plan(cfg: Config, demo_path: str | Path, player_query: str,
     victims = [[d.tick, d.victim_steamid] for d in demo.deaths
                if d.attacker_steamid == player.steamid and d.victim_steamid != player.steamid]
     (job / "victims.json").write_text(json.dumps(victims), encoding="utf-8")
+    from .video_index import record_events
+    record_events(job,demo,player.steamid)
     highlights.save(job / "highlights.json", highlights.analyse(demo, player.steamid, track))
     try:
         teams = load_scoreboard(demo_path, len(demo.rounds))

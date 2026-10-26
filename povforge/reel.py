@@ -186,16 +186,17 @@ def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = Fals
 def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
                   contexts: dict, fx: dict, placeholder: bool = False, *, ordered_spans=None) -> list:
     """Plan around actual kills, batch extra views per demo, then preserve POV audio."""
+    from .video_index import index_order
     sources = (ordered_spans if ordered_spans is not None else
                [((it.demo, it.steamid, it.round), w) for it in items
                 for w in windows.get((it.demo, it.steamid, it.round), [])])
     order = [span for _, span in sources]
     choice = camera.normalize_camera(fx.get("camera"))
     if not choice["victim"]:
-        return order
+        return index_order(order,windows,contexts)
     if placeholder:
         _log("Camera shots skipped in placeholder mode (no CS2).")
-        return order
+        return index_order(order,windows,contexts)
 
     requests, groups = [], {}
     context_cache = {}
@@ -256,7 +257,7 @@ def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
                 else:
                     insertions.append(((shot["focus"] - actual) / tickrate + 1 / cfg.record.fps, replay))
         result.extend(camera.interleave_replays(span, insertions, cfg.record.fps))
-    return result + replays
+    return index_order(result+replays,windows,contexts)
 
 
 @contextmanager
@@ -268,8 +269,12 @@ def _reel_destination(final: Path):
     try:
         yield staged
         staged.replace(final)
+        from .video_index import relocate
+        relocate(staged,final)
     finally:
         staged.unlink(missing_ok=True)
+        from .video_index import sidecar
+        sidecar(staged).unlink(missing_ok=True)
 
 
 def _plain_join(cfg: Config, title: str, order: list) -> Path:
@@ -293,6 +298,9 @@ def _plain_join(cfg: Config, title: str, order: list) -> Path:
     with _reel_destination(final) as staged:
         subprocess.run([cfg.compose.ffmpeg, "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
                         "-i", str(listing), "-c", "copy", "-movflags", "+faststart", str(staged)], check=True)
+        if hasattr(order,'markers'):
+            from . import video_index
+            video_index.write(staged,video_index.flatten(order.markers,[probe(p,cfg.compose.ffmpeg).duration for p in pieces]))
     shutil.rmtree(out_dir, ignore_errors=True)       # the pieces are cut again from the recordings if needed
     try:
         out_dir.parent.rmdir()                       # gone too when no other reel is being cut
@@ -311,7 +319,8 @@ def _with_effects(cfg: Config, title: str, order: list, fx: dict) -> Path:
     cfg.record.limit_output()
 
     _log("Effects: " + (", ".join(effects.describe(fx)) or "none"))
-    moments = [effects.Moment(clip, a, b, kills) for clip, a, b, kills in order]
+    markers=getattr(order,'markers',[[] for _ in order])
+    moments = [effects.Moment(clip, a, b, kills, events=markers[i]) for i,(clip,a,b,kills) in enumerate(order)]
     stats = None
     if fx["grade"] == "match":
         _log("Effects: measuring the colours ...")

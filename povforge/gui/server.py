@@ -1497,6 +1497,8 @@ class App:
 
 
 def make_handler(app: App):
+    from ..library_player import LibraryPlayer
+    player=LibraryPlayer()
     class Handler(BaseHTTPRequestHandler):
         csrf_token = secrets.token_urlsafe(32)
 
@@ -1558,6 +1560,10 @@ def make_handler(app: App):
                                        "effects": {"defaults": effects.DEFAULTS, "presets": effects.PRESETS,
                                                    "transitions": list(effects.TRANSITIONS),
                                                    "grades": [g for g in effects.GRADES if g != "match"]}})
+                if url.path == '/api/library/video':
+                    path=player.get((q.get('id') or [''])[0])
+                    if path is None: return self._send(404,b'not found','text/plain')
+                    return self._video(path)
                 if url.path == "/api/style/video":
                     return self._video(Path(app.references.get((q.get("id") or [""])[0])["preview"]))
                 if url.path == "/api/job":
@@ -1601,6 +1607,10 @@ def make_handler(app: App):
             url = urlparse(self.path)
             try:
                 b = self._body()
+                if url.path == '/api/library/play':
+                    from ..recordings import list_videos
+                    data=player.open(b.get('path'),list_videos(app_dir(),app.prefs)['items'])
+                    return self._json(data) if data else self._json({'error':'Video is unavailable.'},404)
                 if url.path == "/api/bye":
                     app.bye_at = time.time()
                     return self._json({"ok": True})
@@ -1804,7 +1814,7 @@ def make_handler(app: App):
                 self.end_headers()
                 return
             self.send_response(206 if header else 200)
-            self.send_header("Content-Type", "video/mp4")
+            self.send_header("Content-Type", {'.mov':'video/quicktime','.mkv':'video/x-matroska'}.get(path.suffix.lower(),'video/mp4'))
             self.send_header("Accept-Ranges", "bytes")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(end - start + 1))

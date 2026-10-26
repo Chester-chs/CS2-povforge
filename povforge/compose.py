@@ -199,4 +199,11 @@ def compose(plan: Plan, job_dir: Path, clips: list[Path], layers: list[dict[str,
                     "-f", "concat", "-safe", "0", "-i", str(listing),
                     "-i", str(meta), "-map_metadata", "1", "-map_chapters", "1",
                     "-c", "copy", "-movflags", "+faststart", str(final)], check=True)
+    from . import video_index
+    markers=[]
+    for seg in plan.segments[:len(durations)]:
+        markers.append([{'at':0,'kind':'round','round':seg.round_number,'player':plan.player.name,
+                         'map':plan.map_name,'source':Path(plan.demo_path).name}]+
+                       video_index.source_markers(job_dir,plan,seg.round_number))
+    video_index.write(final,video_index.flatten(markers,durations,intro_len))
     return final

@@ -154,6 +154,7 @@ class Moment:
     start: float                      # seconds into the clip
     end: float
     kills: list[float] = field(default_factory=list)   # seconds from ``start``
+    events: list[dict] = field(default_factory=list)
 
     @property
     def length(self) -> float:
@@ -621,6 +622,8 @@ def build(moments: list[Moment], fx: dict, out: Path, work: Path, size: tuple[in
     out.parent.mkdir(parents=True, exist_ok=True)
     _run([s.ffmpeg, "-y", "-loglevel", "error", "-i", str(picture), "-i", str(sound), "-map", "0:v", "-map", "1:a",
           "-c", "copy", "-movflags", "+faststart", str(out)])
+    from . import video_index
+    video_index.write(out,video_index.effect_events(moments,kills,fx,seq,[r.seconds for r in rendered],crossings))
     return out
 
 
