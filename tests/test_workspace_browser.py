@@ -42,6 +42,8 @@ def workspace_site():
             self.wfile.write(body)
 
         def do_GET(self):
+            if self.path == '/test-media.mp4' and state.get('media'):
+                return self.respond(Path(state['media']).read_bytes(),'video/mp4')
             if self.path == '/':
                 return self.respond((STATIC / 'index.html').read_bytes(), 'text/html; charset=utf-8')
             if self.path.startswith('/static/'):
@@ -63,6 +65,8 @@ def workspace_site():
 
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))) or b'{}')
+            if self.path == '/api/library/play':
+                return self.respond(state.get('playback',{'src':'/test-media.mp4','events':[],'name':'Example clip'}))
             if self.path == '/api/inspect':
                 return self.respond({'path': body['path'], 'name': 'match.dem', 'map': 'de_dust2',
                                      'map_pretty': 'Dust2', 'rounds': 2, 'minutes': 3,
