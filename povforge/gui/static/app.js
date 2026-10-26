@@ -261,6 +261,8 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("povforge", () => ({
     videosOpen: false, libraryVideos: [], videosBusy: false, videosError: '', videoQuery: '', videoMode: 'all',
     videoFreeBytes: null, videoFolder: '', videoFoldersOpen: false,
+    playingVideo: null, playerSrc: '', playerEvents: [], playerCurrent: 0, playerDuration: 0,
+    playerError: '', playerBusy: false, playerRequest: 0, playerSeek: 0, playerEventKind: 'all',
     csrfToken: document.querySelector?.('meta[name="povforge-token"]')?.content || "",
     version: "", lang: "zh", prefs: {}, setup: {}, job: { state: "idle", lines: [], recorded: [], planned: [], step: [0, 0] },
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
@@ -378,6 +380,7 @@ document.addEventListener("alpine:init", () => {
       this.post('/api/window-theme', {dark: !!dark}).catch(() => {});
     },
     async openSettings() {
+      this.closeVideo();
       this.videosOpen = false;
       this.settingsOpen = true;
       this.work = { bytes: null, path: "", confirm: false, cleaning: false };
@@ -480,7 +483,7 @@ document.addEventListener("alpine:init", () => {
         document.querySelector('.content')?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       });
     },
-    openLibrary() { this.videosOpen = false; this.settingsOpen = false; this.leaveInspection(); this.libraryOpen = true; this.setupOpen = false; this.showRun = false; this.viewId = null; this.scrollContentTop(); this.loadVideos(); },
+    openLibrary() { this.closeVideo(); this.videosOpen = false; this.settingsOpen = false; this.leaveInspection(); this.libraryOpen = true; this.setupOpen = false; this.showRun = false; this.viewId = null; this.scrollContentTop(); this.loadVideos(); },
     openMatchMode() { this.reelOpen = false; this.openLibrary(); },
     editReel() { if (this.reel.sources.length) { this.libraryOpen = false; this.scrollContentTop(); } },
     get libraryDemos() {
@@ -500,6 +503,7 @@ document.addEventListener("alpine:init", () => {
     },
     // --- highlight reel ---
     openReel(fromMatch, content = 'kills') {
+      this.closeVideo();
       this.videosOpen = false;
       this.settingsOpen = false;
       this.leaveInspection();
@@ -727,6 +731,54 @@ document.addEventListener("alpine:init", () => {
       return this.libraryVideos.filter(v => (this.videoMode === 'all' || v.mode === this.videoMode) &&
         (!this.videoFolder || this.folderKey(this.videoParent(v.path)) === this.folderKey(this.videoFolder)) &&
         (!query || [v.name, ...(v.players || []), ...(v.maps || [])].join(' ').toLocaleLowerCase().includes(query)));
+    },
+    async playVideo(video) {
+      this.closeVideo();
+      const request=++this.playerRequest;
+      this.playingVideo=video;this.playerBusy=true;this.playerError='';this.playerEventKind='all';
+      try {
+        const result=await this.post('/api/library/play',{path:video.path});
+        if (request!==this.playerRequest) return;
+        this.playerEvents=(result.events || []).filter(e => Number.isFinite(e.at) && e.at>=0).sort((a,b)=>a.at-b.at);
+        this.playerSrc=result.src;
+        this.scrollContentTop();
+      } catch(e) { if(request===this.playerRequest)this.playerError=e.message; }
+      finally { if(request===this.playerRequest)this.playerBusy=false; }
+    },
+    closeVideo() {
+      this.playerRequest++;
+      const video=this.$refs?.libraryVideo;
+      if (video) { video.pause();video.removeAttribute('src');video.load(); }
+      this.playingVideo=null;this.playerSrc='';this.playerEvents=[];this.playerDuration=0;this.playerCurrent=0;this.playerSeek=0;this.playerError='';this.playerBusy=false;
+    },
+    playerLoaded(video) {
+      this.playerDuration=Number.isFinite(video.duration)?video.duration:0;
+      this.seekVideo(this.playerSeek);
+      video.play().catch(()=>{});
+    },
+    seekVideo(at) {
+      if (!Number.isFinite(at)) return;
+      this.playerSeek=Math.max(0,at);
+      const video=this.$refs?.libraryVideo;
+      if (video && Number.isFinite(video.duration) && video.duration>0) {
+        video.currentTime=Math.min(this.playerSeek,Math.max(0,video.duration-.05));
+        this.playerCurrent=video.currentTime;
+      }
+    },
+    get visiblePlayerEvents() {
+      return this.playerEvents.filter(e => (this.playerEventKind==='all' || e.kind===this.playerEventKind) &&
+        (!this.playerDuration || e.at<this.playerDuration));
+    },
+    adjacentPlayerEvent(direction) {
+      const events=this.visiblePlayerEvents;
+      return direction>0 ? events.find(e=>e.at>this.playerCurrent+.15) : events.slice().reverse().find(e=>e.at<this.playerCurrent-.15);
+    },
+    jumpPlayerEvent(direction) { const event=this.adjacentPlayerEvent(direction);if(event)this.seekVideo(event.at); },
+    playerEventTitle(event) {
+      const labels=this.lang==='zh'?{round:'回合开始',kill:'击杀',death:'死亡',replay:'受害者重放'}:
+        {round:'Round start',kill:'Kill',death:'Death',replay:'Victim replay'};
+      return [event.round?this.t('roundN',{r:event.round}):'',labels[event.kind],event.player,
+        event.weapon?this.weaponName(event.weapon):'',event.headshot?(this.lang==='zh'?'爆头':'HS'):''].filter(Boolean).join(' · ');
     },
     weaponName(raw) {
       const key = String(raw || '').replace(/^weapon_/, '').toLowerCase();
@@ -1298,7 +1350,7 @@ document.addEventListener("alpine:init", () => {
                      rounds: all ? [] : this.chosenRounds.slice().sort((a, b) => a - b), map: this.demo.map_pretty };
       const j = await this.post("/api/queue/add", body);
       this.queue = j.queue; this.job = j;
-      if (watch && !wasRunning) { this.viewId = null; this.showRun = true; }
+      if (watch && !wasRunning && !j.queue?.paused) { this.viewId = null; this.showRun = true; }
       else this.toast(this.t("queuedNote", { name: body.name }));
     },
     async retry() {
@@ -1310,6 +1362,7 @@ document.addEventListener("alpine:init", () => {
     async clearQueue() { this.queue = await this.post("/api/queue/clear"); },
     async resumeQueue() { this.queue = await this.post("/api/queue/resume"); },
     openItem(it) {
+      this.closeVideo();
       this.videosOpen = false;
       this.settingsOpen = false; this.setupOpen = false; this.reelOpen = false;
       this.viewId = it.state === "running" ? null : it.id;

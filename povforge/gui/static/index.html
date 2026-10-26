@@ -53,6 +53,8 @@
       </ul>
     </div>
 
+    <p class="queue-recovered queue-notice" role="status" x-show="queue.recovered" x-cloak x-text="lang === 'zh' ? '已恢复上次任务。点击“继续队列”后开始录制。' : 'Previous tasks restored. Resume the queue when ready.'"></p>
+    <p class="queue-notice" role="alert" x-show="queue.save_error" x-cloak x-text="lang === 'zh' ? (queue.save_error?.includes('read') ? '上次任务记录无法读取，原文件已保留。' : '任务未能保存，请检查磁盘空间，暂时不要关闭软件。') : queue.save_error"></p>
     <section class="side-group" x-show="queue.items.length" x-cloak>
       <div class="side-title">
         <h2 x-text="t('queueTitle')"></h2>
@@ -421,6 +423,14 @@
       </template>
     </div>
 
+    <fieldset class="weapon-filter group">
+      <legend x-text="lang === 'zh' ? '击杀武器' : 'Kill weapons'"></legend>
+      <div class="weapon-choices">
+        <button class="btn small" :aria-pressed="!reel.weapons?.length" @click="reel.weapons=[];recompute()" x-text="lang === 'zh' ? '全部武器' : 'All weapons'"></button>
+        <template x-for="weapon in reelWeaponOptions" :key="weapon"><label class="weapon-choice"><input type="checkbox" :data-weapon="weapon" :value="weapon" x-model="reel.weapons" @change="recompute()"><span x-text="weaponName(weapon)"></span></label></template>
+      </div>
+      <p class="hint" x-text="lang === 'zh' ? '保留包含所选武器击杀的片段；混合武器连杀保持完整，中间不剪断。' : 'Keep sequences containing kills with the selected weapons. Mixed-weapon streaks stay continuous.'"></p>
+    </fieldset>
     <div class="group-title with-control">
       <h3 x-text="t('reelItems')"></h3>
       <span class="hint num" x-show="reel.items.length" x-text="t('reelCount', { n: reel.items.length, s: reelSeconds(reel.items) })"></span>
@@ -780,6 +790,27 @@
     <div><h1 x-text="selectedVideoFolder?.name || (lang === 'zh' ? '成片库' : 'Video library')"></h1><p class="video-folder-location path" x-show="videoFolder" x-text="videoFolder"></p><p class="muted" x-text="lang === 'zh' ? '已经完成的视频，随时回来查看。清除录制队列不会删除这里的记录。' : 'Your finished videos, kept independently of the recording queue.'"></p></div>
     <button class="btn" @click="openVideos()" :disabled="videosBusy"><svg><use href="#i-refresh-cw"/></svg><span x-text="lang === 'zh' ? '刷新' : 'Refresh'"></span></button>
   </header>
+  <template x-if="playingVideo">
+    <section class="video-player group" role="region" :aria-label="lang === 'zh' ? '成片播放器' : 'Video player'">
+      <header class="player-header"><h2 x-text="playingVideo.name"></h2><button class="btn" @click="closeVideo()" x-text="t('close')"></button></header>
+      <div class="player-grid">
+        <div class="player-screen">
+          <video class="library-video" x-ref="libraryVideo" :src="playerSrc || null" controls playsinline preload="metadata" @loadedmetadata="playerLoaded($event.target)" @timeupdate="playerCurrent=$event.target.currentTime" @error="if(playerSrc)playerError=lang==='zh'?'此格式暂时无法在软件内播放，可使用系统播放器。':'This format cannot be played here. Use the system player.'"></video>
+          <p class="hint" x-show="playerBusy" x-text="lang === 'zh' ? '正在打开视频…' : 'Opening video…'"></p>
+          <p class="hint" role="alert" x-show="playerError" x-text="playerError"></p>
+          <div class="player-tools"><span class="num" x-text="clock(playerCurrent)+' / '+clock(playerDuration)"></span><button class="btn small" @click="openPath(playingVideo.path,false)" x-text="lang === 'zh' ? '使用系统播放器' : 'Open in system player'"></button></div>
+        </div>
+        <aside class="player-events">
+          <div class="event-controls"><label><span x-text="lang === 'zh' ? '事件跳转' : 'Jump to event'"></span><select class="select" x-model="playerEventKind"><template x-for="kind in ['all','round','kill','death','replay']" :key="kind"><option :value="kind" x-text="(lang==='zh'?{all:'全部事件',round:'回合',kill:'击杀',death:'死亡',replay:'重放'}:{all:'All events',round:'Rounds',kill:'Kills',death:'Deaths',replay:'Replays'})[kind]"></option></template></select></label>
+            <div><button class="btn small event-prev" @click="jumpPlayerEvent(-1)" :disabled="!adjacentPlayerEvent(-1)" x-text="lang === 'zh' ? '上一个' : 'Previous'"></button><button class="btn small event-next" @click="jumpPlayerEvent(1)" :disabled="!adjacentPlayerEvent(1)" x-text="lang === 'zh' ? '下一个' : 'Next'"></button></div>
+          </div>
+          <ul class="player-event-list"><template x-for="(event,i) in visiblePlayerEvents" :key="i"><li><button class="player-event" :data-event-kind="event.kind" @click="seekVideo(event.at)"><b class="num" x-text="clock(event.at)"></b><span x-text="playerEventTitle(event)"></span></button></li></template></ul>
+          <p class="hint" x-show="!playerBusy && !playerEvents.length" x-text="lang === 'zh' ? '此视频没有事件索引，仍可拖动进度条播放。新录制会自动保存索引。' : 'No event index for this video. Use the seek bar; new recordings save an index automatically.'"></p>
+          <p class="hint" x-show="playerEvents.length" x-text="lang === 'zh' ? '按成片时间跳转。旧录制素材的事件信息可能不完整。' : 'Jump times follow the finished video. Older source recordings may have incomplete event data.'"></p>
+        </aside>
+      </div>
+    </section>
+  </template>
   <div class="video-filters">
     <label class="video-search search-field"><svg><use href="#i-search"/></svg><input type="search" x-model="videoQuery" :placeholder="lang === 'zh' ? '搜索选手、地图或视频名称' : 'Search player, map or video'" :aria-label="lang === 'zh' ? '搜索成片' : 'Search videos'"></label>
     <select class="select" x-model="videoMode" :aria-label="lang === 'zh' ? '录制模式' : 'Recording mode'">
@@ -794,7 +825,7 @@
         <span class="video-icon"><svg><use href="#i-film"/></svg></span>
         <div class="row-main"><b x-text="v.name"></b><small x-text="[modeName(v.mode),...(v.players || []),...(v.maps || [])].filter(Boolean).join(' · ')"></small><small class="path" :title="v.path" x-text="v.path"></small><small class="err" x-show="v.missing" x-text="lang === 'zh' ? '文件已移动或删除，原记录仍保留' : 'File moved or deleted; history retained'"></small></div>
         <span class="video-meta"><b class="num" x-text="v.duration ? clock(v.duration) : '—'"></b><small class="muted" x-text="ago(v.mtime) + ' · ' + gb(v.size)"></small></span>
-        <div class="video-actions"><button class="btn" :disabled="v.missing" @click="openPath(v.path,false)" x-text="t('play')"></button><button class="btn" :disabled="v.missing" @click="openPath(v.path,true)" x-text="lang === 'zh' ? '文件夹' : 'Folder'"></button></div>
+        <div class="video-actions"><button class="btn" :disabled="v.missing" @click="playVideo(v)" x-text="t('play')"></button><button class="btn" :disabled="v.missing" @click="openPath(v.path,true)" x-text="lang === 'zh' ? '文件夹' : 'Folder'"></button></div>
       </article>
     </template>
     <div class="library-empty" x-show="!filteredVideos.length"><p x-text="videosBusy ? (lang === 'zh' ? '正在载入…' : 'Loading…') : (lang === 'zh' ? '没有匹配的成片' : 'No matching videos')"></p></div>

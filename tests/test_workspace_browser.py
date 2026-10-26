@@ -43,7 +43,15 @@ def workspace_site():
 
         def do_GET(self):
             if self.path == '/test-media.mp4' and state.get('media'):
-                return self.respond(Path(state['media']).read_bytes(),'video/mp4')
+                from povforge.reference import byte_range
+                data=Path(state['media']).read_bytes();header=self.headers.get('Range')
+                start,end=byte_range(header,len(data)) if header else (0,len(data)-1)
+                self.send_response(206 if header else 200)
+                self.send_header('Content-Type','video/mp4')
+                self.send_header('Accept-Ranges','bytes')
+                self.send_header('Content-Length',str(end-start+1))
+                if header:self.send_header('Content-Range',f'bytes {start}-{end}/{len(data)}')
+                self.end_headers();self.wfile.write(data[start:end+1]);return
             if self.path == '/':
                 return self.respond((STATIC / 'index.html').read_bytes(), 'text/html; charset=utf-8')
             if self.path.startswith('/static/'):
