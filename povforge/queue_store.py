@@ -5,7 +5,7 @@ from pathlib import Path
 import secrets
 
 SETTINGS = ('output','record_res','record_fps','minimap','keyboard','show_enemies',
-            'intro','upload','by_player','player_folders')
+            'intro','upload','by_player','player_folders','check_video')
 MAX_BYTES = 8*1024*1024
 
 

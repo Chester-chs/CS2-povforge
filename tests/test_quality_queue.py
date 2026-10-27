@@ -17,10 +17,10 @@ def test_completed_video_checks_before_next_recording_and_respects_saved_choice(
     queue.add('a.dem','a','A',[],'')
     prefs['check_video']=False
     queue.add('b.dem','b','B',[],'')
-    job.result=str(tmp_path/'first.mp4');job.finish()
-    assert calls==[str(tmp_path/'first.mp4')] and job.started==['A']
+    job.finish()
+    assert calls==['v.mp4'] and job.started==['A']
     checker.busy=False;queue._start_next()
     assert job.started==['A','B']
-    job.result=str(tmp_path/'second.mp4');job.finish()
+    job.finish()
     assert len(calls)==1
 

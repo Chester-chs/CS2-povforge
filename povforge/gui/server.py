@@ -64,7 +64,7 @@ def load_prefs() -> dict:
              "upload": True, "appearance": "auto", "accent": "blue", "font": "system", "popup_radius": 14,
              "by_player": True,          # finished videos go into a folder per player
              "record_res": "1080",       # fixed app output size
-             "record_fps": 60,
+             "record_fps": 60, "check_video": True, "record_profiles": [],
              "player_folders": {},       # steamid -> {"folder": name on disk, "name": in-game name}
              "folders_set": False}       # first run: the user picks where demos are and where videos go
     if f.exists():
@@ -81,6 +81,8 @@ def load_prefs() -> dict:
         prefs["font"] = "system"
     if type(prefs.get("popup_radius")) is not int or not 0 <= prefs["popup_radius"] <= 28:
         prefs["popup_radius"] = 14
+    from ..record_profiles import saved
+    prefs['record_profiles'] = saved(prefs)
     return prefs
 
 
@@ -368,6 +370,16 @@ WORK_DIR_NAME = "工作文件"     # same as Config.work_dir_name
 
 def work_dir(prefs: dict) -> Path:
     return Path(prefs["output"]) / WORK_DIR_NAME
+
+
+def recording_storage(prefs: dict, item: dict) -> list[dict]:
+    from ..preflight import storage
+    import copy
+    target = videos_folder(copy.deepcopy(prefs), item)
+    paths = {'output':Path(prefs['output']), 'work':work_dir(prefs)}
+    if target is not None:
+        paths['destination'] = target
+    return storage(paths)
 
 
 def folder_size(path: Path) -> int:
@@ -817,6 +829,9 @@ class Job:
             raise
 
     def _launch(self, item: dict, prefs: dict, kind: str) -> None:
+        checks = recording_storage(prefs, item)
+        if any(row['state'] == 'error' for row in checks):
+            raise RuntimeError('Output/work folder is not writable, is not a directory, or has less than 512 MB free. Check Recording & saving.')
         videos = videos_folder(prefs, item)
         live = item.get('_live_prefs', prefs)
         if live is not prefs:
@@ -980,11 +995,12 @@ class Job:
 class Queue:
     """Recordings waiting their turn; runs them one after another through Job."""
 
-    def __init__(self, job: Job, prefs: dict, *, store: Path | None = None):
+    def __init__(self, job: Job, prefs: dict, *, store: Path | None = None, checker=None):
         from .. import queue_store
         self.job, self.prefs = job, prefs
         self.lock = threading.Lock()
         self.store = store
+        self.checker = checker
         self.items, self.save_error = queue_store.load(store)
         self.next_id = max((i['id'] for i in self.items), default=0) + 1
         self.recovered = any(i['state']=='queued' for i in self.items)
@@ -1038,7 +1054,8 @@ class Queue:
 
     def _start_next(self) -> None:
         with self.lock:
-            if (self.paused or getattr(self.job, "busy", self.job.state == "running")
+            if (self.paused or (self.checker is not None and self.checker.busy)
+                    or getattr(self.job, "busy", self.job.state == "running")
                     or any(i["state"] == "running" for i in self.items)):
                 return
             item = next((i for i in self.items if i["state"] == "queued"), None)
@@ -1071,6 +1088,9 @@ class Queue:
                 self.paused = True       # stopping one recording pauses the rest
             completed = dict(item) if item is not None and snap['state'] == 'done' else None
             self._save()
+            if (completed and completed.get('result') and self.checker is not None
+                    and completed.get('settings', {}).get('check_video', True)):
+                self.checker.submit(completed['result'])
         if completed:
             from ..recordings import remember
             if completed.get('kind') == 'reel':
@@ -1465,11 +1485,13 @@ class App:
                 print(f"Sorting the videos by player failed: {e}", flush=True)
             save_prefs(self.prefs)
         self.job = Job()
-        self.queue = Queue(self.job, self.prefs, store=app_dir() / 'queue.json')
+        from ..video_quality import Manager
+        self.checker = Manager(app_dir(), on_idle=lambda: self.queue._start_next())
+        self.queue = Queue(self.job, self.prefs, store=app_dir() / 'queue.json', checker=self.checker)
         self.setup = Setup()
         self.update: dict | None = None
         self.quit = lambda: None            # set by main() once the server exists
-        self.updater = Updater(__version__, busy=lambda: self.job.busy or self.inspecting > 0,
+        self.updater = Updater(__version__, busy=lambda: self.job.busy or self.checker.busy or self.inspecting > 0,
                                quit_app=lambda: self.quit())
         self.last_seen = time.time()   # the page asks for state every second or two
         self.bye_at = 0.0              # the page said it was closing (pagehide)
@@ -1484,7 +1506,8 @@ class App:
         self.update = st["info"] if st["state"] == "available" else None
 
     def busy(self) -> bool:
-        return (self.job.busy or bool(self.setup.installing) or self.inspecting > 0
+        return (self.job.busy or (getattr(self, 'checker', None) is not None and self.checker.busy)
+                or bool(self.setup.installing) or self.inspecting > 0
                 or self.updater.status()["state"] in ("downloading", "installing"))
 
     def quit_reason(self, now: float) -> str:
@@ -1585,7 +1608,14 @@ def make_handler(app: App):
                     return self._json(find_demos(app.prefs["demo_folders"]))
                 if url.path == '/api/library':
                     from ..recordings import list_videos
-                    return self._json(list_videos(app_dir(), app.prefs))
+                    from .. import video_quality
+                    data = list_videos(app_dir(), app.prefs)
+                    reports = video_quality._load(app_dir())
+                    checker = getattr(app, 'checker', None)
+                    for row in data['items']:
+                        row['quality'] = ((checker.status(row['path']) if checker else None)
+                                          or video_quality.read(app_dir(), row['path'], data=reports))
+                    return self._json(data)
                 if url.path == "/api/map-thumbnail":
                     from ..maps import get_map_thumbnail
                     try:
@@ -1613,6 +1643,57 @@ def make_handler(app: App):
             url = urlparse(self.path)
             try:
                 b = self._body()
+                if url.path == '/api/preflight':
+                    from ..preflight import environment
+                    item = {'kind': 'reel', 'reel': b.get('items') or []} if b.get('kind') == 'reel' else {
+                        'kind':'match','steamid':str(b.get('steamid') or ''),'name':str(b.get('name') or '')[:80]}
+                    checks = recording_storage(app.prefs, item) + environment(app.setup.status())
+                    return self._json({'checks':checks,'ok':not any(r['state']=='error' for r in checks)})
+                if url.path.startswith('/api/profiles/'):
+                    from .. import record_profiles
+                    import copy
+                    updated = copy.deepcopy(app.prefs)
+                    try:
+                        selected = None
+                        if url.path == '/api/profiles/save':
+                            record_profiles.save(updated,b.get('name'),b.get('mode'),b.get('weapons',[]))
+                        elif url.path == '/api/profiles/apply':
+                            selected = record_profiles.apply(updated,b.get('name'))
+                        elif url.path == '/api/profiles/remove':
+                            record_profiles.remove(updated,b.get('name'))
+                        else:
+                            return self._json({'error':'Unknown profile action.'},404)
+                    except (ValueError, TypeError) as e:
+                        return self._json({'error':str(e)},400)
+                    save_prefs(updated);app.prefs.update(updated)
+                    return self._json({'prefs':updated,'profile':selected} if selected else updated)
+                if url.path == '/api/diagnostics/export':
+                    from .. import diagnostics
+                    folder = pick_folder(app.prefs.get('output',''))
+                    if not folder: return self._json({'cancelled':True})
+                    job = app.job.snapshot()
+                    # A selected historical task contributes only its bounded error,
+                    # never the currently running task's unrelated log or identity.
+                    if type(b.get('id')) is int and b['id'] != job.get('item'):
+                        item = next((i for i in app.queue.snapshot()['items'] if i['id']==b['id']),None)
+                        if item is not None:
+                            job = {k:item.get(k,'') for k in ('state','kind','error')}
+                            job.update(player=item.get('name',''),lines=[])
+                    report = diagnostics.build(__version__,app.prefs,app.setup.status(),job)
+                    path = diagnostics.write(folder,report)
+                    return self._json({'path':str(path)})
+                if url.path == '/api/library/check':
+                    from ..recordings import list_videos
+                    try: path = Path(b.get('path')).resolve()
+                    except (ValueError,TypeError,OSError): return self._json({'error':'Video unavailable.'},404)
+                    rows = list_videos(app_dir(),app.prefs)['items']
+                    if not any(Path(r['path']).resolve()==path and not r.get('missing') for r in rows):
+                        return self._json({'error':'Video unavailable.'},404)
+                    with app.queue.lock:
+                        if app.job.busy or any(i['state']=='running' for i in app.queue.items):
+                            return self._json({'error':'Wait for the recording to finish.'},409)
+                        accepted = app.checker.submit(path)
+                    return self._json({'accepted':accepted})
                 if url.path == '/api/library/play':
                     from ..recordings import list_videos
                     data=player.open(b.get('path'),list_videos(app_dir(),app.prefs)['items'])
@@ -1720,6 +1801,8 @@ def make_handler(app: App):
                                                       if isinstance(m, dict) and m.get("path")]
                     if "by_player" in b:
                         app.prefs["by_player"] = bool(b["by_player"])
+                    if type(b.get('check_video')) is bool:
+                        app.prefs['check_video'] = b['check_video']
                     app.prefs["record_res"] = "1080"
                     if type(b.get("record_fps")) is int and b["record_fps"] in FRAME_RATES:
                         app.prefs["record_fps"] = b["record_fps"]
@@ -1922,3 +2005,4 @@ def main(port: int = 0, open_browser: bool = True) -> None:
     finally:
         server.server_close()
         app.references.close()
+        app.checker.close()
