@@ -184,4 +184,32 @@ for (const cam of ['follow','orbit','wide']) {
     check('first person is requested even without observer-mode API',
         game.takes.length === 2 && game.takes.every(t => !t.wrongMode), game.log);
 }
+// 7. Victim replays run past the death: CS2's own death view plays untouched,
+// and the camera leaving the dead victim ends the take cleanly (not an error).
+{
+    const victim = {id:'victim',start:1000,end:1256,cam:'pov',steamid:'222',death:1192};
+    const {game} = runScenario('victim after death', {job:{clips:[victim]}, loseTargetAt:1230});
+    const take = game.takes[0];
+    check('after death: one take that ends when the camera leaves the victim',
+        game.quit && game.takes.length === 1 && take.frames === 230 &&
+        game.log.some(l => l.includes('END victim') && l.includes('why=after_death')) &&
+        !game.log.some(l => l.includes('why=camera_error')), game.log);
+    const lastTick = game.cmds.lastIndexOf('mirv_streams record start');
+    const afterStart = game.cmds.slice(lastTick);
+    check('after death: no spectator commands once recording (death view untouched)',
+        !afterStart.some(c => c.startsWith('spec_')), afterStart);
+}
+{
+    const victim = {id:'victim',start:1000,end:1256,cam:'pov',steamid:'222',death:1192};
+    const {game} = runScenario('victim stays', {job:{clips:[victim]}});
+    check('after death: camera that stays on the victim records to the planned end',
+        game.takes.length === 1 && game.takes[0].frames === 256 &&
+        game.log.some(l => l.includes('END victim') && l.includes('why=end_tick')), game.log);
+}
+{
+    const victim = {id:'victim',start:1000,end:1256,cam:'pov',steamid:'222',death:1192};
+    const {game} = runScenario('victim lost early', {job:{clips:[victim]}, loseTargetAt:1100});
+    check('before death: losing the victim is still a camera error',
+        game.takes.length === 1 && game.log.some(l => l.includes('why=camera_error')), game.log);
+}
 process.exitCode = failed ? 1 : 0;

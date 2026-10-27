@@ -34,7 +34,7 @@ const TEXT = {
     fromList: "来自 {list}",
     fxCamera: "视角重放",
     cameraHelp: "主画面始终使用所选玩家的第一人称视角。",
-    cameraVictimAppend: "受害者视角", cameraVictimHelp: "打开后，集锦里的每个击杀都会补上对方阵亡前的第一人称画面：插在该击杀之后再继续主画面，或统一放在片尾。需要额外录制，默认关闭。",
+    cameraVictimAppend: "受害者视角", cameraVictimHelp: "打开后，集锦里的每个击杀都会补上对方的第一人称画面：阵亡前 3 秒，以及倒地后约 1 秒。插在该击杀之后再继续主画面，或统一放在片尾。需要额外录制，默认关闭。",
     presetNameLabel: "给这组效果起个名字，存成你的预设", presetSaveRef: "存成预设", presetSaved: "已存为预设「{name}」，以后在上面的预设里直接选。",
     presetReplace: "已有同名预设，保存会替换它。", fromFile: "来自 {name}", vNone: "无", vYes: "有", vNo: "没有", vAbout: "约 {s} 秒", vTimes: "{n} 处",
     vAlso: "也有 {list}", vMatch: "{kind}，会照着它调", vPace: "每段约 {s} 秒，{kind}", vMusic: "有，约 {bpm} BPM", nowLabel: "当前效果：{text}", nowPlain: "当前：原样拼接，不加效果",
@@ -161,7 +161,7 @@ const TEXT = {
     fromList: "from {list}",
     fxCamera: "Perspective replays",
     cameraHelp: "The main footage always uses the selected player's first-person view.",
-    cameraVictimAppend: "Victim perspective", cameraVictimHelp: "When on, every kill in the reel also gets the victim's first-person view before death: inserted after that kill before the main footage resumes, or collected at the end. Requires extra recording; off by default.",
+    cameraVictimAppend: "Victim perspective", cameraVictimHelp: "When on, every kill in the reel also gets the victim's first-person view: 3 s before death and about 1 s after it as they go down. Inserted after that kill before the main footage resumes, or collected at the end. Requires extra recording; off by default.",
     presetNameLabel: "Name these effects to keep them as your preset", presetSaveRef: "Save preset", presetSaved: "Saved as \u201c{name}\u201d; pick it from the presets above any time.",
     presetReplace: "A preset with this name exists; saving replaces it.", fromFile: "from {name}", vNone: "None", vYes: "Yes", vNo: "No", vAbout: "about {s} s", vTimes: "{n}×",
     vAlso: "also {list}", vMatch: "{kind}; yours will be matched to it", vPace: "about {s} s per moment, {kind}", vMusic: "yes, about {bpm} BPM", nowLabel: "Now: {text}", nowPlain: "Now: plain join, no effects",
@@ -1168,10 +1168,9 @@ document.addEventListener("alpine:init", () => {
     // --- reel effects ---
     fxDefaults() { return JSON.parse(JSON.stringify(this.fxMeta.defaults || {})); },
     cameraSettings(raw) {
-      const duration = raw?.durations?.victim;
       return { mode: "pov", victim: raw?.victim === true,
         placement: raw?.placement === "end" ? "end" : "after_kill",
-        durations: { victim: typeof duration === "number" && Number.isFinite(duration) ? Math.min(1.5, Math.max(0.5, duration)) : 1.2 } };
+        durations: { before: 3, after: 1 } };
     },
     // the parts of the effects that make a look (not the music file or the texts)
     fxLook(fx) {

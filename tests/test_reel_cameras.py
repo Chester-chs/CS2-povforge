@@ -120,7 +120,7 @@ def test_all_planned_camera_kinds_are_accepted_by_recording_contract(tmp_path):
     job = hlae.build_job(plan, [], tmp_path, hlae.RecordSettings(), extra_shots=shots)
     assert {c["cam"] for c in job["clips"]} == {"pov"}
     victim = next(c for c in job["clips"] if c["steamid"] == "333")
-    assert victim["end"] < victim["focus"]
+    assert victim["start"] < victim["death"] == victim["focus"] < victim["end"]
 
 
 def test_camera_progress_is_visible_without_treating_shots_as_rounds():
@@ -170,7 +170,7 @@ def test_all_main_moments_precede_every_victim_replay_in_selected_kill_order(tmp
         captured.extend((s["focus"], s["steamid"]) for s in extra_shots)
         paths, starts = [], hlae.actual_starts(job)
         for s in extra_shots:
-            assert s["cam"] == "pov" and s["end"] < s["focus"]
+            assert s["cam"] == "pov" and s["start"] < s["death"] == s["focus"] < s["end"]
             path = job / "shots" / (s["id"] + ".mp4")
             path.parent.mkdir(exist_ok=True)
             video(path, (s["end"] - s["start"]) / 64 + .2,
@@ -188,9 +188,11 @@ def test_all_main_moments_precede_every_victim_replay_in_selected_kill_order(tmp
     assert captured == [(1192, "55"), (1160, "33"), (1192, "44")]
     assert all(w[3] == [] for w in order[2:])
     final = reel._plain_join(cfg, "Ending Replays", order)
-    assert probe(final, cfg.compose.ffmpeg).duration == pytest.approx(7.25, abs=.12)
+    # Two 2s mains, then three replays each from the moment start (tick 1096) to
+    # its end (1224): up to 3s before the death and up to 1s after it.
+    assert probe(final, cfg.compose.ffmpeg).duration == pytest.approx(10.0, abs=.12)
     for when, expected in [(0.5, (0, 128, 0)), (2.5, (255, 0, 0)),
-                           (4.5, (0, 0, 255)), (5.5, (255, 255, 0)), (6.5, (255, 0, 255))]:
+                           (5.0, (0, 0, 255)), (7.0, (255, 255, 0)), (9.0, (255, 0, 255))]:
         pixels = subprocess.run([cfg.compose.ffmpeg, "-v", "error", "-ss", str(when), "-i", str(final),
                                  "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
                                 check=True, capture_output=True).stdout
@@ -249,8 +251,9 @@ def test_reel_run_records_extra_shots_and_publishes_real_composite(tmp_path, mon
                    fx={"camera": {"victim": True, "placement": "end"}})
     assert out.is_file()
     assert len(calls) == 1 and calls[0][0]["cam"] == "pov" and calls[0][0]["steamid"] == "33"
-    # The default 3s tail retains all 6s of available main footage, plus 1.15s replay.
-    assert probe(out, cfg.compose.ffmpeg).duration == pytest.approx(7.15, abs=.1)
+    # The default 3s tail retains all 6s of available main footage, plus a 4s replay
+    # (3s before the victim's death and 1s after it).
+    assert probe(out, cfg.compose.ffmpeg).duration == pytest.approx(10.0, abs=.1)
     from povforge.video_index import read
     events=read(out)
     assert next(e['at'] for e in events if e['kind']=='kill')==pytest.approx(4,abs=.05)

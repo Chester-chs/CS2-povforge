@@ -33,7 +33,7 @@ def test_simultaneous_victims_and_final_frame_do_not_duplicate_main_footage():
 def test_victim_replay_is_one_switch_and_legacy_selection_is_dropped():
     # An old per-kill list (an empty one meant "none") must not limit the switch.
     choice = camera.normalize_camera({'victim': True, 'placement': 'after_kill', 'selected': []})
-    assert choice == {'mode': 'pov', 'victim': True, 'placement': 'after_kill', 'durations': {'victim': 1.2}}
+    assert choice == {'mode': 'pov', 'victim': True, 'placement': 'after_kill', 'durations': {'before': 3.0, 'after': 1.0}}
     assert 'selected' not in camera.normalize_camera({})
 
 
@@ -173,15 +173,17 @@ def test_inline_assembly_uses_real_replay_video_and_main_timeline_audio(tmp_path
     assert sum(s[2]-s[1] for s in mains) == pytest.approx(4)
     final = reel._with_effects(cfg, 'Inline media', order, effects.normalize({'camera': {'victim': True}}))
     info = probe(final, ffmpeg)
-    assert info.frames == 126  # 80 main frames plus two 23-frame replays.
-    assert info.duration == pytest.approx(6.3, abs=.1)
-    for sec, blue in [(0.4, False), (1.8, True), (2.85, False), (3.9, True), (5.9, False)]:
+    # 80 main frames plus two replays of 3 s before to 1 s after each death,
+    # clamped to the moment: 1096-1256 (2.5 s, 50 frames) and 1096-1320 (3.5 s, 70).
+    assert info.frames == 200
+    assert info.duration == pytest.approx(10.0, abs=.1)
+    for sec, blue in [(0.4, False), (2.5, True), (4.5, False), (6.0, True), (9.5, False)]:
         pixels = subprocess.run([ffmpeg, '-v', 'error', '-ss', str(sec), '-i', str(final),
                                  '-frames:v', '1', '-vf', 'scale=1:1', '-f', 'rawvideo',
                                  '-pix_fmt', 'rgb24', '-'], check=True, capture_output=True).stdout
         assert (pixels[2] > pixels[0]) == blue
     # Replay recordings contain 880 Hz; final replay sound must use source-time 440 Hz.
-    audio = subprocess.run([ffmpeg, '-v', 'error', '-ss', '1.8', '-i', str(final),
+    audio = subprocess.run([ffmpeg, '-v', 'error', '-ss', '2.5', '-i', str(final),
                             '-t', '0.4', '-f', 'f32le', '-ac', '1', '-ar', '48000', '-'],
                            check=True, capture_output=True).stdout
     samples = np.frombuffer(audio, dtype='<f4')

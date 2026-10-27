@@ -321,10 +321,16 @@ def _validated_shots(extra_shots: list[dict] | None) -> list[dict]:
         shot = {"id": cid, "start": start, "end": end, "steamid": steamid, "cam": cam}
         if "focus" in item:
             focus = item["focus"]
-            # Victim replays end before their associated kill.
             if type(focus) not in (int, float) or not math.isfinite(focus) or focus < 0:
                 raise ValueError(f"Invalid camera focus tick: {cid}")
             shot["focus"] = focus
+        if "death" in item:
+            # The victim dies inside the shot; past it the director lets CS2's own
+            # death view play and may stop early when the camera leaves the victim.
+            death = item["death"]
+            if type(death) is not int or not start < death <= end:
+                raise ValueError(f"Invalid camera death tick: {cid}")
+            shot["death"] = death
         if item.get("player"):
             shot["player"] = str(item["player"])
         shots.append(shot)
@@ -721,7 +727,7 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg",
         if out.exists():
             continue
         # A failed view or an interrupted demo must not be cached as a successful shot.
-        completed = re.search(rf"\[povforge\] END {re.escape(cid)} tick=[\d.]+ why=end_tick\b", log_text)
+        completed = re.search(rf"\[povforge\] END {re.escape(cid)} tick=[\d.]+ why=(?:end_tick|after_death)\b", log_text)
         take = latest_take(raw_dir, cid)
         if completed and cid in starts and take is not None:
             mux_take(take, out, ffmpeg, s)

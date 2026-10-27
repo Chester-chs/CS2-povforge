@@ -68,7 +68,7 @@ def test_victim_replays_cover_every_known_kill_independently_of_camera_density(m
     assert [(s["kind"], s["focus"], s["steamid"]) for s in shots] == [
         ("victim", 1152, "222"), ("victim", 1536, "333"),
     ]
-    assert all(s["end"] < s["focus"] for s in shots)
+    assert all(s["start"] < s["death"] == s["focus"] < s["end"] for s in shots)
 
 
 def test_disabled_victim_replay_never_plans_victim_recordings():
@@ -84,13 +84,15 @@ def test_simultaneous_kills_keep_each_distinct_real_victim():
 
 
 
-def test_victim_replay_is_of_real_victim_and_ends_before_death():
+def test_victim_replay_is_3s_before_and_1s_after_the_real_victims_death():
     shots = planned(camera=reference(follow=False, orbit=False, wide=False))
     assert shots
     for shot in shots:
         assert shot["cam"] == "pov" and shot["insert"]
         assert shot["steamid"] == {1152: "222", 1536: "333"}[shot["focus"]]
-        assert 640 <= shot["start"] < shot["end"] < shot["focus"]
+        assert shot["death"] == shot["focus"]
+        assert shot["start"] == max(640, shot["focus"] - 3 * 64)
+        assert shot["end"] == shot["focus"] + 64  # the body going down, from the victim's view
         assert shot["at"] >= (shot["focus"] - 640) / 64
         assert shot["audio_at"] == (shot["start"] - 640) / 64
     assert planned(camera=reference(follow=False, orbit=False, wide=False), victims=[]) == []
@@ -98,6 +100,14 @@ def test_victim_replay_is_of_real_victim_and_ends_before_death():
                    victims={1152: "111", 1536: ""}) == []
 
 
+
+
+def test_after_death_part_never_runs_past_the_moment():
+    shots = planned(start_tick=640, end_tick=1180, kill_ticks=[1152], victims={1152: "222"})
+    assert shots[0]["end"] == 1180 and shots[0]["start"] == 1152 - 192
+    # A kill on the last tick of the moment has no after-death part to show.
+    assert planned(start_tick=640, end_tick=1153, kill_ticks=[1152], victims={1152: "222"})[0]["end"] == 1153
+    assert planned(start_tick=640, end_tick=1152, kill_ticks=[1151], victims={1151: "222"})[0]["end"] == 1152
 
 
 def test_main_player_pov_remains_majority_before_end_replays():
@@ -241,3 +251,24 @@ def test_short_late_victim_replay_keeps_actual_audio_time_and_available_frames(t
     # The moment starts at sample 60000; three late ticks add 2250 samples.
     assert np.corrcoef(original[60000 + 2250 + 2048:60000 + 2250 + 24000],
                        rendered[2048:24000])[0, 1] > .97
+
+
+@pytest.mark.skipif(not FFMPEG, reason="needs FFmpeg")
+@pytest.mark.parametrize("recorded, kept", [(2.4, 2.4), (3.0, 3.0), (1.6, None)])
+def test_after_death_tail_may_end_early_but_the_part_before_death_may_not(tmp_path, recorded, kept):
+    """CS2 can move the camera off a dead victim; the director then stops the take
+    early. Losing (part of) the 1s after death keeps the replay; losing footage
+    before the death still rejects it."""
+    base = make_video(tmp_path / "base.mp4", "red", 6)
+    victim = make_video(tmp_path / f"victim{recorded}.mp4", "blue", recorded)
+    shot = dict(id="shot_victim_tail", start=0, end=192, steamid="222", cam="pov",
+                focus=128, death=128, kind="victim", at=1.0, until=1.0, insert=True, audio_at=0.0)
+    out = camera_module().render_replay(
+        clip=base, start=1.0, end=5.0, shot=shot,
+        shot_paths={shot["id"]: victim}, actual_starts={shot["id"]: 0},
+        tickrate=64, out=tmp_path / "replay.mp4", size=(96, 54), fps=20,
+        compose=ComposeSettings(ffmpeg=FFMPEG))
+    if kept is None:
+        assert out is None  # stopped 0.4s before the death (at 2s): not a usable replay
+    else:
+        assert out is not None and out[2] == pytest.approx(kept, abs=.06)

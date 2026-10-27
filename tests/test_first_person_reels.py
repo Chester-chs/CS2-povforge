@@ -13,7 +13,7 @@ LEGACY = {"mode": "reference", "follow": True, "orbit": True, "wide": True,
 @pytest.mark.parametrize("victim", [False, True])
 def test_legacy_preferences_only_allow_explicit_victim_replays(victim):
     choice = camera.normalize_camera({**LEGACY, "victim": victim})
-    assert choice == {"mode": "pov", "victim": victim, "durations": {"victim": 1.2},
+    assert choice == {"mode": "pov", "victim": victim, "durations": {"before": 3.0, "after": 1.0},
                       "placement": "after_kill"}
     shots = camera.plan_shots(start_tick=0, end_tick=1280, kill_ticks=[512, 896],
                               victims=[[512, "222"], [896, "333"]], steamid="111",

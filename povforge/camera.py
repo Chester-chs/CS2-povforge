@@ -21,17 +21,21 @@ def _number(value, default: float) -> float:
     return float(value) if math.isfinite(value) else default
 
 
+# A victim replay shows the last seconds before death and the body going down
+# after it, from the victim's own view (owner request; fixed, not a setting).
+VICTIM_BEFORE = 3.0   # seconds before the death
+VICTIM_AFTER = 1.0    # seconds after the death
+
+
 def normalize_camera(raw) -> dict:
     """Migrate legacy camera preferences to first-person-only recording.
 
     Victim replays are one switch: on replays every kill in the reel. A legacy
     per-kill ``selected`` list is dropped (an empty one used to mean "none")."""
     raw = raw if isinstance(raw, dict) else {}
-    durations = raw.get("durations")
-    durations = durations if isinstance(durations, dict) else {}
     return {"mode": "pov", "victim": raw.get("victim") is True,
             "placement": "end" if raw.get("placement") == "end" else "after_kill",
-            "durations": {"victim": min(1.5, max(.5, _number(durations.get("victim"), 1.2)))}}
+            "durations": {"before": VICTIM_BEFORE, "after": VICTIM_AFTER}}
 
 
 def interleave_replays(span: tuple, insertions: list, fps: float) -> list:
@@ -93,9 +97,12 @@ def plan_shots(*, start_tick: float, end_tick: float, kill_ticks, victims,
     length = (finish - begin) / rate
     known, shots = _victim_map(victims), []
     for focus in kills:
-        end = focus - 1  # Stop before death changes the spectator target.
-        start = max(math.ceil(begin), end - math.floor(cfg["durations"]["victim"] * rate))
-        if (end - start) / rate < .35:
+        # Before the death in first person, then whatever CS2 shows of the victim
+        # dying for a moment after it; the moment's own range bounds both (the
+        # replay plays the main footage's sound for the same demo time).
+        start = max(math.ceil(begin), focus - round(VICTIM_BEFORE * rate))
+        end = min(math.floor(finish), focus + round(VICTIM_AFTER * rate))
+        if (focus - start) / rate < .35 or end <= focus:
             continue
         for sid in known.get(focus, []):
             if sid == str(steamid):
@@ -103,7 +110,7 @@ def plan_shots(*, start_tick: float, end_tick: float, kill_ticks, victims,
             identity = [str(key), str(steamid), sid, "victim", start, end, focus]
             digest = hashlib.sha256(json.dumps(identity, separators=(",", ":")).encode()).hexdigest()[:20]
             shots.append({"id": f"shot_victim_{digest}", "start": start, "end": end,
-                          "steamid": sid, "cam": "pov", "focus": focus, "kind": "victim",
+                          "steamid": sid, "cam": "pov", "focus": focus, "death": focus, "kind": "victim",
                           "at": length, "until": length, "insert": True,
                           "audio_at": (start - begin) / rate})
     return shots
@@ -163,8 +170,13 @@ def _prepare_shots(*, start: float, end: float, shots: list[dict], shot_paths: d
         # HLAE starts/stops on rendered frames while demo events use ticks. Keep
         # real frames at a small quantized boundary, never invent missing video
         # from a longer audio/container duration. Larger gaps still reject it.
+        edge = max(2 * frame, 1 / tickrate) + 1e-8
+        # After the death CS2 may move the camera off the victim; the director
+        # then stops early, so a shorter after-death tail is expected and kept.
+        death = _number(shot.get("death"), float("nan"))
+        after = max(0.0, (shot["end"] - death) / tickrate) if math.isfinite(death) else 0.0
         if (duration < frame or kept_frames <= 0
-                or (missing_head + missing_tail) / source_fps > max(2 * frame, 1 / tickrate) + 1e-8):
+                or missing_head / source_fps > edge or missing_tail / source_fps > edge + after):
             fallback(shot, "the recording does not cover the requested time")
             continue
         first_frame = max(0, first_frame)

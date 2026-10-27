@@ -5,7 +5,7 @@
 //   followed player, record from the start tick to the end tick -> quit.
 //
 // Each clip records the selected player in first person. Extra clips can
-// select a real kill victim for a separate replay at the end of the reel.
+// select a real kill victim: 3 s before their death and about 1 s after it.
 //
 // The Python side fills in the JOB constant below with the job as
 // JSON before loading this file. Everything it logs starts with "[povforge]"
@@ -233,11 +233,19 @@
 					nextClip();
 					return;
 				}
+				// Victim replays run past the death: from then on CS2's own death view
+				// plays untouched (no spec commands), and leaving the victim ends the take.
+				const afterDeath = typeof c.death === 'number' && tick >= c.death;
 				if (controllerIndex === null || observedController() !== controllerIndex) {
-					failCamera(c, 'target player changed during recording');
+					if (afterDeath) {
+						stopRecording(c, 'after_death');
+						nextClip();
+					} else {
+						failCamera(c, 'target player changed during recording');
+					}
 					return;
 				}
-				lockCamera(c);
+				if (!afterDeath) lockCamera(c);
 				return;
 
 			case S.FINISH:
