@@ -70,3 +70,12 @@ def test_failed_atomic_save_keeps_previous_snapshot(tmp_path,monkeypatch):
     queue.add('x.dem','2','B',[],'')
     assert store.read_bytes()==original
     assert queue.snapshot()['save_error']
+
+
+def test_removing_all_recovered_tasks_clears_recovery_notice(tmp_path):
+    store=tmp_path/'queue.json';first=Queue(FakeJob(),{},store=store)
+    first.add('x.dem','1','A',[],'')
+    restored=Queue(FakeJob(),{},store=store);restored.remove(1)
+    assert not restored.snapshot()['recovered']
+    restored.add('x.dem','2','B',[],'')
+    assert restored.job.started==['B']

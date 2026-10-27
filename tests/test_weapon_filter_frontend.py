@@ -21,6 +21,7 @@ async function main(){
  app.reel.sources=[{path:'x.dem',info,steamid:'a'}];app.reel.steamid='a';app.reel.content='kill_events';
  app.reel.weapons=['awp'];app.recompute();
  assert.strictEqual(app.reel.items.length,1);
+ assert.strictEqual(app.reel.items[0].k,2,'round label counts the retained mixed sequence');
  assert.strictEqual(app.reelEstimate.seconds,13);assert.strictEqual(app.reelEstimate.segments,1);
  assert.match(app.weaponSummary(app.reel.items[0]),/AK-47 ×1/);assert.match(app.weaponSummary(app.reel.items[0]),/AWP ×1/);
  assert.strictEqual(app.itemEvents(app.reel.items[0]).length,2);
