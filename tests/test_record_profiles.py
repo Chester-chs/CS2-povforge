@@ -27,4 +27,3 @@ def test_profile_validation_replacement_and_removal():
     profiles.remove(prefs,'My profile')
     assert prefs['record_profiles']==[]
     with pytest.raises(ValueError): profiles.apply(prefs,'missing')
-

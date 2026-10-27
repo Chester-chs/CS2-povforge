@@ -48,7 +48,12 @@ def test_profiles_preflight_diagnostics_and_quality_journey(workspace_site):
             page.evaluate("app.openVideos()",await_promise=True)
             assert page.wait_for("document.querySelector('.video-quality')?.textContent.includes('疑似')",3)
             page.evaluate("document.querySelector('.quality-check').click()")
-            assert page.wait_for("app.libraryVideos.length===1",3)
+            assert page.wait_for("app.libraryVideos[0]?.quality?.state==='checking'",3)
+            # Wait for the check submission before delivering its completed
+            # report. Otherwise its delayed reply can erase visible findings
+            # between the following visibility assertion and click.
+            page.evaluate('app.loadVideos()',await_promise=True)
+            assert page.wait_for("app.libraryVideos[0]?.quality?.state==='warning'",3)
             page.evaluate("document.querySelector('.video-actions button').click()")
             assert page.wait_for("document.querySelector('.quality-issue')?.checkVisibility()",3)
             page.evaluate("document.querySelector('.quality-issue').click()")

@@ -58,4 +58,3 @@ def apply(prefs, name):
 
 def remove(prefs, name):
     prefs['record_profiles'] = [r for r in saved(prefs) if r['name'] != name]
-

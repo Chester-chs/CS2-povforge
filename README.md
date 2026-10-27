@@ -41,6 +41,8 @@ Demo analysis is saved locally and reused after restarting the app. **Analysis s
 
 ## Before recording and your video library
 
+- **Preflight checks:** use **Check** under Recording & saving to verify output/work/player folders, write access, free space and Steam/CS2/component readiness. Submission checks these again. Unwritable folders or less than 512 MB free block starting; less than 8 GB shows a space advisory. This is not a capacity guarantee for the whole job.
+- **Recording presets:** expand **Save current options**, name the preset, and keep its mode, FPS, weapons and recording options. Choose it next time, then review the matches, player and rounds. Same-name saves replace the preset; up to 20 are kept. Destinations and player identities are excluded, and applying a preset never starts recording.
 - **Saved tasks:** once queued, player/round selections, mode, weapon filters, effects and recording options are saved automatically. After restarting, unfinished tasks wait paused until you click **Resume**. Valid recorded footage is reused; interrupted/missing parts need recording again. Restored jobs retain their original options without replacing current app preferences.
 - **Weapon filters:** select AWP, AK-47, M4A4 or other weapons in Kill POV, Kills/deaths POV, Head-to-head and Highlights. Keep sequences containing a matching kill, including the entire mixed-weapon streak. **All weapons** clears the filter; duration estimates and victim replay choices follow the retained footage.
 - **Estimated result:** after choosing players and rounds, check the main-footage duration and merged segment count. These exclude extra replays, intros/outros, slow motion and transitions. After three local recordings with matching mode and FPS, previous jobs provide ranges for processing time and output size. Temporary footage needs extra disk space.
@@ -48,6 +50,8 @@ Demo analysis is saved locally and reused after restarting the app. **Analysis s
 - **Video library:** open it from the sidebar to search by player, map or title, filter by mode, play videos and show their folders. Expand the arrow beside **Video library** to see player folders and video counts; select a folder to browse its contents, or click **Video library** for all videos. New results persist across restarts and queue clearing. Existing videos are discovered in configured output/player folders; their mode, map or duration may be unknown. Moved/deleted files are marked, without rerecording or changing the originals.
 
 Click **Play video** in the library, then jump to rounds, kills, deaths or replays using the event list and Previous/Next controls. Times follow the finished video, including cards, slow motion, transitions and victim replays. Keep the `.mp4.povforge.json` index beside the video when moving it. Older videos remain playable without an index; older source recordings may have incomplete event data. Use the system player if the format is unsupported.
+
+**Check finished videos** is on by default. It checks video metadata/audio and samples 15 seconds each at the start, middle and end; videos up to 45 seconds are checked throughout. Open the library player and click reported timestamps to review possible black or frozen frames. Intentional still shots may be flagged; sampling cannot guarantee the entire movie is fault-free. Disable automatic checks or use **Check video** manually in the library. Checks run before the next recording, never delete movies or reparse Demos, and stay local. Changing the file invalidates its old report.
 
 ## Choose what to record
 
@@ -83,6 +87,8 @@ A whole-match POV is usually shorter than the demo because it skips pauses, half
 POVForge still has to render and record the selected footage through CS2. A 16-minute output means 16 minutes of video to watch; it does **not** promise the job will finish in 16 minutes. Startup, seeking, recording, overlays and encoding all contribute to the wait. Hardware, output settings and reusable recordings affect that time. Start with one or two rounds to estimate performance on your PC.
 
 ## Settings and troubleshooting
+
+After a failure, choose **Export diagnostics** on the failed-task page or in **Settings → General**, then pick a local folder. Reports include the version, component readiness and recent errors with paths, player identities and sensitive log lines hidden. Nothing is uploaded automatically; inspect the JSON before deciding to share it.
 
 POVForge temporarily applies recording settings. Before starting CS2, it backs up the covered Steam and game configuration files, then restores them after the recording session closes. If restoration cannot finish, it keeps the backup and reports the problem. Avoid editing game settings during recording.
 

@@ -17,4 +17,3 @@ def test_report_redacts_secrets_paths_ids_and_names(tmp_path):
     path=diagnostics.write(tmp_path,report)
     assert json.loads(path.read_text(encoding='utf-8'))==report
     assert diagnostics.write(tmp_path,report)!=path
-

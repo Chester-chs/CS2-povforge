@@ -2,6 +2,44 @@
 
 ## Current agreed scope
 
+v0.18.0 adds recording preflight, named recording presets, local diagnostics
+and optional completed-video sample checks. Preflight probes configured
+output/work/current-player destinations without creating player folders and
+checks existing Setup status without launching or restoring anything. It runs
+before submission; Job repeats storage checks with saved task options. Less
+than 512 MiB blocks startup; under 8 GiB is advisory, not a capacity estimate.
+Owned running-game/settings-backup state does not block adding queued work.
+
+Recording profiles store mode/FPS/weapons and recording flags, excluding paths,
+player identities, round choices and visual effects. Up to 20 names, same-name
+replacement, explicit removal, validation and atomic app preferences. Applying
+a profile selects its mode/options without starting a job. Existing FX presets
+remain separate. Defaults remain fixed 1080P and the existing FPS menu.
+
+Diagnostic export appears in failed tasks and Settings General. The native
+folder picker determines the destination; cancelled selection writes nothing.
+Bounded recent errors/logs are conservatively redacted for paths, player
+identities, emails, URLs and credentials. Unique exclusive local JSON files;
+no automatic upload or new external API.
+
+video_quality.Manager serializes optional checks before the next queued job,
+participates in app/update busy state, and reaps only its own decoder processes.
+Per-task check_video is persisted. Metadata/audio checks plus up to 45s sampled
+black/freeze detection use bounded output/timeouts and a downscaled 5 FPS view.
+Possible issues/time links are shown in the library player; manual checks are
+library-allowlisted and blocked during active recording. No deletion or Demo
+reparse. Atomic bounded quality.json is stat-bound and outside work cleanup.
+Thread startup failure does not keep the queue reserved. Checks are sampled and
+may flag intentional still shots; never claim whole-video correctness.
+
+Local full regression: 414 passed, 2 fixture failures in 591.88s. After updating
+the native fixture's checker-close interface and waiting for completed fake
+check submission before clicking findings, the final related target passed 35
+in 29.84s, including all new boundary cases. Existing text audit now covers 20
+views in four theme paths (80 audits), plus 16 accent cases. Syntax/compilation
+and diff checks passed; coverage/Ruff/Pyright are unavailable. No CS2/HLAE launch
+or game/Steam setting edit. See docs/releases/v0.18.0/verification.md.
+
 v0.17.0 adds persisted queued tasks, weapon filtering and library playback with
 finished-video event jumps. queue.json is bounded and atomically replaced after
 flushing; recovered running tasks become queued and the queue starts paused.

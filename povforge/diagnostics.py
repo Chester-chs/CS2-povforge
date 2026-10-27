@@ -42,4 +42,3 @@ def write(folder, report):
     with path.open('x', encoding='utf-8') as stream:
         json.dump(report, stream, ensure_ascii=False, indent=2, allow_nan=False)
     return path
-

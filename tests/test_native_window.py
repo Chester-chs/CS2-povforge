@@ -83,6 +83,7 @@ from povforge.gui import server, native_window, window_chrome
 class App:
     def __init__(self):
         self.references = SimpleNamespace(close=lambda: None)
+        self.checker = SimpleNamespace(close=lambda: None)
         self.last_seen = time.time()
         self.bye_at = 0
         self.window = None

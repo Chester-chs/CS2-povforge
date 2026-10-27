@@ -45,4 +45,3 @@ def environment(status):
     if status.get('problems'):
         rows.append({'key': 'environment', 'state': 'warning', 'reason': 'detection_incomplete'})
     return rows
-

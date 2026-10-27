@@ -27,4 +27,3 @@ def test_environment_checks_are_readonly_and_actionable():
     assert all(r['state']=='ok' for r in environment(ready))
     blocked=environment({**ready,'anticheat':['FACEIT'],'settings_pending':True,'cs2_running':True})
     assert {r['reason'] for r in blocked if r['state']=='error'}=={'anticheat','settings_pending','cs2_running'}
-

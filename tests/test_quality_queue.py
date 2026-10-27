@@ -23,4 +23,3 @@ def test_completed_video_checks_before_next_recording_and_respects_saved_choice(
     assert job.started==['A','B']
     job.finish()
     assert len(calls)==1
-
