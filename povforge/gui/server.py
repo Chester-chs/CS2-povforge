@@ -1645,7 +1645,13 @@ def make_handler(app: App):
                 b = self._body()
                 if url.path == '/api/preflight':
                     from ..preflight import environment
-                    item = {'kind': 'reel', 'reel': b.get('items') or []} if b.get('kind') == 'reel' else {
+                    sources = b.get('items') or []
+                    if b.get('kind') == 'reel' and (not isinstance(sources,list) or len(sources)>10000 or any(
+                            not isinstance(s,dict) or not isinstance(s.get('steamid'),str)
+                            or not 1<=len(s['steamid'])<=80 or not isinstance(s.get('name',''),str)
+                            or len(s.get('name',''))>160 for s in sources)):
+                        return self._json({'error':'Invalid preflight selections.'},400)
+                    item = {'kind': 'reel', 'reel': sources} if b.get('kind') == 'reel' else {
                         'kind':'match','steamid':str(b.get('steamid') or ''),'name':str(b.get('name') or '')[:80]}
                     status = dict(app.setup.status())
                     # These conditions belong to the app's current recording;
