@@ -117,7 +117,7 @@ def fake_game(tmp_path, monkeypatch, *, fail_setup=False, cancel=False, end_reas
 
     monkeypatch.setattr(hlae.subprocess, "Popen", launch)
     monkeypatch.setattr(hlae.subprocess, "run", lambda *_a, **_k: SimpleNamespace(returncode=0))
-    monkeypatch.setattr(hlae, "mux_take", lambda take, out, ffmpeg: out.write_bytes((take / "video.mp4").read_bytes()))
+    monkeypatch.setattr(hlae, "mux_take", lambda take, out, ffmpeg, s=None: out.write_bytes((take / "video.mp4").read_bytes()))
     monkeypatch.setattr(media, "probe", lambda *_a, **_k: media.VideoInfo(1920, 1080, 200 / 64, 188, 60))
     return state, settings, user, cfg
 
@@ -286,7 +286,7 @@ def test_interrupted_raw_take_is_discarded_and_rerecorded(tmp_path, monkeypatch,
                 return media.VideoInfo(1920, 1080, 0.25, 15, 60)
         return media.VideoInfo(1920, 1080, 200 / 64, 188, 60)
 
-    def mux(take, out, ffmpeg):
+    def mux(take, out, ffmpeg, s=None):
         data = (take / "video.mp4").read_bytes()
         out.write_bytes(data)
 

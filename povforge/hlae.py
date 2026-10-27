@@ -24,7 +24,7 @@ import shutil
 import subprocess
 import sys
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 from . import settings_guard, tools
@@ -50,14 +50,70 @@ class RecordSettings:
     extra_setup: str = ""         # extra console commands, separated by ;
     timeout_factor: float = 3.0   # give up after this many times the video length (+10 min)
     player_hud: bool = False      # try cl_spec_stats 0 (on its own it doesn't replace the spectator card)
+    # Recording the pro's own look (see pro_settings.py). width/height stay the
+    # finished video size; the game window may differ (e.g. 4:3) and its frames
+    # are then stretched or letterboxed to the video size.
+    player_look: bool = False     # also use the player's own crosshair from the demo
+    looks: dict = field(default_factory=dict)   # steamid -> {game_width, game_height, fit, commands}
+    game_width: int = 0           # 0 = same as width
+    game_height: int = 0
+    fit: str = "stretch"          # stretch | pad
+    look_commands: list = field(default_factory=list)
 
     def limit_output(self) -> None:
         from .media import bounded_size, bounded_fps
         self.width, self.height = bounded_size(self.width, self.height)
         self.fps = int(bounded_fps(self.fps))
+        if self.game_width and self.game_height:
+            self.game_width, self.game_height = bounded_size(self.game_width, self.game_height)
+        else:
+            self.game_width = self.game_height = 0
+        if self.fit not in ("stretch", "pad"):
+            self.fit = "stretch"
+
+
+LOOK_COMMAND = re.compile(r"(?:[a-z][a-z0-9_]{2,48} -?\d{1,4}(?:\.\d{1,4})?"
+                          r"|apply_crosshair_code CSGO(?:-[A-Za-z0-9]{5}){5}"
+                          r"|cl_show_observer_crosshair [0-2])")
+
+
+def game_size(s: RecordSettings) -> tuple[int, int]:
+    """The CS2 window size for recording."""
+    return (s.game_width, s.game_height) if s.game_width and s.game_height else (s.width, s.height)
+
+
+def for_player(s: RecordSettings, steamid: str, crosshair_code: str = "") -> RecordSettings:
+    """The settings for recording ``steamid``: their window size and look commands."""
+    if not s.player_look and not s.looks:
+        return s
+    look = s.looks.get(str(steamid)) or {}
+    commands = [str(c) for c in look.get("commands", []) if LOOK_COMMAND.fullmatch(str(c))][:80]
+    if s.player_look:
+        # The observed player's crosshair, and theirs also as our own in case
+        # this CS2 build draws the viewer's crosshair in demos.
+        commands.append("cl_show_observer_crosshair 2")
+        if crosshair_code and LOOK_COMMAND.fullmatch(f"apply_crosshair_code {crosshair_code}"):
+            commands.append(f"apply_crosshair_code {crosshair_code}")
+    try:
+        gw, gh = int(look.get("game_width") or 0), int(look.get("game_height") or 0)
+    except (TypeError, ValueError):
+        gw = gh = 0
+    out = replace(s, looks={}, look_commands=commands, game_width=gw, game_height=gh,
+                  fit=look.get("fit") if look.get("fit") in ("stretch", "pad") else "stretch")
+    out.limit_output()
+    return out
 
 
 # --- finding things -------------------------------------------------------------
+
+def quality_key(settings: RecordSettings) -> dict:
+    """What a take's picture depends on. Plain takes keep the legacy keys."""
+    key = {"width": settings.width, "height": settings.height, "fps": settings.fps}
+    if settings.game_width or settings.look_commands or settings.player_look:
+        key["look"] = {"game": list(game_size(settings)), "fit": settings.fit,
+                       "commands": list(settings.look_commands), "player_look": settings.player_look}
+    return key
+
 
 def quality_matches(job: Path, settings: RecordSettings) -> bool:
     """Legacy takes were produced with the former 1080p/60 defaults."""
@@ -68,7 +124,7 @@ def quality_matches(job: Path, settings: RecordSettings) -> bool:
             previous = json.loads(metadata.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return False
-    return previous == {"width": settings.width, "height": settings.height, "fps": settings.fps}
+    return previous == quality_key(settings)
 
 
 def prepare_quality_cache(job: Path, settings: RecordSettings) -> None:
@@ -87,7 +143,7 @@ def prepare_quality_cache(job: Path, settings: RecordSettings) -> None:
                 source.replace(archive / name)
     metadata = job / "record-quality.json"
     temp = metadata.with_suffix(".tmp")
-    temp.write_text(json.dumps({"width": settings.width, "height": settings.height, "fps": settings.fps}), encoding="utf-8")
+    temp.write_text(json.dumps(quality_key(settings)), encoding="utf-8")
     temp.replace(metadata)
 
 def find_hlae(s: RecordSettings) -> Path:
@@ -242,6 +298,7 @@ def setup_commands(s: RecordSettings) -> list[str]:
         "mirv_streams record startMovieWav 1",
     ]
     cmds += [c.strip() for c in s.extra_setup.split(";") if c.strip()]
+    cmds += [c for c in s.look_commands if LOOK_COMMAND.fullmatch(c)]
     return cmds
 
 
@@ -299,6 +356,15 @@ def build_job(plan: Plan, segments: list[Segment], raw_dir: Path, s: RecordSetti
     }
 
 
+def demo_crosshair(demo_path: str, steamid: str) -> str:
+    """The crosshair share code the player used in this demo ('' if unknown)."""
+    try:
+        from .demo import player_crosshair
+        return player_crosshair(demo_path, steamid)
+    except Exception:
+        return ""
+
+
 def write_director(job: dict, path: Path) -> Path:
     template = (Path(__file__).parent / "director.js").read_text(encoding="utf-8")
     path.write_text(template.replace("__POVFORGE_JOB__", json.dumps(job, ensure_ascii=False)),
@@ -324,7 +390,8 @@ def launch_command(hlae: Path, cs2: Path, s: RecordSettings) -> list[str]:
         game_args += ["-fullscreen"]
     else:
         game_args += ["-sw"]
-    game_args += ["-width", str(s.width), "-height", str(s.height), "+exec", CFG_NAME]
+    width, height = game_size(s)
+    game_args += ["-width", str(width), "-height", str(height), "+exec", CFG_NAME]
     return [
         str(hlae), "-noGui", "-autoStart", "-noConfig", "-afxDisableSteamStorage",
         "-customLoader",
@@ -360,7 +427,18 @@ def latest_take(raw_dir: Path, cid: str) -> Path | None:
     return None
 
 
-def mux_take(take: Path, out: Path, ffmpeg: str) -> None:
+def fit_filter(src: tuple[int, int], size: tuple[int, int], fit: str) -> str | None:
+    """Filter turning a take of the game window into the video size ('' = none needed)."""
+    if tuple(src) == tuple(size):
+        return None
+    w, h = size
+    if fit == "pad":
+        return (f"scale={w}:{h}:force_original_aspect_ratio=decrease:flags=lanczos,"
+                f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1")
+    return f"scale={w}:{h}:flags=lanczos,setsar=1"     # stretched, as on the player's screen
+
+
+def mux_take(take: Path, out: Path, ffmpeg: str, s: RecordSettings | None = None) -> None:
     video = next(v for v in take.rglob("video.*") if v.stat().st_size > 0)
     audio = next(iter(take.rglob("audio.wav")), None)
     tmp = out.with_name(out.stem + ".tmp.mp4")
@@ -378,7 +456,16 @@ def mux_take(take: Path, out: Path, ffmpeg: str) -> None:
     else:
         cmd += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-map", "0:v", "-map", "1:a",
                 "-c:a", "aac", "-shortest"]
-    cmd += ["-c:v", "copy", str(tmp)]
+    vf = None
+    if s is not None and game_size(s) != (s.width, s.height):
+        from .media import probe
+        info = probe(video, ffmpeg)
+        vf = fit_filter((info.width, info.height), (s.width, s.height), s.fit)
+    if vf:
+        cmd += ["-vf", vf, "-c:v", "libx264", "-preset", "veryfast", "-crf", "14", "-pix_fmt", "yuv420p"]
+    else:
+        cmd += ["-c:v", "copy"]
+    cmd += [str(tmp)]
     subprocess.run(cmd, check=True)
     tmp.replace(out)
 
@@ -437,6 +524,9 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg",
     the requested shots, in input order, and leaves ordinary clips untouched.
     """
     s.limit_output()
+    if s.player_look or s.looks:
+        code = demo_crosshair(plan.demo_path, plan.player.steamid) if s.player_look else ""
+        s = for_player(s, plan.player.steamid, code)
     shots = _validated_shots(extra_shots)
     prepare_quality_cache(job_dir, s)
     clips_dir = job_dir / "clips"
@@ -533,7 +623,7 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg",
                 else:
                     # Valid footage must survive output errors (disk full, permissions,
                     # encoder failure). Let the caller report them and preserve the take.
-                    mux_take(take, out, ffmpeg)
+                    mux_take(take, out, ffmpeg, s)
                     starts[cid] = start
                     starts_file.write_text(json.dumps(starts, indent=2), encoding="utf-8")
             if out.exists():
@@ -634,7 +724,7 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg",
         completed = re.search(rf"\[povforge\] END {re.escape(cid)} tick=[\d.]+ why=end_tick\b", log_text)
         take = latest_take(raw_dir, cid)
         if completed and cid in starts and take is not None:
-            mux_take(take, out, ffmpeg)
+            mux_take(take, out, ffmpeg, s)
             manifest[cid]["complete"] = True
     if shots:
         manifest_file.write_text(json.dumps(manifest, indent=2), encoding="utf-8")

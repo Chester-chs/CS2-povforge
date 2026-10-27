@@ -63,6 +63,18 @@ Good to know:
 - Highlights use rounds with 3+ kills or a won clutch, otherwise rounds with kills. Matches without the chosen account are skipped.
 - Automatic tasks appear in the queue like any other and can be cancelled or removed.
 
+## Each player's own look
+
+On by default (Recording & saving → **Match each player’s look**). Each player is recorded as close to their own screen as possible:
+
+- **Crosshair:** the player's own crosshair from the demo.
+- **Resolution and aspect:** read from [prosettings.net](https://prosettings.net/). FalleN plays 1280×960 4:3 stretched, so the game is recorded in 4:3 (at 1440×1080 for sharpness) and stretched to the 1920×1080 video; black-bar setups keep their bars.
+- **Viewmodel, bob and HUD:** also from prosettings.net, e.g. `viewmodel_fov 60; viewmodel_offset_x 1; viewmodel_offset_y 1; viewmodel_offset_z -1`.
+
+They apply only while recording; your own CS2 settings are restored afterwards. After choosing a player, Recording & saving shows what was found and its source. If the wrong player or nobody was found, enter their page link, or use your own settings for that player. Lookups are kept on this PC for a week and the last copy is used offline.
+
+Not reproducible: graphics quality, brightness, monitor colour and refresh rate exist only on the player's PC; yours are used. Because of how CS2 demos work, the viewmodel can differ slightly from what the player saw.
+
 ## Before recording and your video library
 
 - **Preflight checks:** use **Check** under Settings › Saving & folders to verify output/work/player folders, write access, free space and Steam/CS2/component readiness. Submission checks these again. Unwritable folders or less than 512 MB free block starting; less than 8 GB shows a space advisory. This is not a capacity guarantee for the whole job.

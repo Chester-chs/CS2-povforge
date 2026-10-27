@@ -1,4 +1,4 @@
-## PovForge v0.19.1
+## PovForge v0.20.0
 
 Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** is the portable edition.
 
@@ -6,17 +6,18 @@ Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** i
 
 下载安装或更新请使用 **PovForge-Setup.exe**；免安装版使用 **PovForge-windows.zip**。
 
-- **官匹自动录制移到侧边栏**，和 Demo整场录制、Demo击杀视角、Demo击杀和死亡视角、双人对位数据、高光集锦并列，点开就是独立页面；开启后入口旁会显示绿点。
-- **新增「注意事项」**，放在侧边栏最上方。第一次打开软件时会自动显示，内容包括录制前、录制时和官匹自动录制的注意点；看完点「我已看完，开始使用」，之后随时可以再打开。
+**新功能：画面按选手配置（默认开启）。** 录制每位选手时，画面尽量和选手本人一致：
 
-官匹自动录制的使用流程不变：打开开关 → 在 CS2 里下载比赛 → 退出 CS2 → 软件自动剪辑并录制，不需要自己打开 CS2。
+- **准星：** 使用 demo 里选手本场比赛自己的准星。
+- **分辨率和比例：** 从 prosettings.net 读取，例如 1280×960 4:3 拉伸会按 4:3 录制，再拉伸到 1920×1080 成片。
+- **持枪视角、晃动、HUD：** 同样从 prosettings.net 读取，例如 viewmodel_fov 60、offset 1 / 1 / -1。
+- 只在录制时生效，录完恢复你的设置。「录制与保存」里会显示读到的设置和来源；找错人可以填写选手页面链接，也可以让某位选手改用你的设置。双人对位会分别使用两位选手的设置。
+
+**还原不了的：** 画质、亮度、显示器色彩和刷新率只存在选手自己的电脑上；持枪视角可能因 CS2 demo 的问题略有误差。
 
 ### English
 
-- **Auto matchmaking moved to the sidebar** as a peer of Whole match, Demo kill POV, Kills & deaths POV, Head-to-head and Highlights, with its own page and a green dot while it is on.
-- **New “Read before you start” notes** at the top of the sidebar. They open automatically on first launch and cover what to do before and during recording and for auto matchmaking. Click “Got it, let’s start”; reopen them any time.
+**New: each player's own look (on by default).** Crosshair from the demo; resolution/aspect (e.g. 1280×960 4:3 stretched), viewmodel, bob and HUD from prosettings.net. Applied only while recording; your settings are restored. Recording & saving shows what was found and its source, lets you enter a page link or use your own settings for a player. Duels use each side's own settings. Graphics quality, brightness and monitor colour cannot be reproduced; the viewmodel may differ slightly because of CS2 demos.
 
-The auto matchmaking flow is unchanged: turn it on → download the match in CS2 → quit CS2 → PovForge cuts and records it, without you opening CS2.
-
-Development and testing did not launch CS2 or change the owner's game settings.
-开发和验证未启动 CS2，未修改用户游戏设置。
+Development and testing did not launch CS2 or change the owner's game settings. The look has not yet been checked in a real CS2 recording.
+开发和验证未启动 CS2，未修改用户游戏设置；实际录制效果尚待在真机上确认。

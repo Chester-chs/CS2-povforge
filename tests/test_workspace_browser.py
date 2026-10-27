@@ -108,6 +108,12 @@ def workspace_site():
                                                    {'round':1,'tick':150,'time':15,'attacker':'a','victim':'c','weapon':'m4a1','headshot':False,'pov':True}]}, 'teams': [
                                          {'name': 'Team A', 'score': 1, 'players': [player]},
                                          {'name': 'Team B', 'score': 1, 'players': []}], 'duels': []})
+            if self.path == '/api/player-look':
+                state.setdefault('look_posts', []).append(body)
+                look = state.get('looks', {}).get(body['steamid']) or {'state': 'missing', 'url': ''}
+                if body.get('url') == 'off':
+                    look = {'state': 'off'}
+                return self.respond({'look': {**look, 'steamid': body['steamid'], 'name': body.get('name', '')}, 'prefs': state['prefs']})
             if self.path == '/api/auto-mm':
                 state.setdefault('auto_posts', []).append(body)
                 for key in ('enabled', 'mode', 'steamid'):

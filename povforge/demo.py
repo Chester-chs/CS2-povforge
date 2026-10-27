@@ -450,3 +450,21 @@ def find_player(players: list[Player], query: str) -> Player:
         + ", ".join(p.name for p in partial)
         + ". Use the full name or steamid."
     )
+
+
+CROSSHAIR_CODE = __import__("re").compile(r"CSGO(?:-[A-Za-z0-9]{5}){5}")
+
+
+def player_crosshair(path: str | Path, steamid: str) -> str:
+    """The crosshair share code a player used in this demo ('' when the demo has none).
+    The most common value is used, in case it changed during the match."""
+    parser = _parser(Path(path))
+    df = parser.parse_ticks(["crosshair_code"], players=[int(steamid)])
+    if "crosshair_code" not in df:
+        return ""
+    if "steamid" in df:
+        df = df[df["steamid"].map(_sid) == str(steamid)]
+    codes = [c for c in df["crosshair_code"].dropna().astype(str) if CROSSHAIR_CODE.fullmatch(c)]
+    if not codes:
+        return ""
+    return max(set(codes), key=codes.count)

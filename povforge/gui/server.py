@@ -71,7 +71,9 @@ def load_prefs() -> dict:
              "player_folders": {},       # steamid -> {"folder": name on disk, "name": in-game name}
              "folders_set": False,       # first run: the user picks where demos are and where videos go
              "auto_mm": False, "auto_mm_mode": "kills",   # record new official-matchmaking downloads
-             "notes_seen": False}        # the first-use notes were read
+             "notes_seen": False,        # the first-use notes were read
+             "player_look": True,        # record with each player's own look (crosshair, viewmodel, 4:3 ...)
+             "player_look_urls": {}}     # steamid -> prosettings.net page, or "off" = use my own settings
     if f.exists():
         try:
             saved = json.loads(f.read_text(encoding="utf-8"))
@@ -110,7 +112,7 @@ def _toml_str(s: str) -> str:
     return json.dumps(s, ensure_ascii=False)  # a JSON string is a valid TOML basic string
 
 
-def write_job_config(prefs: dict, videos: Path | None = None) -> Path:
+def write_job_config(prefs: dict, videos: Path | None = None, looks: dict | None = None) -> Path:
     """povforge.toml for one run, from the app's switches; ``videos`` = folder for the finished video."""
     lines = ["[output]", f"dir = {_toml_str(prefs['output'])}"]
     if videos is not None:
@@ -126,7 +128,16 @@ def write_job_config(prefs: dict, videos: Path | None = None) -> Path:
     w, h = record_size(prefs)
     lines += ["", "[record]", f"width = {w}", f"height = {h}", f"fps = {record_fps(prefs)}",
               'video_options = "-c:v libx264 -pix_fmt yuv420p -preset veryfast -crf 12"',
-              "", "[compose]", "crf = 15", 'preset = "medium"', ""]
+              f"player_look = {str(bool(prefs.get('player_look', True))).lower()}"]
+    for sid, look in (looks or {}).items():
+        if not re.fullmatch(r"\d{1,20}", str(sid)) or not isinstance(look, dict):
+            continue
+        game = look.get("game") if isinstance(look.get("game"), list) else None
+        lines += ["", f'[record.looks."{sid}"]',
+                  f"game_width = {int(game[0]) if game else 0}", f"game_height = {int(game[1]) if game else 0}",
+                  f"fit = {_toml_str(look.get('fit') if look.get('fit') in ('stretch', 'pad') else 'stretch')}",
+                  "commands = [" + ", ".join(_toml_str(str(c)) for c in look.get("commands", [])[:80]) + "]"]
+    lines += ["", "[compose]", "crf = 15", 'preset = "medium"', ""]
     f = app_dir() / "last-run.toml"
     app_dir().mkdir(parents=True, exist_ok=True)
     f.write_text("\n".join(lines), encoding="utf-8")
@@ -385,6 +396,98 @@ def recording_storage(prefs: dict, item: dict) -> list[dict]:
     if target is not None:
         paths['destination'] = target
     return storage(paths)
+
+
+# --- each player's own look (prosettings.net) ------------------------------------------
+
+_looks_lock = threading.Lock()
+LOOK_DAYS, LOOK_ERROR_HOURS = 7, 12
+
+
+def _looks_file() -> Path:
+    return app_dir() / "player-looks.json"
+
+
+def _read_looks() -> dict:
+    try:
+        data = json.loads(_looks_file().read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_looks(data: dict) -> None:
+    app_dir().mkdir(parents=True, exist_ok=True)
+    temp = _looks_file().with_name(f"player-looks.{secrets.token_hex(6)}.tmp")
+    try:
+        temp.write_text(json.dumps(dict(list(data.items())[-500:]), ensure_ascii=False), encoding="utf-8")
+        temp.replace(_looks_file())
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+def player_look(prefs: dict, steamid: str, name: str, *, refresh: bool = False, lookup=None) -> dict:
+    """A player's recording look: found on prosettings.net, missing, or turned off.
+    Cached for a week (failures for half a day) so recording rarely waits on the network."""
+    from .. import pro_settings
+    sid = str(steamid)
+    choice = (prefs.get("player_look_urls") or {}).get(sid, "")
+    base = {"steamid": sid, "name": name}
+    if choice == "off":
+        return {**base, "state": "off"}
+    url = choice if pro_settings.valid_url(choice) else pro_settings.page_url(name)
+    if not url:
+        return {**base, "state": "missing", "url": ""}
+    with _looks_lock:
+        cached = _read_looks().get(sid)
+    if isinstance(cached, dict) and cached.get("url") == url and not refresh:
+        age = time.time() - float(cached.get("fetched", 0))
+        if age < (LOOK_DAYS * 86400 if cached.get("state") == "found" else LOOK_ERROR_HOURS * 3600):
+            return {**cached, **base}
+    try:
+        look = (lookup or pro_settings.lookup)(url=url)
+        entry = {"state": "found", "url": url, **look, "fetched": time.time()}
+    except Exception as e:
+        missing = getattr(e, "code", None) == 404
+        if isinstance(cached, dict) and cached.get("state") == "found" and cached.get("url") == url and not missing:
+            return {**cached, **base, "stale": True}       # offline: keep the last good copy
+        entry = {"state": "missing" if missing else "error", "url": url, "error": str(e)[:200], "fetched": time.time()}
+    with _looks_lock:
+        data = _read_looks()
+        data.pop(sid, None)
+        data[sid] = entry
+        try:
+            _write_looks(data)
+        except OSError:
+            pass
+    return {**entry, **base}
+
+
+def task_players(item: dict) -> list[tuple[str, str]]:
+    """(steamid, name) of everyone whose first person a task records."""
+    if item.get("kind") != "reel":
+        return [(str(item.get("steamid", "")), str(item.get("name", "")))]
+    out = {}
+    for r in item.get("reel", []):
+        out.setdefault(str(r.get("steamid", "")), str(r.get("name") or "").split(" → ")[0])
+        if r.get("opponent"):
+            names = str(r.get("name") or "").split(" → ")
+            out.setdefault(str(r["opponent"]), names[1] if len(names) > 1 else "")
+    return [(sid, name) for sid, name in out.items() if sid]
+
+
+def task_looks(prefs: dict, item: dict, lookup=None) -> dict:
+    if not prefs.get("player_look", True):
+        return {}
+    looks = {}
+    for sid, name in task_players(item):
+        try:
+            entry = player_look(prefs, sid, name, lookup=lookup)
+        except Exception:
+            continue
+        if entry.get("state") == "found":
+            looks[sid] = entry
+    return looks
 
 
 def folder_size(path: Path) -> int:
@@ -843,7 +946,10 @@ class Job:
             for sid, entry in prefs.get('player_folders', {}).items():
                 live.setdefault('player_folders', {}).setdefault(sid, entry)
         save_prefs(live)                          # never replace current UI preferences with an old task
-        cfg = write_job_config(prefs, videos)
+        looks = task_looks(prefs, item)
+        for sid, look in looks.items():
+            self._take(f"Using {look.get('name') or sid}'s own settings from {look.get('url')}")
+        cfg = write_job_config(prefs, videos, looks)
         if kind == "reel":
             spec = app_dir() / "reels" / f"reel-{item.get('id', 0)}.json"
             spec.parent.mkdir(parents=True, exist_ok=True)
@@ -1748,6 +1854,23 @@ def make_handler(app: App):
                         return self._json({"error": "Invalid theme"}, 400)
                     from . import window_chrome
                     return self._json({"applied": window_chrome.apply(getattr(app, "window", None), b["dark"])})
+                if url.path == "/api/player-look":
+                    from .. import pro_settings
+                    sid, name = str(b.get("steamid") or ""), str(b.get("name") or "")[:64]
+                    if not re.fullmatch(r"\d{1,20}|[A-Za-z0-9_-]{1,64}", sid):
+                        return self._json({"error": "invalid player"}, 400)
+                    urls = app.prefs.setdefault("player_look_urls", {})
+                    if "url" in b:
+                        choice = str(b.get("url") or "").strip()
+                        if choice in ("", "auto"):
+                            urls.pop(sid, None)
+                        elif choice == "off" or pro_settings.valid_url(choice):
+                            urls[sid] = choice
+                        else:
+                            return self._json({"error": "invalid url"}, 400)
+                        save_prefs(app.prefs)
+                    return self._json({"look": player_look(app.prefs, sid, name, refresh=bool(b.get("refresh"))),
+                                       "prefs": app.prefs})
                 if url.path == "/api/auto-mm":
                     values = {k: b[k] for k in ("enabled", "mode", "steamid") if k in b}
                     if b.get("folder") == "reset":
@@ -1859,6 +1982,8 @@ def make_handler(app: App):
                                                       if isinstance(m, dict) and m.get("path")]
                     if "by_player" in b:
                         app.prefs["by_player"] = bool(b["by_player"])
+                    if type(b.get("player_look")) is bool:
+                        app.prefs["player_look"] = b["player_look"]
                     if b.get("notes_seen") is True:       # can be acknowledged, not un-read
                         app.prefs["notes_seen"] = True
                     if type(b.get('check_video')) is bool:

@@ -291,7 +291,7 @@ document.addEventListener("alpine:init", () => {
       { key: "intro", label: "optIntro" }, { key: "minimap", label: "optMinimap" }, { key: "keyboard", label: "optKeyboard" },
       { key: "show_enemies", label: "optEnemies" }, { key: "upload", label: "optUpload" },
     ],
-    queue: { items: [], paused: false }, auto: null, autoBusy: false, page: '', update: null, showRun: false, viewId: null, toasts: [], toastSeq: 0,
+    queue: { items: [], paused: false }, auto: null, autoBusy: false, page: '', looks: {}, lookBusy: {}, lookUrlDraft: {}, update: null, showRun: false, viewId: null, toasts: [], toastSeq: 0,
 
     async boot() {
       this.loadVideos();
@@ -387,7 +387,7 @@ document.addEventListener("alpine:init", () => {
     async setAuto(values) {
       if (this.autoBusy) return;
       this.autoBusy = true;
-      try { const r = await this.post('/api/auto-mm', values); this.auto = r.auto; this.prefs = r.prefs; }
+      try { const r = await this.post('/api/auto-mm', values); if (r?.auto) this.auto = r.auto; if (r?.prefs) this.prefs = r.prefs; }
       catch (e) { this.toast(e.message); }
       finally { this.autoBusy = false; }
     },
@@ -421,6 +421,12 @@ document.addEventListener("alpine:init", () => {
           ['不要同时玩其他游戏', '录制会占用显卡和 CPU，期间请让电脑专心录制。'],
           ['不用担心游戏设置', '录制前会备份你的 CS2 设置，录完自动恢复。录完后可以正常从 Steam 打开游戏。'],
         ]},
+        {title: '画面按选手配置', notes: [
+          ['准星来自 demo', '录制时使用选手本场比赛里自己的准星。'],
+          ['分辨率、持枪视角、HUD 来自 prosettings.net', '例如 4:3 拉伸、viewmodel_fov 60。找不到这位选手时用你的设置，可以在「录制与保存」里填写选手页面链接。'],
+          ['持枪视角可能有误差', '由于 CS2 demo 本身的问题，持枪视角可能和选手实际看到的略有不同。'],
+          ['还原不了的', '画质（阴影、纹理等）、亮度、显示器色彩和刷新率只存在选手自己的电脑上，录制时用你电脑的设置。'],
+        ]},
         {title: '官匹自动录制', notes: [
           ['下载完一定要退出 CS2', '在 CS2 里下载官匹后退出游戏，软件才会开始。游戏开着时只会等待，不会替你关闭游戏。'],
           ['不需要、也不要自己打开 CS2', '软件会自己启动 CS2 录制，录完自动关闭。'],
@@ -440,6 +446,12 @@ document.addEventListener("alpine:init", () => {
           ['Leave the recording CS2 alone', 'CS2 runs with -insecure only to play the demo. Do not join online servers or click or switch its window.'],
           ['Do not play other games', 'Recording uses the GPU and CPU heavily.'],
           ['Your game settings are safe', 'Your CS2 settings are backed up before recording and restored afterwards. Start CS2 from Steam normally afterwards.'],
+        ]},
+        {title: 'Each player’s look', notes: [
+          ['Crosshair from the demo', 'Recording uses the crosshair the player had in that match.'],
+          ['Resolution, viewmodel and HUD from prosettings.net', 'For example 4:3 stretched and viewmodel_fov 60. When a player is not found your settings are used; enter their page link under Recording & saving.'],
+          ['Viewmodel may differ slightly', 'Because of how CS2 demos work, the viewmodel can differ a little from what the player saw.'],
+          ['What cannot be matched', 'Graphics quality, brightness, monitor colour and refresh rate exist only on the player’s PC; your own are used.'],
         ]},
         {title: 'Auto matchmaking', notes: [
           ['Always quit CS2 after downloading', 'Download the match in CS2, then quit the game. While the game is open PovForge only waits; it never closes your game.'],
@@ -635,6 +647,42 @@ document.addEventListener("alpine:init", () => {
       if (this.reelOpen && players.length > 1) return [];
       return players.map(p => [p.steamid, {folder:p.name.replace(/[<>:"\/\\|?*]/g, '_'),
         ...this.prefs.player_folders?.[p.steamid], name:p.name}]);
+    },
+    // Everyone whose first person this task records (a duel records both sides).
+    get lookPlayers() {
+      if (this.libraryOpen || this.setupOpen || this.videosOpen || this.settingsOpen || this.runVisible || this.page) return [];
+      const out = [...this.destinationPlayers];
+      if (this.reelOpen && this.reel.content === 'duel')
+        for (const source of this.reel.sources) {
+          const p = this.playerIn(source.info, source.opponent);
+          if (p && !out.some(x => x.steamid === p.steamid)) out.push(p);
+        }
+      return out;
+    },
+    async loadLook(sid, name, body = {}) {
+      if (!sid || this.lookBusy[sid]) return;
+      if (!Object.keys(body).length && this.looks[sid]?.name === name) return;
+      this.lookBusy = {...this.lookBusy, [sid]: true};
+      try {
+        const r = await this.post('/api/player-look', {steamid: sid, name, ...body});
+        if (r?.look) this.looks = {...this.looks, [sid]: r.look};
+        if (r?.prefs) this.prefs = r.prefs;
+      } catch (e) { this.toast(e.message === 'invalid url' ? (this.lang === 'zh' ? '请填写 prosettings.net 的选手页面链接' : 'Enter a prosettings.net player page link') : e.message); }
+      finally { this.lookBusy = {...this.lookBusy, [sid]: false}; }
+    },
+    lookSummary(l) {
+      const zh = this.lang === 'zh';
+      if (!l) return zh ? '正在查找选手设置…' : 'Looking up the player’s settings…';
+      const crosshair = zh ? '准星：本场 demo 里选手自己的准星' : 'Crosshair: the player’s own, from this demo';
+      if (l.state === 'off') return zh ? '已改为使用你自己的设置（准星、持枪视角、分辨率）。' : 'Using your own settings (crosshair, viewmodel, resolution).';
+      if (l.state === 'missing') return (zh ? 'prosettings.net 上没找到这位选手；分辨率和持枪视角用你的设置。' : 'Not found on prosettings.net; resolution and viewmodel use your settings. ') + crosshair;
+      if (l.state === 'error') return (zh ? '暂时连不上 prosettings.net；分辨率和持枪视角用你的设置。' : 'prosettings.net is unreachable; resolution and viewmodel use your settings. ') + crosshair;
+      const fit = {stretch: zh ? '拉伸' : 'stretched', pad: zh ? '黑边' : 'black bars', native: ''}[l.fit] || '';
+      const vm = l.summary || {};
+      const parts = [[l.resolution && l.resolution.replace('x', '×'), l.aspect, fit].filter(Boolean).join(' '),
+        vm.viewmodel_fov ? (zh ? `持枪 FOV ${vm.viewmodel_fov}（${vm.viewmodel_offset_x ?? 0}, ${vm.viewmodel_offset_y ?? 0}, ${vm.viewmodel_offset_z ?? 0}）` : `Viewmodel FOV ${vm.viewmodel_fov} (${vm.viewmodel_offset_x ?? 0}, ${vm.viewmodel_offset_y ?? 0}, ${vm.viewmodel_offset_z ?? 0})`) : '',
+        vm.hud_scaling ? `HUD ${vm.hud_scaling}` : '', crosshair].filter(Boolean);
+      return parts.join(' · ') + (l.stale ? (zh ? '（离线，使用上次保存的设置）' : ' (offline: last saved copy)') : '');
     },
     // Every player folder the app knows about, for Settings.
     get knownPlayerFolders() {

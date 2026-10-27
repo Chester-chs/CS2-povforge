@@ -2,6 +2,14 @@
 
 ## Current agreed scope
 
+v0.20.0 (owner request): record each player with their own look, as the
+owner's reference uploader does from prosettings.net. Crosshair from the demo
+(crosshair_code); resolution/aspect/viewmodel/bob/HUD from prosettings.net
+(pro_settings.py, allow-listed cvars). RecordSettings.looks per steamid →
+for_player() in hlae.record; game window may be 4:3 (1440×1080), takes are
+stretched/letterboxed in mux_take. Graphics quality, brightness and monitor
+colour are deliberately not reproduced. Real-CS2 behaviour unverified.
+
 Owner standing instruction (2026-10-27): after each major change is finished
 and tested, push it to main and publish the matching release (version bump,
 release notes, Windows workflow manual dispatch with release=vX.Y.Z) without

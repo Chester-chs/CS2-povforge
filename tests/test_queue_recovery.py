@@ -88,8 +88,8 @@ def test_restored_settings_do_not_replace_current_app_preferences(tmp_path,monke
     store=tmp_path/'queue.json';first=Queue(FakeJob(),prefs,store=store)
     first.add('x.dem','1','A',[],'');prefs['record_fps']=60;server.save_prefs(prefs)
     captured={};original=server.write_job_config
-    def config(settings,videos):
-        captured.update(settings);return original(settings,videos)
+    def config(settings,videos,looks=None):
+        captured.update(settings);return original(settings,videos,looks)
     monkeypatch.setattr(server,'write_job_config',config)
     def fail(*a,**kw):raise OSError('isolated test: no game process')
     monkeypatch.setattr(server.subprocess,'Popen',fail)

@@ -804,6 +804,25 @@
         <span class="row-main"><b x-text="(lang==='zh'?'保存到 · 多人集锦':'Save to · Multi-player reels')"></b><small class="path" x-text="multiFolderPath" :title="multiFolderPath"></small>
           <small x-text="lang==='zh'?'这条集锦包含多位选手，合成一个视频后统一放在这里。':'This reel combines several players into one video, saved here.'"></small></span>
       </li>
+      <li class="row player-look-switch">
+        <label class="row-main" for="player-look"><b x-text="lang==='zh'?'画面按选手配置':'Match each player’s look'"></b><small x-text="lang==='zh'?'准星用 demo 里选手自己的；分辨率比例（如 4:3 拉伸）、持枪视角和 HUD 取自 prosettings.net。只在录制时生效，录完恢复你的设置。':'Crosshair from the demo; resolution/aspect (e.g. 4:3 stretched), viewmodel and HUD from prosettings.net. Applied only while recording; your settings are restored.'"></small></label>
+        <input type="checkbox" class="switch" id="player-look" :checked="prefs.player_look !== false" @change="prefs.player_look = $event.target.checked; savePrefs()">
+      </li>
+      <template x-for="p in (prefs.player_look !== false ? lookPlayers : [])" :key="'look-' + p.steamid">
+        <li class="row look-row" x-init="loadLook(p.steamid, p.name)" :data-state="looks[p.steamid]?.state || 'loading'">
+          <span class="row-main"><b x-text="(lang==='zh'?'画面 · ':'Look · ') + p.name"></b><small x-text="lookSummary(looks[p.steamid])"></small>
+            <span class="look-actions">
+              <button class="link small" x-show="looks[p.steamid]?.url && looks[p.steamid]?.state !== 'off'" @click="openUrl(looks[p.steamid].url)" x-text="lang==='zh'?'查看来源':'Source'"></button>
+              <button class="link small" x-show="looks[p.steamid]?.state !== 'off'" :disabled="lookBusy[p.steamid]" @click="loadLook(p.steamid, p.name, {refresh: true})" x-text="lookBusy[p.steamid] ? (lang==='zh'?'刷新中…':'Refreshing…') : (lang==='zh'?'刷新':'Refresh')"></button>
+              <button class="link small" x-show="looks[p.steamid]?.state !== 'off'" @click="loadLook(p.steamid, p.name, {url: 'off'})" x-text="lang==='zh'?'这位选手用我的设置':'Use my settings'"></button>
+              <button class="link small" x-show="looks[p.steamid]?.state === 'off' || prefs.player_look_urls?.[p.steamid]" @click="loadLook(p.steamid, p.name, {url: 'auto'})" x-text="lang==='zh'?'恢复自动查找':'Look up automatically'"></button>
+            </span>
+            <details class="look-url"><summary x-text="lang==='zh'?'找错人或没找到？填写选手页面链接':'Wrong or missing? Enter the player page link'"></summary>
+              <div><input class="input" x-model="lookUrlDraft[p.steamid]" placeholder="https://prosettings.net/players/fallen/"><button class="btn small" @click="loadLook(p.steamid, p.name, {url: (lookUrlDraft[p.steamid] || '').trim(), refresh: true})" x-text="lang==='zh'?'使用':'Use'"></button></div>
+            </details>
+          </span>
+        </li>
+      </template>
       <li class="row save-rule">
         <span class="row-main"><small x-text="prefs.by_player === false ? (lang==='zh'?'按选手 ID 建文件夹：已关闭':'Folder per player ID: off') : (lang==='zh'?'按选手 ID 建文件夹：已开启':'Folder per player ID: on')"></small></span>
         <button class="link small" @click="openSettings('saving')" x-text="lang==='zh'?'在设置中修改':'Change in Settings'"></button>

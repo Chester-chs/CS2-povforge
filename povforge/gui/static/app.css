@@ -891,3 +891,12 @@ button:disabled, input:disabled, textarea:disabled, select:disabled { color: var
 .notes-list .row-main small { line-height: 1.65; white-space: normal; }
 .notes-actions { display: flex; justify-content: flex-end; margin-top: 26px; }
 .auto-notes-link { margin-top: 24px; }
+
+/* Each player's own look */
+.look-row .row-main small { white-space: normal; line-height: 1.6; overflow-wrap: anywhere; }
+.look-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+.look-url { margin-top: 6px; font-size: 12px; }
+.look-url summary { cursor: pointer; }
+.look-url > div { display: flex; gap: 8px; margin-top: 8px; }
+.look-url input { flex: 1; min-width: 0; background: var(--fill); color: var(--label); border: 0; border-radius: 8px; padding: 7px 9px; font: inherit; }
+.look-row[data-state=error] .row-main b::after, .look-row[data-state=missing] .row-main b::after { content: " !"; }
