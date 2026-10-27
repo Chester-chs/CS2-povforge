@@ -64,3 +64,27 @@ def test_real_ffmpeg_sample_finds_black_and_freeze_without_game(tmp_path):
     assert report['state']=='warning' and report['duration']>=4.9
     assert {'black','freeze','no_audio'} <= {r['kind'] for r in report['issues']}
 
+
+def test_oversized_report_keeps_previous_cache(tmp_path):
+    from povforge import video_quality as quality
+    video=tmp_path/'clip.mp4';video.write_bytes(b'x')
+    quality.save(tmp_path,video,{'state':'ok','issues':[]})
+    original=(tmp_path/'quality.json').read_bytes()
+    with pytest.raises(ValueError): quality.save(tmp_path,video,{'payload':'x'*(quality.MAX_BYTES+1)})
+    assert (tmp_path/'quality.json').read_bytes()==original
+
+
+def test_decode_errors_cannot_be_reported_as_clean_samples(tmp_path,monkeypatch):
+    from povforge import video_quality as quality
+    commands=[]
+    def run(args,*a):
+        commands.append(args)
+        if 'ffprobe' in args[0]:
+            return json.dumps({'format':{'duration':'10'},'streams':[{'codec_type':'video',
+                'width':1920,'height':1080,'avg_frame_rate':'60/1'}]}),''
+        assert '-xerror' in args
+        raise ValueError('Video could not be decoded.')
+    monkeypatch.setattr(quality,'_run',run)
+    assert quality.check(tmp_path/'broken.mp4',ffmpeg='ffmpeg')['state']=='error'
+
+
