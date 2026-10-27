@@ -88,3 +88,19 @@ def test_decode_errors_cannot_be_reported_as_clean_samples(tmp_path,monkeypatch)
     assert quality.check(tmp_path/'broken.mp4',ffmpeg='ffmpeg')['state']=='error'
 
 
+def test_thread_start_failure_does_not_keep_checker_busy(tmp_path,monkeypatch):
+    from povforge import video_quality as quality
+    monkeypatch.setattr(quality.threading.Thread,'start',lambda self:(_ for _ in ()).throw(RuntimeError('Thread unavailable')))
+    manager=quality.Manager(tmp_path)
+    assert manager.submit(tmp_path/'clip.mp4') is False
+    assert not manager.busy
+
+
+def test_subprocess_timeout_reaps_only_owned_decoder():
+    import sys
+    from types import SimpleNamespace
+    from povforge import video_quality as quality
+    owner=SimpleNamespace(lock=threading.Lock(),closed=False,proc=None)
+    with pytest.raises(subprocess.TimeoutExpired):
+        quality._run([sys.executable,'-c','import time;time.sleep(20)'],.05,owner)
+    assert owner.proc is None
