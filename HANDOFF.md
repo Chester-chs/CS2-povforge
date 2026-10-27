@@ -15,6 +15,12 @@ and tested, push it to main and publish the matching release (version bump,
 release notes, Windows workflow manual dispatch with release=vX.Y.Z) without
 asking again. Launching CS2/HLAE or touching real game settings stays forbidden.
 
+v0.20.1 (owner request): victim perspective is ONE switch — every kill is
+replayed, no per-kill picker (do not reintroduce `camera.selected`). Disconnected
+players (NaN team_num) no longer wipe a match's sides; inspection cache v5.
+A missing background-music file stops the reel before recording (auto MM drops
+the track). See docs/releases/v0.20.1/verification.md.
+
 v0.19.1 (owner request): Auto matchmaking is a sidebar peer of the five modes
 (6th .modes tab, own page via app.page='auto'), not a Settings tab. First-use
 notes are the very first sidebar entry (app.page='notes'), auto-open until

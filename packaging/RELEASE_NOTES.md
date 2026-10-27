@@ -1,4 +1,4 @@
-## PovForge v0.20.0
+## PovForge v0.20.1
 
 Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** is the portable edition.
 
@@ -6,18 +6,19 @@ Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** i
 
 下载安装或更新请使用 **PovForge-Setup.exe**；免安装版使用 **PovForge-windows.zip**。
 
-**新功能：画面按选手配置（默认开启）。** 录制每位选手时，画面尽量和选手本人一致：
+**受害者视角改成一个开关。** 打开后，集锦里的每个击杀都会补上对方阵亡前的第一人称画面（插在击杀之后，或统一放在片尾）；不再需要逐个勾选击杀。
 
-- **准星：** 使用 demo 里选手本场比赛自己的准星。
-- **分辨率和比例：** 从 prosettings.net 读取，例如 1280×960 4:3 拉伸会按 4:3 录制，再拉伸到 1920×1080 成片。
-- **持枪视角、晃动、HUD：** 同样从 prosettings.net 读取，例如 viewmodel_fov 60、offset 1 / 1 / -1。
-- 只在录制时生效，录完恢复你的设置。「录制与保存」里会显示读到的设置和来源；找错人可以填写选手页面链接，也可以让某位选手改用你的设置。双人对位会分别使用两位选手的设置。
+**修复：比赛里有人掉线时，受害者视角录不出来。** 有玩家中途掉线的比赛（官匹常见）会导致整场的阵营识别失败：受害者视角为空，爆头、残局数显示为 0。现在掉线玩家会被跳过，其他人照常识别。旧的解析缓存会自动重新读取一次。
 
-**还原不了的：** 画质、亮度、显示器色彩和刷新率只存在选手自己的电脑上；持枪视角可能因 CS2 demo 的问题略有误差。
+**修复：背景音乐文件找不到时被悄悄跳过。** 如果选择的音乐被移动、改名或删除，现在会在录制前直接报错提醒你重新选择，而不是生成一个没有音乐的集锦。自动录制官匹时则不加音乐继续录制。
 
 ### English
 
-**New: each player's own look (on by default).** Crosshair from the demo; resolution/aspect (e.g. 1280×960 4:3 stretched), viewmodel, bob and HUD from prosettings.net. Applied only while recording; your settings are restored. Recording & saving shows what was found and its source, lets you enter a page link or use your own settings for a player. Duels use each side's own settings. Graphics quality, brightness and monitor colour cannot be reproduced; the viewmodel may differ slightly because of CS2 demos.
+**Victim perspective is now one switch.** When on, every kill in the reel also gets the victim's view before death (after the kill, or at the end); there is no per-kill picker any more.
 
-Development and testing did not launch CS2 or change the owner's game settings. The look has not yet been checked in a real CS2 recording.
-开发和验证未启动 CS2，未修改用户游戏设置；实际录制效果尚待在真机上确认。
+**Fixed: no victim replays when a player disconnected.** A disconnected player's missing team made the whole match lose its sides, which emptied victim replays and zeroed headshot/clutch counts. That player is now skipped. Old demo caches are read again once.
+
+**Fixed: missing background music was skipped silently.** If the chosen track was moved, renamed or deleted, the reel now stops before recording and asks you to choose it again. Automatic matchmaking recording continues without music.
+
+Development and testing did not launch CS2 or change the owner's game settings.
+开发和验证未启动 CS2，未修改用户游戏设置。
