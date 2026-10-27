@@ -263,6 +263,8 @@ document.addEventListener("alpine:init", () => {
     videoFreeBytes: null, videoFolder: '', videoFoldersOpen: false,
     playingVideo: null, playerSrc: '', playerEvents: [], playerCurrent: 0, playerDuration: 0,
     playerError: '', playerBusy: false, playerRequest: 0, playerSeek: 0, playerEventKind: 'all',
+    profileName: '', profileSelected: '', profileBusy: false,
+    recordChecks: null, recordChecking: false, diagnosticsBusy: false, diagnosticsPath: '',
     csrfToken: document.querySelector?.('meta[name="povforge-token"]')?.content || "",
     version: "", lang: "zh", prefs: {}, setup: {}, job: { state: "idle", lines: [], recorded: [], planned: [], step: [0, 0] },
     demos: [], demosLoaded: false, offline: false, failures: 0, demo: null, inspecting: false, inspectError: "",
@@ -314,6 +316,7 @@ document.addEventListener("alpine:init", () => {
         try {
           if (this.job.state === "running") { const j = await this.get("/api/job"); this.queue = j.queue; this.job = j; }
           else await this.refresh();
+          if (this.videosOpen && this.libraryVideos.some(v=>v.quality?.state==='checking')) await this.loadVideos();
           if (this.updateOpen && ["downloading", "installing"].includes(this.upd.state)) this.upd = await this.get("/api/update");
           this.failures = 0; this.offline = false;
         } catch (e) {
@@ -398,6 +401,87 @@ document.addEventListener("alpine:init", () => {
         this.work.confirm = false;
       }
       this.work.cleaning = false;
+    },
+    async exportDiagnostics() {
+      this.diagnosticsBusy=true;this.diagnosticsPath='';
+      try {
+        const result=await this.post('/api/diagnostics/export',{id:this.viewId || this.job.item},0);
+        if (!result.cancelled) {this.diagnosticsPath=result.path;this.toast(this.lang==='zh'?'诊断报告已保存到所选文件夹':'Diagnostic report saved to the chosen folder');}
+      } catch(e) {this.toast(e.message);}
+      finally {this.diagnosticsBusy=false;}
+    },
+    async saveRecordingProfile() {
+      if(this.profileBusy)return;
+      this.profileBusy=true;
+      try {
+        await this.savePrefs();
+        this.prefs=await this.post('/api/profiles/save',{name:this.profileName.trim(),
+          mode:this.reelOpen?this.reel.content:'match',weapons:this.reelOpen?(this.reel.weapons || []):[]});
+        this.profileSelected=this.profileName.trim();this.profileName='';
+        this.toast(this.lang==='zh'?'录制预设已保存':'Recording preset saved');
+      } catch(e) {this.toast(e.message);}
+      finally {this.profileBusy=false;}
+    },
+    async applyRecordingProfile() {
+      if(!this.profileSelected || this.profileBusy)return;
+      this.profileBusy=true;
+      try {
+        const result=await this.post('/api/profiles/apply',{name:this.profileSelected});
+        this.prefs=result.prefs;
+        if(result.profile.mode==='match') this.openMatchMode();
+        else {
+          this.openReel(false,result.profile.mode);
+          this.reel.weapons=result.profile.weapons || [];this.recompute();
+        }
+        this.recordChecks=null;
+        this.toast(this.lang==='zh'?'预设已应用，请核对选手和内容':'Preset applied. Review the player and clips.');
+      } catch(e) {this.toast(e.message);}
+      finally {this.profileBusy=false;}
+    },
+    async removeRecordingProfile() {
+      if(!this.profileSelected || this.profileBusy)return;
+      this.profileBusy=true;
+      try {this.prefs=await this.post('/api/profiles/remove',{name:this.profileSelected});this.profileSelected='';}
+      catch(e) {this.toast(e.message);}
+      finally {this.profileBusy=false;}
+    },
+    async checkRecording(body=null) {
+      if(this.recordChecking)return false;
+      this.recordChecking=true;
+      try {
+        await this.savePrefs();
+        const task=body || (this.reelOpen?{kind:'reel',items:this.reel.items.map(c=>({steamid:c.steamid,name:c.name}))}
+          :{kind:'match',steamid:this.player?.steamid || '',name:this.player?.name || ''});
+        const result=await this.post('/api/preflight',task);
+        this.recordChecks={...result,at:new Date().toLocaleTimeString()};
+        if(result.ok===false) {
+          this.toast(this.lang==='zh'?'录制前检查发现问题，请先处理':'Resolve the preflight issues before recording');
+          this.$nextTick(()=>document.querySelector('.record-checks')?.scrollIntoView({block:'center',behavior:'smooth'}));
+        }
+        return result.ok!==false;
+      } catch(e) {this.toast(e.message);return false;}
+      finally {this.recordChecking=false;}
+    },
+    checkLabel(row) {
+      const zh=this.lang==='zh';
+      const keys=zh?{output:'成片目录',work:'工作目录',destination:'选手目录',windows:'Windows',cs2:'CS2',hlae:'录制组件',ffmpeg:'编码组件',steam_running:'Steam',anticheat:'反作弊客户端',cs2_running:'游戏进程',settings_pending:'设置备份',installing:'组件下载',environment:'环境检测'}
+        :{output:'Output folder',work:'Work folder',destination:'Player folder',windows:'Windows',cs2:'CS2',hlae:'HLAE',ffmpeg:'FFmpeg',steam_running:'Steam',anticheat:'Anti-cheat',cs2_running:'Game process',settings_pending:'Settings backup',installing:'Component download',environment:'Environment scan'};
+      const reasons=zh?{ready:'就绪',missing:'未就绪',not_directory:'路径被文件占用',not_writable:'无法写入，请检查文件夹权限',low_space:'不足 512 MB，无法开始',space_reserve:'可用空间较少，建议先腾出空间',anticheat:'请先退出反作弊客户端',cs2_running:'请先关闭手动运行的 CS2',settings_pending:'请先在准备工作中恢复上次录制的设置',installing:'请等待下载完成',detection_incomplete:'部分项目未能检测，请查看准备工作'}
+        :{ready:'Ready',missing:'Not ready',not_directory:'Path is occupied by a file',not_writable:'Not writable; check folder permissions',low_space:'Less than 512 MB free; cannot start',space_reserve:'Low free space; consider freeing space',anticheat:'Close anti-cheat clients',cs2_running:'Close manually opened CS2',settings_pending:'Restore the previous settings backup in Setup',installing:'Wait for downloads to finish',detection_incomplete:'Some checks were unavailable; see Setup'};
+      return `${keys[row.key] || row.key} · ${reasons[row.reason] || row.reason}${Number.isFinite(row.free_bytes)?(zh?' · 可用 ':' · Free ')+this.gb(row.free_bytes):''}`;
+    },
+    qualityLabel(report) {
+      const labels=this.lang==='zh'?{checking:'正在检查成片…',ok:'抽样未发现异常',warning:'发现疑似问题',error:'无法读取或解码',unavailable:'检查未完成'}
+        :{checking:'Checking video…',ok:'No issues in checked samples',warning:'Possible issues found',error:'Cannot read or decode',unavailable:'Check incomplete'};
+      return labels[report?.state] || (this.lang==='zh'?'尚未检查':'Not checked');
+    },
+    qualityIssue(issue) {
+      return (this.lang==='zh'?{black:'疑似黑屏',freeze:'疑似静止画面',no_audio:'没有音轨'}:{black:'Possible black screen',freeze:'Possible frozen frame',no_audio:'No audio track'})[issue.kind] || issue.kind;
+    },
+    get playingQuality() { return this.libraryVideos.find(v=>v.path===this.playingVideo?.path)?.quality; },
+    async checkVideo(video) {
+      try {await this.post('/api/library/check',{path:video.path});video.quality={state:'checking',issues:[]};}
+      catch(e) {this.toast(e.message);}
     },
     gb(n) { return n >= 1 << 30 ? (n / (1 << 30)).toFixed(1) + " GB" : Math.max(1, Math.round(n / (1 << 20))) + " MB"; },
     setAppearance(v) { this.prefs.appearance = v; this.applyTheme(); this.savePrefs(); },
@@ -897,6 +981,7 @@ document.addEventListener("alpine:init", () => {
       const body = { title: this.reel.title.trim() || this.t(this.currentReelMode.label), summary: this.t("reelSummary", { n: this.reel.items.length }),
                      items: this.reel.items.map(c => ({ demo: c.path, steamid: c.steamid, round: c.round, name: c.name,
                        mode: c.mode || "kills", opponent: c.opponent || "", weapons: this.reel.weapons || [] })), effects };
+      if(!await this.checkRecording({kind:'reel',items:body.items}))return;
       const j = await this.post("/api/queue/add-reel", body);
       this.queue = j.queue; this.job = j;
       if (watch && !wasRunning && !j.queue?.paused) { this.viewId = null; this.reelOpen = false; this.showRun = true; }
@@ -1356,6 +1441,7 @@ document.addEventListener("alpine:init", () => {
       const wasRunning = this.job.state === "running";
       const body = { path: this.demo.path, steamid: this.player.steamid, name: this.player.name,
                      rounds: all ? [] : this.chosenRounds.slice().sort((a, b) => a - b), map: this.demo.map_pretty };
+      if(!await this.checkRecording({kind:'match',...body}))return;
       const j = await this.post("/api/queue/add", body);
       this.queue = j.queue; this.job = j;
       if (watch && !wasRunning && !j.queue?.paused) { this.viewId = null; this.showRun = true; }

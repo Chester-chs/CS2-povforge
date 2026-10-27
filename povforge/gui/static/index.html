@@ -743,7 +743,10 @@
         <div class="actions left">
           <button class="btn primary" @click="retry()" x-text="t('retry')"></button>
           <button class="btn" @click="again()" x-text="t('back')"></button>
+          <button class="btn diagnostics-export" :disabled="diagnosticsBusy" @click="exportDiagnostics()" x-text="lang==='zh'?'导出诊断报告…':'Export diagnostics…'"></button>
         </div>
+        <p class="hint below" x-text="lang==='zh'?'报告仅保存到你选择的文件夹；会隐藏路径、选手身份和敏感日志，不自动上传。':'Saved only to your chosen folder. Paths, player identities and sensitive log lines are hidden; nothing is uploaded.'"></p>
+        <p class="hint path" x-show="diagnosticsPath" x-text="diagnosticsPath"></p>
       </div>
     </template>
 
@@ -755,7 +758,13 @@
 
 <section class="page recording-panel" x-ref="recordingOptions" x-show="booted && !setupOpen && !runVisible && !inspecting && !inspectError" x-cloak>
   <h2 class="settings-heading" x-text="t('recordingSettings')"></h2>
-  <ul class="group">      <li class="row">
+  <ul class="group">
+      <li class="row record-profiles">
+        <label class="row-main" for="record-profile"><b x-text="lang==='zh'?'录制预设':'Recording presets'"></b><small x-text="lang==='zh'?'保存模式、帧率、武器和录制选项；选手与保存位置单独确认。':'Save mode, FPS, weapons and recording options. Review players and destinations separately.'"></small></label>
+        <div class="profile-choices"><select id="record-profile" class="select" x-model="profileSelected" @change="applyRecordingProfile()" :disabled="profileBusy"><option value="" x-text="lang==='zh'?'选择预设…':'Choose preset…'"></option><template x-for="p in (prefs.record_profiles || [])" :key="p.name"><option :value="p.name" x-text="p.name"></option></template></select><button class="btn small" x-show="profileSelected" :disabled="profileBusy" @click="removeRecordingProfile()" x-text="t('remove')"></button></div>
+        <details class="profile-create"><summary x-text="lang==='zh'?'保存当前配置':'Save current options'"></summary><label for="profile-name" class="hint" x-text="lang==='zh'?'预设名称（同名会覆盖）':'Preset name (replaces the same name)'"></label><div><input id="profile-name" class="input" maxlength="40" x-model="profileName" :placeholder="lang==='zh'?'例如：AWP 120 帧':'e.g. AWP 120 FPS'"><button class="btn profile-save" :disabled="profileBusy || !profileName.trim()" @click="saveRecordingProfile()" x-text="lang==='zh'?'保存':'Save'"></button></div></details>
+      </li>
+      <li class="row">
         <span class="row-main"><b x-text="t('recRes')"></b><small x-text="t('recResHelp')"></small></span>
         <span class="fixed-resolution">1080P</span>
       </li>
@@ -770,6 +779,10 @@
         <button class="btn" @click="chooseFolder('output')" x-text="t('chooseFolder')"></button>
       </li>
       <li class="row">
+        <label class="row-main" for="check-video"><b x-text="lang==='zh'?'录制后检查成片':'Check finished videos'"></b><small x-text="lang==='zh'?'检查格式、音轨及开头、中间、结尾的画面样本。结果保存在成片库，不会删除视频。':'Check format, audio and samples at the start, middle and end. Results stay in the library; videos are kept.'"></small></label>
+        <input id="check-video" type="checkbox" class="switch" :checked="prefs.check_video !== false" @change="prefs.check_video=$event.target.checked;savePrefs()">
+      </li>
+      <li class="row">
         <label class="row-main" for="by-player"><b x-text="t('byPlayer')"></b></label>
         <input type="checkbox" class="switch" id="by-player" :checked="prefs.by_player !== false" @change="prefs.by_player = $event.target.checked; savePrefs()">
       </li>
@@ -780,6 +793,9 @@
           <button class="link small" x-show="f.path" @click="choosePlayerOutput(sid, f.name, true)" x-text="t('useDefaultFolder')"></button>
         </li>
       </template>
+      <li class="row record-preflight"><span class="row-main"><b x-text="lang==='zh'?'录制前检查':'Preflight checks'"></b><small x-text="lang==='zh'?'提交任务前检查文件夹、空间和录制环境。空间提示仅作参考，所需空间随内容而变。':'Check folders, free space and recording readiness before submitting. Space needed depends on the content.'"></small></span><button class="btn" :disabled="recordChecking" @click="checkRecording()" x-text="recordChecking?(lang==='zh'?'检查中…':'Checking…'):(lang==='zh'?'检查':'Check')"></button>
+        <div class="record-checks" x-show="recordChecks" aria-live="polite"><p class="hint" x-text="(lang==='zh'?'上次检查：':'Last checked: ')+(recordChecks?.at || '')"></p><ul><template x-for="row in (recordChecks?.checks || [])" :key="row.key"><li :data-state="row.state"><span class="check-symbol" aria-hidden="true" x-text="row.state==='ok'?'✓':row.state==='error'?'!':'·'"></span><span x-text="checkLabel(row)"></span></li></template></ul></div>
+      </li>
 </ul>
 </section>
 
@@ -809,6 +825,10 @@
           <p class="hint" x-show="playerEvents.length" x-text="lang === 'zh' ? '按成片时间跳转。旧录制素材的事件信息可能不完整。' : 'Jump times follow the finished video. Older source recordings may have incomplete event data.'"></p>
         </aside>
       </div>
+      <div class="quality-details" x-show="playingQuality">
+        <h3 x-text="qualityLabel(playingQuality)"></h3><p class="hint" x-text="lang==='zh'?'最多检查 45 秒画面样本；疑似黑屏、静止画面可能是正常场景，请点击时间自行核对。抽样检查不能保证整部视频无问题。':'At most 45 seconds are sampled. Black or static scenes may be intentional; review the timestamps. Sampling cannot guarantee the whole video is fault-free.'"></p>
+        <div class="quality-issues"><template x-for="(issue,i) in (playingQuality?.issues || [])" :key="i"><button class="btn quality-issue" @click="seekVideo(issue.at)" x-text="clock(issue.at)+' · '+qualityIssue(issue)"></button></template></div>
+      </div>
     </section>
   </template>
   <div class="video-filters">
@@ -823,9 +843,9 @@
     <template x-for="v in filteredVideos" :key="v.path">
       <article class="row video-row">
         <span class="video-icon"><svg><use href="#i-film"/></svg></span>
-        <div class="row-main"><b x-text="v.name"></b><small x-text="[modeName(v.mode),...(v.players || []),...(v.maps || [])].filter(Boolean).join(' · ')"></small><small class="path" :title="v.path" x-text="v.path"></small><small class="err" x-show="v.missing" x-text="lang === 'zh' ? '文件已移动或删除，原记录仍保留' : 'File moved or deleted; history retained'"></small></div>
+        <div class="row-main"><b x-text="v.name"></b><small x-text="[modeName(v.mode),...(v.players || []),...(v.maps || [])].filter(Boolean).join(' · ')"></small><small class="path" :title="v.path" x-text="v.path"></small><small class="video-quality" x-text="qualityLabel(v.quality)"></small><small class="err" x-show="v.missing" x-text="lang === 'zh' ? '文件已移动或删除，原记录仍保留' : 'File moved or deleted; history retained'"></small></div>
         <span class="video-meta"><b class="num" x-text="v.duration ? clock(v.duration) : '—'"></b><small class="muted" x-text="ago(v.mtime) + ' · ' + gb(v.size)"></small></span>
-        <div class="video-actions"><button class="btn" :disabled="v.missing" @click="playVideo(v)" x-text="t('play')"></button><button class="btn" :disabled="v.missing" @click="openPath(v.path,true)" x-text="lang === 'zh' ? '文件夹' : 'Folder'"></button></div>
+        <div class="video-actions"><button class="btn" :disabled="v.missing" @click="playVideo(v)" x-text="t('play')"></button><button class="btn" :disabled="v.missing" @click="openPath(v.path,true)" x-text="lang === 'zh' ? '文件夹' : 'Folder'"></button><button class="btn quality-check" :disabled="v.missing || v.quality?.state==='checking' || job.state==='running'" @click="checkVideo(v)" x-text="lang==='zh'?'检查成片':'Check video'"></button></div>
       </article>
     </template>
     <div class="library-empty" x-show="!filteredVideos.length"><p x-text="videosBusy ? (lang === 'zh' ? '正在载入…' : 'Loading…') : (lang === 'zh' ? '没有匹配的成片' : 'No matching videos')"></p></div>
@@ -892,6 +912,7 @@
         </div>
       </li>
 
+      <li class="row"><span class="row-main"><b x-text="lang==='zh'?'诊断报告':'Diagnostics'"></b><small x-text="lang==='zh'?'导出版本、环境状态及最近错误。隐藏路径、选手身份和敏感日志，仅保存到本机。':'Export version, readiness and recent errors. Paths, player identities and sensitive log lines are hidden. Saved locally only.'"></small><small class="path" x-show="diagnosticsPath" x-text="diagnosticsPath"></small></span><button class="btn diagnostics-export" :disabled="diagnosticsBusy" @click="exportDiagnostics()" x-text="lang==='zh'?'导出…':'Export…'"></button></li>
     </ul><div class="setup-continue"><button class="btn" @click="openSetup()" x-text="t('environment')"></button></div>
   </section>
   <section class="about-page" x-show="settingsTab === 'about'">

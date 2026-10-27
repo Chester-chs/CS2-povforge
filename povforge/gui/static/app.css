@@ -792,3 +792,24 @@ body .sheet, .popup-preview { border-radius: var(--popup-radius, 14px); }
 /* Keep disabled labels legible; outlines and native disabled semantics signal state. */
 button:disabled, input:disabled, textarea:disabled, select:disabled { color: var(--label); -webkit-text-fill-color: var(--label); opacity: 1; }
 .demo-art svg { color: var(--accent); }
+
+.record-profiles, .record-preflight { flex-wrap: wrap; }
+.record-profiles > .row-main, .record-preflight > .row-main { flex-basis: 100%; }
+.profile-choices { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; }
+.profile-choices select { flex: 1; min-width: 0; max-width: 100%; }
+.profile-create { width: 100%; font-size: 13px; }
+.profile-create summary { cursor: pointer; line-height: 1.7; }
+.profile-create label { display: block; margin: 12px 0 8px; }
+.profile-create > div { display: flex; align-items: center; gap: 8px; }
+.profile-create input { min-width: 0; width: 100%; background: var(--fill); color: var(--label); border: 0; border-radius: 8px; padding: 9px 10px; font: inherit; }
+.record-checks { width: 100%; margin-top: 8px; }
+.record-checks > ul { list-style: none; margin-top: 10px; }
+.record-checks li { display: flex; align-items: baseline; gap: 8px; padding: 7px 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.check-symbol { display: inline-grid; place-items: center; width: 20px; min-width: 20px; border-radius: 6px; background: var(--fill); font-weight: 700; }
+.record-checks li[data-state=error] .check-symbol { outline: 1px solid var(--label); }
+.quality-details { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--separator); }
+.quality-details h3 { font-size: 14px; margin-bottom: 10px; }
+.quality-details .hint { line-height: 1.7; }
+.quality-issues { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.video-actions { flex-wrap: wrap; justify-content: flex-end; }
+.video-quality { font-weight: 500; }
