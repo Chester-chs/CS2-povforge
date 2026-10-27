@@ -277,7 +277,9 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             assert page.evaluate('uiErrors') == []
             page.evaluate("document.querySelector('.side-foot .icon-btn').click()")
             assert page.wait_for("document.querySelector('.settings-page')?.getBoundingClientRect().height > 0", 3)
-            assert page.evaluate("document.querySelector('.settings-page #by-player') === null && document.querySelector('.recording-panel #by-player') !== null")
+            # The folder rule is a setting; the recording panel only shows where this task saves.
+            assert page.evaluate("document.querySelector('.settings-page #by-player') !== null && document.querySelector('.recording-panel #by-player') === null")
+            assert page.evaluate("document.querySelector('.recording-panel .record-preflight:not(.panel-checks)') === null && document.querySelector('.saving-page .record-preflight') !== null")
             page.evaluate("let font=document.querySelector('#app-font');font.value='yahei';font.dispatchEvent(new Event('change',{bubbles:true}))")
             assert page.wait_for("document.documentElement.dataset.font === 'yahei'", 3)
             page.evaluate("let radius=document.querySelector('#popup-radius');radius.value='24';radius.dispatchEvent(new Event('input',{bubbles:true}));radius.dispatchEvent(new Event('change',{bubbles:true}))")

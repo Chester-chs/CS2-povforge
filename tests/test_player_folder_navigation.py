@@ -50,6 +50,13 @@ app.videoFolder=folders.find(f=>f.name==='m0NESY').path;
 assert.strictEqual(app.filteredVideos.length,1,'folder, mode and search combine');
 app.videoFolder=''; app.videoMode='all'; app.videoQuery='';
 assert.strictEqual(app.filteredVideos.length,6,'all videos still accessible');
+let chips=app.videoModeChips;
+assert.strictEqual(JSON.stringify(chips.map(c=>[c.mode,c.count])),JSON.stringify([['all',6],['match',2],['kill_events',2],['unknown',2]]),'chips count the current view in sidebar order');
+app.videoFolder=donk.path; chips=app.videoModeChips;
+assert.strictEqual(JSON.stringify(chips.map(c=>[c.mode,c.count])),JSON.stringify([['all',2],['match',1],['kill_events',1]]),'chips follow the selected folder');
+app.videoMode='duel'; assert.ok(app.videoModeChips.some(c=>c.mode==='duel'&&c.count===0),'the selected chip stays visible');
+app.libraryVideos.push({path:'C:/Videos/donk666/F.mp4',name:'Legacy',mode:'old-mode'}); app.videoMode='unknown';
+assert.strictEqual(app.filteredVideos.length,1,'unlisted modes count as existing videos');
 '''
     result = subprocess.run(['node', '-', str(Path(__file__).parents[1] / 'povforge/gui/static/app.js')],
                             input=script, text=True, capture_output=True)
@@ -76,7 +83,7 @@ def test_destinations_follow_active_players_and_sidebar_folders_show_contents(wo
             assert page.wait_for("document.querySelectorAll('.demo-card').length===5",15)
             page.evaluate("window.app=Alpine.$data(document.body)")
             assert page.evaluate("document.querySelectorAll('.recording-panel .folder-row').length") == 0
-            assert page.evaluate("document.querySelector('label[for=by-player]').textContent.trim()") == '按选手 ID 建文件夹'
+            assert page.evaluate("document.querySelector('label[for=by-player] b').textContent.trim()") == '按选手 ID 建文件夹'
             page.evaluate("app.pickDemo('C:/Demos/match-0.dem')",await_promise=True)
             page.evaluate("app.player=app.demo.teams[0].players[0]")
             assert page.wait_for("document.querySelectorAll('.recording-panel .folder-row').length===1",3)
@@ -86,7 +93,17 @@ def test_destinations_follow_active_players_and_sidebar_folders_show_contents(wo
             page.evaluate("app.reel.steamid='b';app.recompute()")
             assert page.wait_for("document.querySelector('.recording-panel .folder-row .path')?.textContent==='D:/Custom/m0NESY'",3)
             page.evaluate("app.setReelContent('duel');app.reel.sources[0].opponent='a'")
-            assert page.wait_for("document.querySelectorAll('.recording-panel .folder-row').length===2",3)
+            # A duel is filed under player A only, matching the backend.
+            assert page.wait_for("document.querySelectorAll('.recording-panel .folder-row').length===1",3)
+            assert page.evaluate("document.querySelector('.recording-panel .folder-row .path').textContent") == 'D:/Custom/m0NESY'
+            assert page.evaluate("!document.querySelector('.recording-panel .multi-folder').checkVisibility()")
+            page.evaluate("app.setReelContent('kills');app.reel.sources.push({path:'C:/Demos/match-1.dem',info:app.reel.sources[0].info,steamid:'a',opponent:''});app.setMode('each');app.reel.sources[0].steamid='b';app.reel.sources[1].steamid='a';app.recompute()")
+            assert page.wait_for("document.querySelector('.recording-panel .multi-folder')?.checkVisibility() && document.querySelectorAll('.recording-panel .folder-row').length===0",3)
+            assert page.evaluate("document.querySelector('.recording-panel .multi-folder .path').textContent").endswith('多人集锦')
+            page.evaluate("app.openSettings('saving')",await_promise=True)
+            assert page.wait_for("document.querySelector('.saving-page #by-player')?.checkVisibility()",3)
+            assert page.wait_for("document.querySelectorAll('.settings-player-folder').length===2",3)
+            page.evaluate("app.settingsOpen=false")
             page.evaluate("app.openLibrary()")
             assert page.wait_for("document.querySelectorAll('.recording-panel .folder-row').length===0",3)
             page.evaluate("document.querySelector('.videos-nav').click()")

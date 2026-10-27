@@ -3,7 +3,7 @@
 const TEXT = {
   zh: {
     workspace: "比赛列表", uploadDemo: "上传 Demo", modeKills: "Demo击杀视角", modeKillsDeaths: "Demo击杀和死亡视角", modeDuel: "双人对位数据",
-    settingsAppearance: "外观", settingsGeneral: "通用与存储", settingsAbout: "关于与更新", backRecording: "返回录制",
+    settingsAppearance: "外观", settingsGeneral: "通用与存储", settingsSaving: "保存与文件夹", settingsAbout: "关于与更新", backRecording: "返回录制",
     recordingSettings: "录制与保存", themeHelp: "应用于主界面和弹出窗口。", fontLabel: "字体", fontHelp: "应用于整个界面；缺少所选字体时使用系统字体。",
     font_system: "系统默认", font_segoe: "Segoe UI", font_yahei: "微软雅黑", font_simsun: "宋体", font_arial: "Arial",
     popupRadius: "弹出窗口圆角", popupRadiusHelp: "调整软件内的对话框，不改变 Windows 系统窗口。", appearancePreview: "弹窗预览", appearanceExample: "比赛已准备好，可以开始选择选手。",
@@ -130,7 +130,7 @@ const TEXT = {
   },
   en: {
     workspace: "Matches", uploadDemo: "Upload Demo", modeKills: "Demo kill POV", modeKillsDeaths: "Demo kills and deaths POV", modeDuel: "Head-to-head data",
-    settingsAppearance: "Appearance", settingsGeneral: "General & storage", settingsAbout: "About & updates", backRecording: "Back to recording",
+    settingsAppearance: "Appearance", settingsGeneral: "General & storage", settingsSaving: "Saving & folders", settingsAbout: "About & updates", backRecording: "Back to recording",
     recordingSettings: "Recording & saving", themeHelp: "Applies to the app and its dialogs.", fontLabel: "Font", fontHelp: "Used throughout the app, with system fallback when unavailable.",
     font_system: "System default", font_segoe: "Segoe UI", font_yahei: "Microsoft YaHei", font_simsun: "SimSun", font_arial: "Arial",
     popupRadius: "Dialog corner radius", popupRadiusHelp: "Changes in-app dialogs, not Windows system windows.", appearancePreview: "Dialog preview", appearanceExample: "Your match is ready. Choose a player to continue.",
@@ -382,7 +382,8 @@ document.addEventListener("alpine:init", () => {
       if (meta) meta.content = color;
       this.post('/api/window-theme', {dark: !!dark}).catch(() => {});
     },
-    async openSettings() {
+    async openSettings(tab) {
+      if (typeof tab === 'string') this.settingsTab = tab;
       this.closeVideo();
       this.videosOpen = false;
       this.settingsOpen = true;
@@ -519,20 +520,43 @@ document.addEventListener("alpine:init", () => {
       this.saveFx();
     },
     // --- a folder per player ---
-    get playerFolderList() {
-      if (this.prefs.by_player === false || this.libraryOpen || this.setupOpen || this.videosOpen || this.settingsOpen || this.runVisible) return [];
-      const entries = {};
-      const add = p => {
-        if (p) entries[p.steamid] = {folder:p.name.replace(/[<>:"\/\\|?*]/g, '_'),
-          ...this.prefs.player_folders?.[p.steamid], name:p.name};
-      };
+    // Players whose folder receives the current task's video. The backend files a
+    // reel under its A players only (a duel's opponent B is not the owner).
+    get destinationPlayers() {
       if (this.reelOpen) {
+        const out = [];
         for (const source of this.reel.sources) {
-          add(this.playerIn(source.info, this.srcPlayerId(source)));
-          if (this.reel.content === 'duel') add(this.playerIn(source.info, source.opponent));
+          const p = this.playerIn(source.info, this.srcPlayerId(source));
+          if (p && !out.some(x => x.steamid === p.steamid)) out.push(p);
         }
-      } else if (this.demo) add(this.player);
-      return Object.entries(entries).sort((a, b) => a[1].name.localeCompare(b[1].name));
+        return out;
+      }
+      return this.demo && this.player ? [this.player] : [];
+    },
+    get destinationHidden() {
+      return this.prefs.by_player === false || this.libraryOpen || this.setupOpen || this.videosOpen || this.settingsOpen || this.runVisible;
+    },
+    get multiFolderPath() {
+      if (this.destinationHidden || !this.reelOpen || this.destinationPlayers.length < 2) return '';
+      const base = this.prefs.output || '';
+      return base + (base.includes('\\') ? '\\' : '/') + ((this.prefs.lang || 'zh') === 'en' ? 'Multi-player reels' : '多人集锦');
+    },
+    get playerFolderList() {
+      if (this.destinationHidden) return [];
+      const players = this.destinationPlayers;
+      if (this.reelOpen && players.length > 1) return [];
+      return players.map(p => [p.steamid, {folder:p.name.replace(/[<>:"\/\\|?*]/g, '_'),
+        ...this.prefs.player_folders?.[p.steamid], name:p.name}]);
+    },
+    // Every player folder the app knows about, for Settings.
+    get knownPlayerFolders() {
+      return Object.entries(this.prefs.player_folders || {}).filter(([, f]) => f && f.folder)
+        .sort((a, b) => String(a[1].name || a[1].folder).localeCompare(String(b[1].name || b[1].folder)));
+    },
+    get exampleFolder() {
+      const base = this.prefs.output || '';
+      const sep = base.includes('\\') ? '\\' : '/';
+      return this.prefs.by_player === false ? base : base + sep + (this.lang === 'zh' ? '选手ID' : 'PlayerID');
     },
     folderPath(entry) {
       const base = this.prefs.output || '';
@@ -815,11 +839,28 @@ document.addEventListener("alpine:init", () => {
       return [...folders.values()].sort((a,b) => a.name.localeCompare(b.name) || a.path.localeCompare(b.path));
     },
     get selectedVideoFolder() { return this.videoFolders.find(f => this.folderKey(f.path) === this.folderKey(this.videoFolder)); },
-    get filteredVideos() {
+    videoInView(v) {
       const query = this.videoQuery.trim().toLocaleLowerCase();
-      return this.libraryVideos.filter(v => (this.videoMode === 'all' || v.mode === this.videoMode) &&
-        (!this.videoFolder || this.folderKey(this.videoParent(v.path)) === this.folderKey(this.videoFolder)) &&
-        (!query || [v.name, ...(v.players || []), ...(v.maps || [])].join(' ').toLocaleLowerCase().includes(query)));
+      return (!this.videoFolder || this.folderKey(this.videoParent(v.path)) === this.folderKey(this.videoFolder)) &&
+        (!query || [v.name, ...(v.players || []), ...(v.maps || [])].join(' ').toLocaleLowerCase().includes(query));
+    },
+    get filteredVideos() {
+      return this.libraryVideos.filter(v => (this.videoMode === 'all' || this.videoModeKey(v) === this.videoMode) && this.videoInView(v));
+    },
+    videoModeKey(v) { return ['match', ...this.reelModes.map(m => m.value)].includes(v.mode) ? v.mode : 'unknown'; },
+    // Mode chips for the library: every mode present in the current folder/search,
+    // in sidebar order, with counts. The selected mode stays visible even at zero.
+    get videoModeChips() {
+      const counts = {};
+      let total = 0;
+      for (const v of this.libraryVideos) {
+        if (!this.videoInView(v)) continue;
+        const mode = this.videoModeKey(v);
+        counts[mode] = (counts[mode] || 0) + 1; total++;
+      }
+      const order = ['match', ...this.reelModes.map(m => m.value), 'unknown'];
+      return [{mode:'all', label:this.lang === 'zh' ? '全部' : 'All', count:total},
+        ...order.filter(m => counts[m] || m === this.videoMode).map(m => ({mode:m, label:this.modeName(m), count:counts[m] || 0}))];
     },
     async playVideo(video) {
       this.closeVideo();
