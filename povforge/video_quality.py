@@ -170,7 +170,11 @@ class Manager:
             self.pending.append(key)
             if self.worker is None:
                 self.worker=threading.Thread(target=self._work,daemon=True)
-                self.worker.start()
+                try:
+                    self.worker.start()
+                except RuntimeError:
+                    self.worker=None;self.pending.remove(key)
+                    return False
         return True
 
     def _work(self):
@@ -195,4 +199,3 @@ class Manager:
             try: proc.kill()
             except OSError: pass
         if self.worker: self.worker.join(6)
-
