@@ -1647,7 +1647,12 @@ def make_handler(app: App):
                     from ..preflight import environment
                     item = {'kind': 'reel', 'reel': b.get('items') or []} if b.get('kind') == 'reel' else {
                         'kind':'match','steamid':str(b.get('steamid') or ''),'name':str(b.get('name') or '')[:80]}
-                    checks = recording_storage(app.prefs, item) + environment(app.setup.status())
+                    status = dict(app.setup.status())
+                    # These conditions belong to the app's current recording;
+                    # queued work begins after its normal cleanup finishes.
+                    if getattr(getattr(app, 'job', None), 'busy', False):
+                        status.update(cs2_running=False, settings_pending=False)
+                    checks = recording_storage(app.prefs, item) + environment(status)
                     return self._json({'checks':checks,'ok':not any(r['state']=='error' for r in checks)})
                 if url.path.startswith('/api/profiles/'):
                     from .. import record_profiles
