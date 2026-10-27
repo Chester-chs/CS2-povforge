@@ -24,3 +24,9 @@ Checks:
   rewritten for the single switch. Local Linux suite: only the 14 pre-existing
   environment-dependent failures (same set before and after the change).
 - No CS2 launch, no game-setting changes.
+
+Published 2026-10-27T22:52:29Z from d91024f via workflow 40596988101
+(422 passed, 25 skipped), Setup and portable assets uploaded. Two earlier
+attempts (run 40595343504) failed only test_first_use_opens_the_notes_at_the_top_of_the_sidebar;
+the unchanged v0.20.0 tag failed it too in a build-only run (40596485193). The test
+now waits for Alpine boot before reading app data (CI timing race, not app code).
