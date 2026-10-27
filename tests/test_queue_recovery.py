@@ -97,3 +97,16 @@ def test_restored_settings_do_not_replace_current_app_preferences(tmp_path,monke
     assert captured['record_fps']==120
     assert server.load_prefs()['record_fps']==60
     assert restored.snapshot()['items'][0]['state']=='error'
+
+
+def test_failed_restored_task_leaves_remaining_queue_resumable(tmp_path):
+    store=tmp_path/'queue.json';first=Queue(FakeJob(),{},store=store)
+    first.add('missing.dem','1','A',[],'');first.add('valid.dem','2','B',[],'')
+    class MissingFirst(FakeJob):
+        def start(self,item,prefs):
+            if item['name']=='A': raise OSError('Demo missing')
+            super().start(item,prefs)
+    restored=Queue(MissingFirst(),{},store=store);restored.resume()
+    assert restored.snapshot()['paused']
+    assert [i['state'] for i in restored.snapshot()['items']]==['error','queued']
+    restored.resume();assert restored.job.started==['B']
