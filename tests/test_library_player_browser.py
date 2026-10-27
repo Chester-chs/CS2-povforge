@@ -41,11 +41,11 @@ def test_recovered_queue_weapon_ui_and_real_video_event_seeking(workspace_site,t
             assert page.wait_for("document.querySelector('.library-video')?.readyState>=2",10)
             assert page.evaluate("document.querySelectorAll('.player-event').length")==3
             page.evaluate("document.querySelector('.library-video').pause();document.querySelector('[data-event-kind=kill]').click()")
-            assert page.wait_for("Math.abs(document.querySelector('.library-video').currentTime-1)<.15",4),page.evaluate("JSON.stringify({current:document.querySelector('.library-video').currentTime,duration:document.querySelector('.library-video').duration,paused:document.querySelector('.library-video').paused,seek:app.playerSeek,ref:!!app.$refs.libraryVideo,errors:uiErrors})")
+            assert page.wait_for("!document.querySelector('.library-video').seeking && Math.abs(document.querySelector('.library-video').currentTime-1)<.15",4),page.evaluate("JSON.stringify({current:document.querySelector('.library-video').currentTime,duration:document.querySelector('.library-video').duration,paused:document.querySelector('.library-video').paused,seek:app.playerSeek,ref:!!app.$refs.libraryVideo,errors:uiErrors})")
             page.evaluate("document.querySelector('.event-next').click()")
-            assert page.wait_for("Math.abs(document.querySelector('.library-video').currentTime-2.5)<.15",4)
+            assert page.wait_for("!document.querySelector('.library-video').seeking && Math.abs(document.querySelector('.library-video').currentTime-2.5)<.15",4)
             page.evaluate("document.querySelector('.event-prev').click()")
-            assert page.wait_for("Math.abs(document.querySelector('.library-video').currentTime-1)<.15",4)
+            assert page.wait_for("!document.querySelector('.library-video').seeking && Math.abs(document.querySelector('.library-video').currentTime-1)<.15",4)
             page.evaluate("app.lang='en';app.prefs.appearance='dark';app.applyTheme()")
             assert page.wait_for("getComputedStyle(document.querySelector('.player-event span')).color==='rgb(255, 255, 255)'",3)
             if os.environ.get('POVFORGE_PLAYER_SHOTS'):

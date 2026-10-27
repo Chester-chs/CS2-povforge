@@ -1,6 +1,38 @@
-# POVForge handoff — 2026-10-25
+# POVForge handoff — 2026-10-27
 
 ## Current agreed scope
+
+v0.17.0 adds persisted queued tasks, weapon filtering and library playback with
+finished-video event jumps. queue.json is bounded and atomically replaced after
+flushing; recovered running tasks become queued and the queue starts paused.
+Per-task options are captured when queued. Job preparation preserves current
+app preferences while using the saved options, including player destinations.
+No draft editor autosave or automatic startup recording is added.
+
+ReelItem carries normalized weapon identifiers through GUI, queue, CLI and disk.
+Solo windows are merged before filtering, preserving mixed-weapon streaks.
+Highlights retain an entire matching round's first-to-last-kill sequence; duel
+filtering retains each selected A/B encounter. Frontend windows, estimates,
+labels and victim choices agree. Whole-match recording is unchanged.
+
+New jobs save event-index.json with source kill/death metadata. Finished MP4s
+get a stat-bound .mp4.povforge.json index outside work files. Plain composition
+uses actual piece durations; effects use the render speed map, cards and actual
+overlaps. Inline replays are included in output offsets. Old source jobs can
+fall back to kill markers; old videos without indexes remain playable.
+Library playback uses a same-origin/CSRF-protected POST to create an opaque,
+bounded, expiring video handle. GET/Range streams only that registered video;
+arbitrary client paths, wrong Host and changed files are rejected. No Demo
+parse, mass probe, new dependency or game process is needed to view videos.
+
+Local full regression: 397 passed in 184.92s. Later targeted assertions for
+live-preference preservation and filtered replay choices passed 13/13; the
+real-player/queue/filter target passed 9/9. Player checks decode synthetic H.264
+Startup failures now pause remaining queued work so the Resume action stays
+available; 51 queue/lifecycle/GUI checks passed in 2.92s after this final fix.
+and wait for seeking to finish; 900px geometry and 1920px light/dark previews
+were checked. Existing text audits include the player in light/dark/Auto.
+See docs/releases/v0.17.0/verification.md for checkpoints and limits.
 
 v0.16.4 simplifies the by-player switch to one line. Player destination rows are
 derived only from the active whole-match player or the reel's selected players

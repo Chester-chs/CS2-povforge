@@ -1,22 +1,22 @@
-## PovForge v0.16.4
+## PovForge v0.17.0
 
 Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** is the portable edition.
 
 ### English
 
-- Keep the per-player-folder switch to a single line. Show destination paths only for players selected on the current recording page.
-- Expand Video library in the sidebar to browse player folders, see video counts and filter the finished videos by folder. Custom output folders and existing videos are included.
-- Default reel timing now keeps 5 seconds before and 3 seconds after each kill. Overlapping solo windows merge, keeping multi-kills continuous; highlight rounds retain all footage between kills. Pre-recording estimates use the same timing.
-- Keep the current rounded layout and readable black/white text in light/dark modes.
+- Save queued tasks and their original recording options automatically. After restarting, unfinished tasks wait paused until Resume; valid recorded footage can be reused.
+- Filter Kill POV, Kills/deaths, Head-to-head and Highlights by weapon. Mixed-weapon streaks stay continuous. Estimates, labels and victim replay choices follow retained footage.
+- Play videos inside the library and jump to rounds, kills, deaths or replays. Event times account for actual clip starts, cards, slow motion, transitions and inserted replays.
+- Retain the rounded layout and black/white theme text. Old videos remain playable without indexes; unsupported formats can open in the system player. Keep the adjacent .mp4.povforge.json file when moving indexed videos.
 
 ### 简体中文
 
 下载安装或更新请使用 **PovForge-Setup.exe**；免安装版使用 **PovForge-windows.zip**。
 
-- “按选手 ID 建文件夹”仅保留一行；保存地址只在具体录制页面显示当前选手的对应路径。
-- 成片库左侧可展开选手文件夹，显示视频数量，点击查看该文件夹内的成片，兼容自选保存目录和已有视频。
-- 集锦默认保留击杀前 5 秒、后 3 秒。单人事件片段重叠时合并，连杀过程连续保留；高光回合保留击杀之间的完整过程。录制前的预计时长同步更新。
-- 保持当前圆角布局，浅色黑字、深色白字。
+- 自动保存队列任务及原来的录制选项。重启后未完成任务先暂停，点击“继续队列”开始，可复用有效的已录素材。
+- 按武器筛选击杀视角、击杀死亡视角、双人对位和高光集锦。混合武器连杀整段保留；预计时长、击杀标签和受害者重放列表同步更新。
+- 成片库内置播放器，可按回合、击杀、死亡、重放跳转，也可使用上一个／下一个。时间索引考虑实际录制起点、片头、慢动作、转场和插入重放。
+- 保持圆角布局与浅色黑字、深色白字。旧视频没有索引也可播放，格式不兼容时可用系统播放器。搬运成片时请保留旁边的 .mp4.povforge.json 索引文件。
 
 Development and testing did not launch CS2 or change the owner's game settings.
 开发和验证未启动 CS2，未修改用户游戏设置。

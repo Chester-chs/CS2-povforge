@@ -41,9 +41,13 @@ Demo analysis is saved locally and reused after restarting the app. **Analysis s
 
 ## Before recording and your video library
 
+- **Saved tasks:** once queued, player/round selections, mode, weapon filters, effects and recording options are saved automatically. After restarting, unfinished tasks wait paused until you click **Resume**. Valid recorded footage is reused; interrupted/missing parts need recording again. Restored jobs retain their original options without replacing current app preferences.
+- **Weapon filters:** select AWP, AK-47, M4A4 or other weapons in Kill POV, Kills/deaths POV, Head-to-head and Highlights. Keep sequences containing a matching kill, including the entire mixed-weapon streak. **All weapons** clears the filter; duration estimates and victim replay choices follow the retained footage.
 - **Estimated result:** after choosing players and rounds, check the main-footage duration and merged segment count. These exclude extra replays, intros/outros, slow motion and transitions. After three local recordings with matching mode and FPS, previous jobs provide ranges for processing time and output size. Temporary footage needs extra disk space.
 - **Weapons per round:** all five modes show summaries such as `AK-47 ×2 · M4A4 ×1`. Expand a round for event times, players, weapons and headshots. Head-to-head shows only the selected pair's encounters. Previously cached demos need one additional read for the new timing/weapon index, which is then reused.
 - **Video library:** open it from the sidebar to search by player, map or title, filter by mode, play videos and show their folders. Expand the arrow beside **Video library** to see player folders and video counts; select a folder to browse its contents, or click **Video library** for all videos. New results persist across restarts and queue clearing. Existing videos are discovered in configured output/player folders; their mode, map or duration may be unknown. Moved/deleted files are marked, without rerecording or changing the originals.
+
+Click **Play video** in the library, then jump to rounds, kills, deaths or replays using the event list and Previous/Next controls. Times follow the finished video, including cards, slow motion, transitions and victim replays. Keep the `.mp4.povforge.json` index beside the video when moving it. Older videos remain playable without an index; older source recordings may have incomplete event data. Use the system player if the format is unsupported.
 
 ## Choose what to record
 
