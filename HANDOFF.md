@@ -28,10 +28,10 @@ parse, mass probe, new dependency or game process is needed to view videos.
 Local full regression: 397 passed in 184.92s. Later targeted assertions for
 live-preference preservation and filtered replay choices passed 13/13; the
 real-player/queue/filter target passed 9/9. Player checks decode synthetic H.264
-Startup failures now pause remaining queued work so the Resume action stays
-available; 51 queue/lifecycle/GUI checks passed in 2.92s after this final fix.
 and wait for seeking to finish; 900px geometry and 1920px light/dark previews
 were checked. Existing text audits include the player in light/dark/Auto.
+Startup failures now pause remaining queued work so the Resume action stays
+available; 51 queue/lifecycle/GUI checks passed in 2.92s after this final fix.
 See docs/releases/v0.17.0/verification.md for checkpoints and limits.
 
 v0.16.4 simplifies the by-player switch to one line. Player destination rows are
