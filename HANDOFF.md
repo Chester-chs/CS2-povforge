@@ -2,6 +2,11 @@
 
 ## Current agreed scope
 
+Owner standing instruction (2026-10-27): after each major change is finished
+and tested, push it to main and publish the matching release (version bump,
+release notes, Windows workflow manual dispatch with release=vX.Y.Z) without
+asking again. Launching CS2/HLAE or touching real game settings stays forbidden.
+
 v0.19.1 (owner request): Auto matchmaking is a sidebar peer of the five modes
 (6th .modes tab, own page via app.page='auto'), not a Settings tab. First-use
 notes are the very first sidebar entry (app.page='notes'), auto-open until
