@@ -91,3 +91,8 @@ def test_preflight_does_not_block_queueing_behind_owned_running_game(http_app):
     assert status==200 and json.loads(data)['ok'], 'Current task owns these temporary recording conditions'
 
 
+def test_preflight_rejects_malformed_reel_before_storage_probe(http_app):
+    app,_,authority,request=http_app
+    headers=authorize(authority,request)
+    for items in ({'steamid':'a'},['not a row'],[{'name':'missing id'}]):
+        assert request('/api/preflight','POST',headers,json.dumps({'kind':'reel','items':items}))[0]==400
