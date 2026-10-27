@@ -39,9 +39,12 @@ def app_dir() -> Path:
     return Path(base) / "povforge"
 
 
+DEFAULT_OUTPUT_NAME = "职业选手POV"   # new installs; saved choices are never changed
+
+
 def default_output() -> Path:
     videos = Path.home() / "Videos"
-    return (videos if videos.is_dir() else Path.home()) / "PovForge"
+    return (videos if videos.is_dir() else Path.home()) / DEFAULT_OUTPUT_NAME
 
 
 ACCENTS = ("blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite")

@@ -498,3 +498,10 @@ def test_job_config_quality(tmp_path, monkeypatch):
     assert cfg.upload.upscale == 0
     cfg = load_config(server.write_job_config({**prefs, "record_res": "1080", "record_fps": 60, "upload_4k": False}))
     assert (cfg.record.height, cfg.compose.preset, cfg.upload.upscale) == (1080, "medium", 0)
+
+
+def test_new_installs_default_to_the_pro_pov_folder(monkeypatch, tmp_path):
+    from povforge.gui import server
+    monkeypatch.setattr(server.Path, "home", classmethod(lambda cls: tmp_path))
+    (tmp_path / "Videos").mkdir()
+    assert server.default_output() == tmp_path / "Videos" / "职业选手POV"

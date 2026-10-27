@@ -774,27 +774,35 @@
           <template x-for="rate in [24,30,60,120,144,240]" :key="rate"><option :value="rate" x-text="rate + ' FPS'"></option></template>
         </select>
       </li>
-      <li class="row output-root">
-        <span class="row-main"><b x-text="t('saveTo')"></b><small class="path" x-text="prefs.output" :title="prefs.output"></small></span>
-        <button class="btn" @click="chooseFolder('output')" x-text="t('chooseFolder')"></button>
-      </li>
       <li class="row">
         <label class="row-main" for="check-video"><b x-text="lang==='zh'?'录制后检查成片':'Check finished videos'"></b><small x-text="lang==='zh'?'检查格式、音轨及开头、中间、结尾的画面样本。结果保存在成片库，不会删除视频。':'Check format, audio and samples at the start, middle and end. Results stay in the library; videos are kept.'"></small></label>
         <input id="check-video" type="checkbox" class="switch" :checked="prefs.check_video !== false" @change="prefs.check_video=$event.target.checked;savePrefs()">
       </li>
-      <li class="row">
-        <label class="row-main" for="by-player"><b x-text="t('byPlayer')"></b></label>
-        <input type="checkbox" class="switch" id="by-player" :checked="prefs.by_player !== false" @change="prefs.by_player = $event.target.checked; savePrefs()">
+      <!-- Where this task's video goes. The folder rules live in Settings › Saving & folders. -->
+      <li class="row output-root" x-show="!playerFolderList.length && !multiFolderPath">
+        <span class="row-main"><b x-text="t('saveTo')"></b><small class="path" x-text="prefs.output" :title="prefs.output"></small>
+          <small x-show="prefs.by_player !== false" x-text="lang==='zh'?'选好选手后，视频会存进以选手 ID 命名的子文件夹。':'After you pick a player, videos go into a subfolder named after the player ID.'"></small></span>
+        <button class="btn" @click="chooseFolder('output')" x-text="t('chooseFolder')"></button>
       </li>
       <template x-for="[sid, f] in playerFolderList" :key="sid">
-        <li class="row sub folder-row">
-          <span class="row-main"><b x-text="f.name"></b><small class="path" x-text="folderPath(f)" :title="folderPath(f)"></small></span>
+        <li class="row folder-row">
+          <span class="row-main"><b x-text="(lang==='zh'?'保存到 · ':'Save to · ')+f.name"></b><small class="path" x-text="folderPath(f)" :title="folderPath(f)"></small></span>
           <button class="btn" @click="choosePlayerOutput(sid, f.name)" x-text="t('chooseFolder')"></button>
           <button class="link small" x-show="f.path" @click="choosePlayerOutput(sid, f.name, true)" x-text="t('useDefaultFolder')"></button>
         </li>
       </template>
-      <li class="row record-preflight"><span class="row-main"><b x-text="lang==='zh'?'录制前检查':'Preflight checks'"></b><small x-text="lang==='zh'?'提交任务前检查文件夹、空间和录制环境。空间提示仅作参考，所需空间随内容而变。':'Check folders, free space and recording readiness before submitting. Space needed depends on the content.'"></small></span><button class="btn" :disabled="recordChecking" @click="checkRecording()" x-text="recordChecking?(lang==='zh'?'检查中…':'Checking…'):(lang==='zh'?'检查':'Check')"></button>
-        <div class="record-checks" x-show="recordChecks" aria-live="polite"><p class="hint" x-text="(lang==='zh'?'上次检查：':'Last checked: ')+(recordChecks?.at || '')"></p><ul><template x-for="row in (recordChecks?.checks || [])" :key="row.key"><li :data-state="row.state"><span class="check-symbol" aria-hidden="true" x-text="row.state==='ok'?'✓':row.state==='error'?'!':'·'"></span><span x-text="checkLabel(row)"></span></li></template></ul></div>
+      <li class="row multi-folder" x-show="multiFolderPath">
+        <span class="row-main"><b x-text="(lang==='zh'?'保存到 · 多人集锦':'Save to · Multi-player reels')"></b><small class="path" x-text="multiFolderPath" :title="multiFolderPath"></small>
+          <small x-text="lang==='zh'?'这条集锦包含多位选手，合成一个视频后统一放在这里。':'This reel combines several players into one video, saved here.'"></small></span>
+      </li>
+      <li class="row save-rule">
+        <span class="row-main"><small x-text="prefs.by_player === false ? (lang==='zh'?'按选手 ID 建文件夹：已关闭':'Folder per player ID: off') : (lang==='zh'?'按选手 ID 建文件夹：已开启':'Folder per player ID: on')"></small></span>
+        <button class="link small" @click="openSettings('saving')" x-text="lang==='zh'?'在设置中修改':'Change in Settings'"></button>
+      </li>
+      <li class="row record-preflight panel-checks" x-show="recordChecks && recordChecks.ok === false">
+        <span class="row-main"><b x-text="lang==='zh'?'录制前检查发现问题':'Preflight found problems'"></b><small x-text="lang==='zh'?'处理以下项目后再开始录制。':'Resolve these items before recording.'"></small></span>
+        <button class="btn" :disabled="recordChecking" @click="checkRecording()" x-text="recordChecking?(lang==='zh'?'检查中…':'Checking…'):(lang==='zh'?'重新检查':'Check again')"></button>
+        <div class="record-checks" aria-live="polite"><p class="hint" x-text="(lang==='zh'?'上次检查：':'Last checked: ')+(recordChecks?.at || '')"></p><ul><template x-for="row in (recordChecks?.checks || [])" :key="row.key"><li :data-state="row.state"><span class="check-symbol" aria-hidden="true" x-text="row.state==='ok'?'✓':row.state==='error'?'!':'·'"></span><span x-text="checkLabel(row)"></span></li></template></ul></div>
       </li>
 </ul>
 </section>
@@ -832,11 +840,12 @@
     </section>
   </template>
   <div class="video-filters">
-    <label class="video-search search-field"><svg><use href="#i-search"/></svg><input type="search" x-model="videoQuery" :placeholder="lang === 'zh' ? '搜索选手、地图或视频名称' : 'Search player, map or video'" :aria-label="lang === 'zh' ? '搜索成片' : 'Search videos'"></label>
-    <select class="select" x-model="videoMode" :aria-label="lang === 'zh' ? '录制模式' : 'Recording mode'">
-      <option value="all" x-text="lang === 'zh' ? '全部模式' : 'All modes'"></option>
-      <template x-for="m in ['match',...reelModes.map(m=>m.value),'unknown']" :key="m"><option :value="m" x-text="modeName(m)"></option></template>
-    </select>
+    <label class="video-search search-field"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input type="search" x-model="videoQuery" :placeholder="lang === 'zh' ? '搜索选手、地图或视频名称' : 'Search player, map or video'" :aria-label="lang === 'zh' ? '搜索成片' : 'Search videos'"></label>
+  </div>
+  <div class="video-mode-chips" role="radiogroup" :aria-label="lang === 'zh' ? '录制模式' : 'Recording mode'">
+    <template x-for="chip in videoModeChips" :key="chip.mode">
+      <button class="mode-chip" role="radio" :data-mode="chip.mode" :aria-checked="videoMode === chip.mode" @click="videoMode = chip.mode"><span x-text="chip.label"></span><small class="num" x-text="chip.count"></small></button>
+    </template>
   </div>
   <p class="footnote err" x-show="videosError" x-text="videosError"></p>
   <div class="group video-list" :aria-busy="videosBusy">
@@ -856,7 +865,7 @@
   <button class="back-library link" @click="settingsOpen = false" x-text="t('backRecording')"></button>
   <header class="title-block"><h1 x-text="t('settings')"></h1></header>
   <nav class="settings-tabs" role="tablist" :aria-label="t('settings')">
-    <template x-for="tab in [['appearance','settingsAppearance'],['general','settingsGeneral'],['about','settingsAbout']]" :key="tab[0]">
+    <template x-for="tab in [['appearance','settingsAppearance'],['general','settingsGeneral'],['saving','settingsSaving'],['about','settingsAbout']]" :key="tab[0]">
       <button role="tab" :data-settings-tab="tab[0]" :aria-selected="settingsTab === tab[0]" @click="settingsTab = tab[0]" x-text="t(tab[1])"></button>
     </template>
   </nav>
@@ -891,10 +900,6 @@
         <button class="btn" @click="chooseFolder('demos')" x-text="t('change')"></button>
       </li>
       <li class="row">
-        <span class="row-main"><b x-text="t('outputFolderLabel')"></b><small class="path" x-text="prefs.output" :title="prefs.output"></small></span>
-        <button class="btn" @click="chooseFolder('output').then(() => openSettings())" x-text="t('change')"></button>
-      </li>
-      <li class="row">
         <span class="row-main">
           <b x-text="t('workFiles')"></b>
           <small x-text="work.bytes === null ? '…' : (work.bytes ? t('workUsed', { size: gb(work.bytes) }) : t('workNone'))"></small>
@@ -914,6 +919,35 @@
 
       <li class="row"><span class="row-main"><b x-text="lang==='zh'?'诊断报告':'Diagnostics'"></b><small x-text="lang==='zh'?'导出版本、环境状态及最近错误。隐藏路径、选手身份和敏感日志，仅保存到本机。':'Export version, readiness and recent errors. Paths, player identities and sensitive log lines are hidden. Saved locally only.'"></small><small class="path" x-show="diagnosticsPath" x-text="diagnosticsPath"></small></span><button class="btn diagnostics-export" :disabled="diagnosticsBusy" @click="exportDiagnostics()" x-text="lang==='zh'?'导出…':'Export…'"></button></li>
     </ul><div class="setup-continue"><button class="btn" @click="openSetup()" x-text="t('environment')"></button></div>
+  </section>
+  <section class="saving-page" x-show="settingsTab === 'saving'"><h2 class="settings-heading" x-text="t('settingsSaving')"></h2>
+    <ul class="group">
+      <li class="row">
+        <span class="row-main"><b x-text="t('outputFolderLabel')"></b><small x-text="lang==='zh'?'所有模式的成片都保存在这里。':'Videos from every mode are saved here.'"></small><small class="path" x-text="prefs.output" :title="prefs.output"></small></span>
+        <button class="btn" @click="chooseFolder('output').then(() => openSettings())" x-text="t('change')"></button>
+      </li>
+      <li class="row">
+        <label class="row-main" for="by-player"><b x-text="t('byPlayer')"></b><small x-text="t('byPlayerHelp')"></small><small class="path" x-text="(lang==='zh'?'例如：':'Example: ')+exampleFolder"></small></label>
+        <input type="checkbox" class="switch" id="by-player" :checked="prefs.by_player !== false" @change="prefs.by_player = $event.target.checked; savePrefs()">
+      </li>
+      <li class="row note-row"><small x-text="lang==='zh'?'整场录制、击杀视角、击杀和死亡视角、双人对位和高光集锦都按选手 ID 分类；双人对位存到选手 A 的文件夹；包含多位选手的集锦存到“多人集锦”。':'Whole match, kill POV, kills and deaths POV, duel and highlight videos are all sorted by player ID. Duels go to player A’s folder; reels with several players go to “Multi-player reels”.'"></small></li>
+    </ul>
+    <h3 class="group-title" x-show="prefs.by_player !== false && knownPlayerFolders.length" x-text="lang==='zh'?'选手文件夹':'Player folders'"></h3>
+    <ul class="group player-folders" x-show="prefs.by_player !== false && knownPlayerFolders.length">
+      <template x-for="[sid, f] in knownPlayerFolders" :key="sid">
+        <li class="row settings-player-folder">
+          <span class="row-main"><b x-text="f.name || f.folder"></b><small class="path" x-text="folderPath(f)" :title="folderPath(f)"></small></span>
+          <button class="btn" @click="choosePlayerOutput(sid, f.name || f.folder)" x-text="t('chooseFolder')"></button>
+          <button class="link small" x-show="f.path" @click="choosePlayerOutput(sid, f.name || f.folder, true)" x-text="t('useDefaultFolder')"></button>
+        </li>
+      </template>
+    </ul>
+    <h3 class="group-title" x-text="lang==='zh'?'录制前检查':'Preflight checks'"></h3>
+    <ul class="group">
+      <li class="row record-preflight"><span class="row-main"><b x-text="lang==='zh'?'检查录制环境':'Check recording readiness'"></b><small x-text="lang==='zh'?'检查文件夹、空间和录制环境。提交任务时也会自动检查；空间提示仅作参考，所需空间随内容而变。':'Check folders, free space and recording readiness. Submitting a task checks again automatically. Space needed depends on the content.'"></small></span><button class="btn" :disabled="recordChecking" @click="checkRecording()" x-text="recordChecking?(lang==='zh'?'检查中…':'Checking…'):(lang==='zh'?'检查':'Check')"></button>
+        <div class="record-checks" x-show="recordChecks" aria-live="polite"><p class="hint" x-text="(lang==='zh'?'上次检查：':'Last checked: ')+(recordChecks?.at || '')"></p><ul><template x-for="row in (recordChecks?.checks || [])" :key="row.key"><li :data-state="row.state"><span class="check-symbol" aria-hidden="true" x-text="row.state==='ok'?'✓':row.state==='error'?'!':'·'"></span><span x-text="checkLabel(row)"></span></li></template></ul></div>
+      </li>
+    </ul>
   </section>
   <section class="about-page" x-show="settingsTab === 'about'">
     <header class="about-hero"><img src="/static/icon.png" alt="PovForge"><h2>PovForge</h2><p x-text="t('aboutDescription')"></p><span class="version-badge" x-text="t('aboutVersion', {v: version})"></span></header>
