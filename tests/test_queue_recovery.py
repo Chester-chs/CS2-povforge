@@ -79,3 +79,21 @@ def test_removing_all_recovered_tasks_clears_recovery_notice(tmp_path):
     assert not restored.snapshot()['recovered']
     restored.add('x.dem','2','B',[],'')
     assert restored.job.started==['B']
+
+
+def test_restored_settings_do_not_replace_current_app_preferences(tmp_path,monkeypatch):
+    from povforge.gui import server
+    monkeypatch.setenv('POVFORGE_STATE',str(tmp_path/'state'))
+    prefs=server.load_prefs();prefs['output']=str(tmp_path/'videos');prefs['record_fps']=120
+    store=tmp_path/'queue.json';first=Queue(FakeJob(),prefs,store=store)
+    first.add('x.dem','1','A',[],'');prefs['record_fps']=60;server.save_prefs(prefs)
+    captured={};original=server.write_job_config
+    def config(settings,videos):
+        captured.update(settings);return original(settings,videos)
+    monkeypatch.setattr(server,'write_job_config',config)
+    def fail(*a,**kw):raise OSError('isolated test: no game process')
+    monkeypatch.setattr(server.subprocess,'Popen',fail)
+    restored=Queue(server.Job(),prefs,store=store);restored.resume()
+    assert captured['record_fps']==120
+    assert server.load_prefs()['record_fps']==60
+    assert restored.snapshot()['items'][0]['state']=='error'
