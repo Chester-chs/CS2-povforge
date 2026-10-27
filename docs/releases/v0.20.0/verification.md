@@ -23,4 +23,14 @@ draws the observed crosshair with `cl_show_observer_crosshair 2` /
 
 ## Published package
 
-Filled in after the Windows workflow completes.
+- Source: `687114fb81e9e1ddc19ec3d4d89ad924ddc20b19` (main), manual dispatch
+  `release: v0.20.0`.
+- [Release](https://github.com/Chester-chs/CS2-povforge/releases/tag/v0.20.0)
+  published 2026-10-27T22:20:21Z; public, latest, both assets uploaded.
+- [Windows workflow](https://github.com/Chester-chs/CS2-povforge/actions/runs/40592860933):
+  **416 passed, 25 skipped in 120.67s**. Build, bundled FFmpeg, smoke, installer,
+  incremental update, native WebView2 window and uninstall checks passed.
+- Installer: 139418744 bytes; SHA-256
+  `ed9c1ec8b189373d989935d52db3841cd7f06a4f9a7ab0a6bfb5870f8272c5f0`.
+- Portable ZIP: 218481904 bytes; SHA-256
+  `4c01037034c7a2630ef266c250e9ca12c26e5e8a309d9a70e733ddbfa9b40a72`.
