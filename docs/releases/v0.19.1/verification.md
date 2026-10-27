@@ -19,4 +19,14 @@ recording and auto-matchmaking notes. No recording/queue/watcher logic changed.
 
 ## Published package
 
-Filled in after the Windows workflow completes.
+- Source: `b7b44d40821acd5a2e7db0deac70467f3752b7cd` (main), manual dispatch
+  `release: v0.19.1`.
+- [Release](https://github.com/Chester-chs/CS2-povforge/releases/tag/v0.19.1)
+  published 2026-10-27T21:20:54Z; public, latest, both assets uploaded.
+- [Windows workflow](https://github.com/Chester-chs/CS2-povforge/actions/runs/40584861866):
+  **409 passed, 24 skipped in 110.99s**. Build, bundled FFmpeg, smoke, installer,
+  incremental update, native WebView2 window and uninstall checks passed.
+- Installer: 139386926 bytes; SHA-256
+  `4706ebc53ee574b17adead5308224c57e8e2e520aed93ba607ef8f31e2e0d67f`.
+- Portable ZIP: 218466417 bytes; SHA-256
+  `793ea24b93c2bc5ecf93a1e3d48123904a8f59e0b035e056bae4fc67cc0ac8ae`.
