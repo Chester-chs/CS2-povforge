@@ -2,6 +2,15 @@
 
 ## Current agreed scope
 
+v0.18.1 (owner-requested UX update, merged as PR #1): by-player folder switch,
+known player folders and preflight moved to Settings → Saving & folders
+(reverses the v0.15.x choice of keeping them in the recording panel). The
+recording panel shows the task's real destination, matching videos_folder:
+duel = player A only, several A players = multi-player folder. New installs
+default to Videos/职业选手POV; saved prefs unchanged. Sidebar/panel scale via
+--side-w/--panel-w at 1440/1800/2300px; toolbar and HUD use --side-w. Library
+mode select replaced with counted chips. See docs/releases/v0.18.1/verification.md.
+
 Published v0.18.0: main/tag source 1641268b1bbd7987a3b96976208e1c23a5b9b2ba.
 Release https://github.com/Chester-chs/CS2-povforge/releases/tag/v0.18.0
 is public (2026-10-27T14:03:00Z), with both installer/portable assets uploaded.

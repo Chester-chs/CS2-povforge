@@ -1,24 +1,24 @@
-## PovForge v0.18.0
+## PovForge v0.18.1
 
 Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** is the portable edition.
-
-### English
-
-- Check output/work/player folders, write access, free space and recording readiness before submitting tasks. Queueing behind an existing recording remains available.
-- Save named recording presets for mode, FPS, weapons and recording options. Player identities and destinations remain separate; applying a preset never starts recording.
-- Export a local diagnostic report from failures or Settings → General. Paths, player identities and sensitive log lines are hidden. Nothing is uploaded automatically.
-- Automatically check completed videos for metadata/audio and possible black or frozen frames in up to 45 seconds of samples. Review timestamps in the library player, or rerun a check manually. Checks run before the next recording and never delete movies; sampling is not a full-video guarantee.
-- Preserve task recovery, continuous mixed-weapon streaks, event seeking and the rounded interface with black text in light mode and white text in dark mode.
 
 ### 简体中文
 
 下载安装或更新请使用 **PovForge-Setup.exe**；免安装版使用 **PovForge-windows.zip**。
 
-- 提交任务前检查成片／工作／选手目录、写入权限、可用空间和录制环境；已有任务录制时仍可继续添加队列。
-- 保存有名称的录制预设，复用模式、帧率、武器及录制选项。选手与保存位置单独确认，应用预设不会自动录制。
-- 失败页面或“设置 → 常规”可导出本地诊断报告；隐藏路径、选手身份和敏感日志，不自动上传。
-- 成片完成后检查格式、音轨及最多 45 秒样本中的疑似黑屏／静止画面。可在成片库播放并点击时间核对，也可手动重新检查；检查与下一项录制依次进行，不删除视频。抽样不能保证整部视频没有问题。
-- 保留任务恢复、混合武器连杀、事件跳转和现有圆角风格，浅色黑字、深色白字。
+- 设置新增 **保存与文件夹**：成片目录、**按选手 ID 建文件夹** 开关（附示例路径）、所有选手文件夹和录制前检查都集中在这里。
+- 右侧 **录制与保存** 只显示本次视频实际保存的位置。整场、击杀视角、击杀和死亡视角、双人对位、高光集锦都按选手 ID 分类；双人对位存到选手 A 的文件夹，包含多位选手的集锦存到“多人集锦”。录制前检查发现问题时仍会在这里提示。
+- 新安装默认保存到 `视频\职业选手POV`；已选好的保存目录不会改变，已有视频不会移动。
+- 窗口放大后，左侧侧边栏的宽度、文字、图标和行高随之变大，右侧录制面板同步加宽；底部操作栏和提示不再被侧边栏遮挡。
+- 成片库用带数量的模式标签替代下拉框，随所选选手文件夹和搜索变化；修复搜索框图标缺失。
+
+### English
+
+- New **Settings → Saving & folders** page: output folder, the **Create a folder per player ID** switch with an example path, every known player folder, and preflight checks.
+- The **Recording & saving** panel now shows exactly where this video will be saved. Every mode is sorted by player ID; duels go to player A's folder and reels with several players go to “Multi-player reels”. Preflight problems are still shown there.
+- New installs save to `Videos\职业选手POV`. Existing destinations and videos are unchanged.
+- The sidebar's width, text, icons and row height grow with large windows, the recording panel widens, and the bottom toolbar and notices follow the sidebar width.
+- The video library uses mode chips with counts for the selected folder and search instead of a dropdown; the missing search icon is fixed.
 
 Development and testing did not launch CS2 or change the owner's game settings.
 开发和验证未启动 CS2，未修改用户游戏设置。
