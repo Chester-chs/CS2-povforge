@@ -129,12 +129,18 @@ def for_event_reel(fx: dict | None) -> dict:
         "camera", "music", "music_volume", "music_start", "music_sync", "game_audio")})
 
 
+class MissingMusic(ValueError, FileNotFoundError):
+    """The chosen background track is gone."""
+
+
 def check_music(fx: dict | None) -> None:
     """Stop before recording when the chosen background music is gone, instead of
     quietly publishing a reel without it."""
     music = normalize(fx)["music"]
     if music and not Path(music).is_file():
-        raise FileNotFoundError(
+        # ValueError: the CLI reports it as a readable "Error: ..." line for the app.
+        raise MissingMusic(
+            f"找不到背景音乐文件（可能已移动、改名或删除）：{music}。请重新选择音乐或去掉音乐后再录制。 "
             f"Background music not found (moved, renamed or deleted?): {music}. "
             "Choose the music again, or remove it, then record again.")
 

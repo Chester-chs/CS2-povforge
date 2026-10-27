@@ -30,3 +30,9 @@ Published 2026-10-27T22:52:29Z from d91024f via workflow 40596988101
 attempts (run 40595343504) failed only test_first_use_opens_the_notes_at_the_top_of_the_sidebar;
 the unchanged v0.20.0 tag failed it too in a build-only run (40596485193). The test
 now waits for Alpine boot before reading app data (CI timing race, not app code).
+
+Follow-up v0.20.2: on the owner's PC the v0.20.1 reel failed with
+"[PYI-51312:ERROR] Failed to execute script 'cli_main'": check_music raised
+FileNotFoundError, which cli.main does not catch (only ValueError/RuntimeError).
+MissingMusic now subclasses ValueError (and FileNotFoundError) and the message is
+bilingual; covered by test_cli_reports_missing_music_as_a_readable_error_not_a_crash.

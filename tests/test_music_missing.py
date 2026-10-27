@@ -19,6 +19,18 @@ def test_check_music_rejects_missing(tmp_path):
         effects.check_music({"music": str(tmp_path / "gone.m4a")})
 
 
+def test_cli_reports_missing_music_as_a_readable_error_not_a_crash(tmp_path, capsys, monkeypatch):
+    import json
+    from povforge import cli
+    monkeypatch.setattr(cli, "_restore_leftover_settings", lambda: None)
+    spec = tmp_path / "reel.json"
+    spec.write_text(json.dumps({"title": "t", "items": [{"demo": str(tmp_path / "a.dem"), "steamid": "1", "round": 1}],
+                                "effects": {"music": str(tmp_path / "gone.m4a")}}), encoding="utf-8")
+    assert cli.main(["reel", str(spec)]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("Error: ") and "找不到背景音乐文件" in err
+
+
 @pytest.mark.parametrize("mode", ["kills", "kills_deaths"])
 def test_reel_stops_before_recording(tmp_path, monkeypatch, mode):
     class Record:
