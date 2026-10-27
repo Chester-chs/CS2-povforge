@@ -80,3 +80,14 @@ def test_quality_requests_allow_only_catalog_movies_and_never_probe_on_listing(h
     assert request('/api/library/check','POST',headers,json.dumps({'path':str(video)}))[0]==409
     assert request('/api/library/check','POST',{},'{}')[0]==403
 
+
+def test_preflight_does_not_block_queueing_behind_owned_running_game(http_app):
+    app,_,authority,request=http_app
+    app.job=SimpleNamespace(busy=True)
+    app.setup=SimpleNamespace(status=lambda:{'windows':True,'cs2':True,'hlae':True,'ffmpeg':True,
+        'steam_running':True,'cs2_running':True,'settings_pending':True})
+    headers=authorize(authority,request)
+    status,data=request('/api/preflight','POST',headers,'{}')
+    assert status==200 and json.loads(data)['ok'], 'Current task owns these temporary recording conditions'
+
+
