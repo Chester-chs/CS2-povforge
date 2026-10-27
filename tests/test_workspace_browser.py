@@ -14,7 +14,7 @@ from povforge.gui.server import STATIC, CONTENT_TYPES
 @pytest.fixture
 def workspace_site():
     state = {
-        'version': '0.15.1', 'prefs': {'folders_set': True, 'lang': 'zh', 'appearance': 'light',
+        'version': '0.15.1', 'prefs': {'folders_set': True, 'notes_seen': True, 'lang': 'zh', 'appearance': 'light',
                                     'accent': 'purple', 'demo_folders': ['C:/Demos'], 'output': 'C:/Videos'},
         'setup': {'windows': True, 'cs2': True, 'hlae': True, 'ffmpeg': True, 'anticheat': [], 'problems': []},
         'job': {'state': 'idle', 'lines': [], 'recorded': [], 'planned': [], 'step': [0, 0]},
@@ -197,7 +197,7 @@ def test_workspace_setup_match_reel_search_and_layout(workspace_site):
             page.evaluate("Alpine.$data(document.body).savePrefs()", await_promise=True)
             assert state['prefs']['record_fps'] == 144
             assert page.evaluate("document.querySelector('.demo-card').getBoundingClientRect().width > 750")
-            assert page.evaluate("Array.from(document.querySelectorAll('.modes button'),b=>b.textContent.trim())") == ['Demo整场录制', 'Demo击杀视角', 'Demo击杀和死亡视角', '双人对位数据', '高光集锦']
+            assert page.evaluate("Array.from(document.querySelectorAll('.modes button'),b=>b.textContent.trim())") == ['Demo整场录制', 'Demo击杀视角', 'Demo击杀和死亡视角', '双人对位数据', '高光集锦', '官匹自动录制']
             assert page.evaluate("document.querySelector('.library h1').textContent") == 'Demo整场录制'
             assert page.evaluate("document.querySelector('.library-head > button').textContent.trim()") == '上传 Demo'
             page.call('Emulation.setDeviceMetricsOverride', width=1920, height=1080, deviceScaleFactor=1, mobile=False)

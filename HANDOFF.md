@@ -2,6 +2,11 @@
 
 ## Current agreed scope
 
+v0.19.1 (owner request): Auto matchmaking is a sidebar peer of the five modes
+(6th .modes tab, own page via app.page='auto'), not a Settings tab. First-use
+notes are the very first sidebar entry (app.page='notes'), auto-open until
+prefs.notes_seen is acknowledged. Keep both placements.
+
 v0.19.0 (owner request): automatic official-matchmaking recording. The user
 downloads in CS2 (Watch → Your Matches), quits CS2, and the app queues a reel of
 their own POV; they never open CS2 themselves. auto_mm.Watcher polls the

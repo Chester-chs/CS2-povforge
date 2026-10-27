@@ -70,7 +70,8 @@ def load_prefs() -> dict:
              "record_fps": 60, "check_video": True, "record_profiles": [],
              "player_folders": {},       # steamid -> {"folder": name on disk, "name": in-game name}
              "folders_set": False,       # first run: the user picks where demos are and where videos go
-             "auto_mm": False, "auto_mm_mode": "kills"}   # record new official-matchmaking downloads
+             "auto_mm": False, "auto_mm_mode": "kills",   # record new official-matchmaking downloads
+             "notes_seen": False}        # the first-use notes were read
     if f.exists():
         try:
             saved = json.loads(f.read_text(encoding="utf-8"))
@@ -1858,6 +1859,8 @@ def make_handler(app: App):
                                                       if isinstance(m, dict) and m.get("path")]
                     if "by_player" in b:
                         app.prefs["by_player"] = bool(b["by_player"])
+                    if b.get("notes_seen") is True:       # can be acknowledged, not un-read
+                        app.prefs["notes_seen"] = True
                     if type(b.get('check_video')) is bool:
                         app.prefs['check_video'] = b['check_video']
                     app.prefs["record_res"] = "1080"

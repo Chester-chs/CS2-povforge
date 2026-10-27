@@ -17,6 +17,12 @@
 
 <!-- ================= sidebar ================= -->
 <nav class="sidebar" :aria-label="t('demos')">
+  <!-- Read once before the first recording; the dot stays until acknowledged. -->
+  <button class="notes-nav" :class="{ unread: booted && !prefs.notes_seen }" :aria-current="page === 'notes' ? 'page' : null" @click="openNotes()">
+    <svg><use href="#i-info"/></svg>
+    <span><b x-text="lang==='zh'?'注意事项':'Read before you start'"></b><small x-text="!prefs.notes_seen ? (lang==='zh'?'第一次使用请先看':'Please read before first use') : (lang==='zh'?'录制前须知':'Recording tips')"></small></span>
+    <span class="notes-dot" x-show="booted && !prefs.notes_seen" aria-hidden="true"></span>
+  </button>
   <button class="setup-row" x-show="booted && setupNeedsAttention" x-cloak @click="openSetup()" :aria-current="setupOpen">
     <span class="dot-warn"></span>
     <span><b x-text="t('finishSetup')"></b><small x-text="setupHint"></small></span>
@@ -24,14 +30,17 @@
   </button>
 
   <nav class="modes" role="tablist" :aria-label="t('modesLabel')">
-    <button role="tab" :aria-selected="!settingsOpen && !videosOpen && !reelOpen" @click="openMatchMode()">
+    <button role="tab" :aria-selected="!page && !settingsOpen && !videosOpen && !reelOpen" @click="openMatchMode()">
       <svg><use href="#i-film"/></svg><span x-text="t('modeMatch')"></span>
     </button>
     <template x-for="mode in reelModes" :key="mode.value">
-      <button role="tab" :aria-selected="!settingsOpen && !videosOpen && reelOpen && reel.content === mode.value" @click="openReel(false, mode.value)">
+      <button role="tab" :aria-selected="!page && !settingsOpen && !videosOpen && reelOpen && reel.content === mode.value" @click="openReel(false, mode.value)">
         <svg><use :href="'#i-' + mode.icon"/></svg><span x-text="t(mode.label)"></span>
       </button>
     </template>
+    <button role="tab" class="auto-tab" :class="{ on: auto?.enabled }" :aria-selected="page === 'auto'" @click="openAuto()">
+      <svg><use href="#i-download"/></svg><span x-text="t('settingsAuto')"></span><i class="auto-dot" aria-hidden="true" :title="autoStatusText"></i>
+    </button>
   </nav>
   <div class="side-scroll">
     <div class="video-navigation">
@@ -52,12 +61,6 @@
         <li class="side-empty" x-show="!videoFolders.length" x-text="lang === 'zh' ? '录制完成后，文件夹会显示在这里。' : 'Folders appear here after recording.'"></li>
       </ul>
     </div>
-
-    <button class="side-row auto-nav" :class="{ on: auto?.enabled }" :aria-current="settingsOpen && settingsTab === 'auto' ? 'page' : null" @click="openSettings('auto')">
-      <svg class="row-ic"><use href="#i-download"/></svg>
-      <span class="row-text"><b><span x-text="t('settingsAuto')"></span></b><small x-text="autoStatusText"></small></span>
-      <span class="auto-dot" aria-hidden="true"></span>
-    </button>
 
     <p class="queue-recovered queue-notice" role="status" x-show="queue.recovered" x-cloak x-text="lang === 'zh' ? '已恢复上次任务。点击“继续队列”后开始录制。' : 'Previous tasks restored. Resume the queue when ready.'"></p>
     <p class="queue-notice" role="alert" x-show="queue.save_error" x-cloak x-text="lang === 'zh' ? (queue.save_error?.includes('read') ? '上次任务记录无法读取，原文件已保留。' : '任务未能保存，请检查磁盘空间，暂时不要关闭软件。') : queue.save_error"></p>
@@ -107,7 +110,7 @@
 
 <!-- ================= content ================= -->
 <main class="content">
-<div class="recording-views" :class="{ 'library-layout': booted && libraryOpen && !setupOpen && !runVisible, 'editor-layout': booted && reelOpen && !libraryOpen && !setupOpen && !runVisible }" x-show="!settingsOpen && !videosOpen">
+<div class="recording-views" :class="{ 'library-layout': booted && libraryOpen && !setupOpen && !runVisible, 'editor-layout': booted && reelOpen && !libraryOpen && !setupOpen && !runVisible }" x-show="!page && !settingsOpen && !videosOpen">
   <!-- The library is the everyday home; setup is an explicit, separate view. -->
   <section class="page library" x-cloak x-show="booted && libraryOpen && !setupOpen && !runVisible">
     <header class="library-head">
@@ -815,7 +818,7 @@
 
 </div>
 
-<section class="page finished-library" x-show="videosOpen && !settingsOpen" x-cloak>
+<section class="page finished-library" x-show="!page && videosOpen && !settingsOpen" x-cloak>
   <header class="videos-head">
     <div><h1 x-text="selectedVideoFolder?.name || (lang === 'zh' ? '成片库' : 'Video library')"></h1><p class="video-folder-location path" x-show="videoFolder" x-text="videoFolder"></p><p class="muted" x-text="lang === 'zh' ? '已经完成的视频，随时回来查看。清除录制队列不会删除这里的记录。' : 'Your finished videos, kept independently of the recording queue.'"></p></div>
     <button class="btn" @click="openVideos()" :disabled="videosBusy"><svg><use href="#i-refresh-cw"/></svg><span x-text="lang === 'zh' ? '刷新' : 'Refresh'"></span></button>
@@ -867,12 +870,72 @@
   </div>
   <p class="footnote" x-text="lang === 'zh' ? '自动收录新成片，并查找保存目录及选手文件夹内的已有视频。旧视频的地图、模式和时长可能未知；不会为了补全信息重新读取 Demo。' : 'New results are saved automatically. Existing videos are found in output and player folders; their map, mode or duration may be unknown. Demos are never reparsed for the library.'"></p>
 </section>
-<section class="page settings-page" x-show="settingsOpen" x-cloak>
+<section class="page auto-page" x-show="page === 'auto'" x-cloak>
+    <header class="title-block"><h1 x-text="t('settingsAuto')"></h1></header>
+    <p class="auto-intro" x-text="lang==='zh'?'在 CS2 里下载官匹（优先 / 竞技）回放后，PovForge 会自动剪辑并录制你自己的视角。你不需要自己打开 CS2。':'After you download an official matchmaking (Premier / Competitive) replay in CS2, PovForge cuts and records your own POV automatically. You never need to open CS2 for it.'"></p>
+    <ol class="group auto-steps">
+      <li><b x-text="lang==='zh'?'打开下面的开关':'Turn on the switch below'"></b><small x-text="lang==='zh'?'保持 PovForge 开着，最小化也可以。关掉窗口后不会自动录制。':'Keep PovForge open; minimized is fine. Nothing is recorded while it is closed.'"></small></li>
+      <li><b x-text="lang==='zh'?'在 CS2 里点下载':'Download the match in CS2'"></b><small x-text="lang==='zh'?'CS2 →「观看」→「你的比赛」，在想要的比赛上点下载，等它下载完。':'CS2 → Watch → Your Matches, click download on the match and let it finish.'"></small></li>
+      <li><b x-text="lang==='zh'?'退出 CS2':'Quit CS2'"></b><small x-text="lang==='zh'?'完全退出游戏。PovForge 发现游戏关闭后才会开始。':'Exit the game completely. PovForge starts once the game has closed.'"></small></li>
+      <li><b x-text="lang==='zh'?'等它自动完成':'Let it finish'"></b><small x-text="lang==='zh'?'软件会自己启动 CS2 录制，录完自动关闭并恢复你的游戏设置。视频保存在成片库里你的选手文件夹。':'PovForge launches CS2 itself, closes it afterwards and restores your game settings. The video appears in your player folder in the Video library.'"></small></li>
+    </ol>
+    <ul class="group">
+      <li class="row">
+        <label class="row-main" for="auto-mm"><b x-text="lang==='zh'?'开启官匹自动录制':'Record matchmaking downloads automatically'"></b><small x-text="autoStatusText"></small></label>
+        <input type="checkbox" class="switch" id="auto-mm" :checked="!!auto?.enabled" :disabled="autoBusy" @change="setAuto({enabled: $event.target.checked})">
+      </li>
+      <li class="row">
+        <label class="row-main" for="auto-account"><b x-text="lang==='zh'?'录制谁':'Whose POV'"></b><small x-text="lang==='zh'?'默认是这台电脑上最近登录 Steam 的账号。比赛里找不到这个账号时会跳过。':'The Steam account most recently signed in on this PC. Matches without it are skipped.'"></small></label>
+        <select id="auto-account" class="select" :value="auto?.steamid || ''" :disabled="autoBusy || !(auto?.accounts || []).length" @change="setAuto({steamid: $event.target.value})">
+          <option value="" x-show="!(auto?.accounts || []).length" x-text="lang==='zh'?'未找到 Steam 账号':'No Steam account found'"></option>
+          <template x-for="a in (auto?.accounts || [])" :key="a.steamid"><option :value="a.steamid" :selected="a.steamid === auto?.steamid" x-text="a.name"></option></template>
+        </select>
+      </li>
+      <li class="row">
+        <label class="row-main" for="auto-mode"><b x-text="lang==='zh'?'做成什么视频':'What to make'"></b><small x-text="lang==='zh'?'高光集锦挑选三杀以上或残局获胜的回合；没有的话使用有击杀的回合。帧率等其他设置沿用「录制与保存」。':'Highlights pick rounds with 3+ kills or a won clutch, otherwise rounds with kills. FPS and other options follow Recording & saving.'"></small></label>
+        <select id="auto-mode" class="select" :value="auto?.mode || 'kills'" :disabled="autoBusy" @change="setAuto({mode: $event.target.value})">
+          <template x-for="m in ['kills','kill_events','kills_deaths','match']" :key="m"><option :value="m" :selected="m === (auto?.mode || 'kills')" x-text="autoModeLabel(m)"></option></template>
+        </select>
+      </li>
+      <li class="row">
+        <span class="row-main"><b x-text="lang==='zh'?'CS2 回放文件夹':'CS2 replays folder'"></b>
+          <small class="path" x-show="auto?.folder" x-text="auto?.folder" :title="auto?.folder"></small>
+          <small x-show="!auto?.folder_found" x-text="lang==='zh'?'没有找到这个文件夹。下载过一次比赛后会出现；也可以手动选择。':'Folder not found. It appears after your first download, or choose it manually.'"></small></span>
+        <button class="btn" :disabled="autoBusy" @click="setAuto({folder: 'pick'})" x-text="t('chooseFolder')"></button>
+        <button class="link small" x-show="auto?.custom_folder" @click="setAuto({folder: 'reset'})" x-text="t('useDefaultFolder')"></button>
+      </li>
+    </ul>
+    <h3 class="group-title" x-show="(auto?.recent || []).length" x-text="lang==='zh'?'最近处理':'Recent'"></h3>
+    <ul class="group auto-recent" x-show="(auto?.recent || []).length">
+      <template x-for="r in (auto?.recent || [])" :key="r.name + r.at">
+        <li class="row" :data-state="r.state"><span class="row-main"><b x-text="r.title || r.name"></b><small x-text="r.state === 'queued' ? r.message : autoStateText(r) + ' · ' + r.message"></small></span></li>
+      </template>
+    </ul>
+    <button class="library-notice auto-notes-link" @click="openNotes()">
+      <svg><use href="#i-info"/></svg><span x-text="lang==='zh'?'第一次使用前，请先看左上角的「注意事项」。':'Before the first use, read “Read before you start” at the top left.'"></span><svg><use href="#i-chevron-right"/></svg>
+    </button>
+  </section>
+
+<section class="page notes-page" x-show="page === 'notes'" x-cloak>
+    <header class="title-block"><h1 x-text="lang==='zh'?'注意事项':'Read before you start'"></h1>
+      <p x-text="lang==='zh'?'第一次使用前请花一分钟看完，可以避免录制失败或影响你的游戏。以后随时可以从左上角再打开。':'Take a minute before your first recording. It avoids failed recordings and keeps your game safe. You can reopen this from the top left any time.'"></p></header>
+    <template x-for="section in noteSections" :key="section.title">
+      <div class="notes-section">
+        <h3 class="group-title" x-text="section.title"></h3>
+        <ul class="group notes-list"><template x-for="(note, i) in section.notes" :key="i"><li class="row"><span class="note-num num" x-text="i + 1"></span><span class="row-main"><b x-text="note[0]"></b><small x-text="note[1]"></small></span></li></template></ul>
+      </div>
+    </template>
+    <div class="notes-actions">
+      <button class="btn primary large notes-ack" @click="ackNotes()" x-text="prefs.notes_seen ? (lang==='zh'?'返回':'Back') : (lang==='zh'?'我已看完，开始使用':'Got it, let’s start')"></button>
+    </div>
+  </section>
+
+<section class="page settings-page" x-show="!page && settingsOpen" x-cloak>
   <button class="back-library link" @click="settingsOpen = false" x-text="t('backRecording')"></button>
   <header class="title-block"><h1 x-text="t('settings')"></h1></header>
   <nav class="settings-tabs" role="tablist" :aria-label="t('settings')">
-    <template x-for="tab in [['appearance','settingsAppearance'],['general','settingsGeneral'],['saving','settingsSaving'],['auto','settingsAuto'],['about','settingsAbout']]" :key="tab[0]">
-      <button role="tab" :data-settings-tab="tab[0]" :aria-selected="settingsTab === tab[0]" @click="settingsTab = tab[0]; if (tab[0] === 'auto') setAuto({refresh: true})" x-text="t(tab[1])"></button>
+    <template x-for="tab in [['appearance','settingsAppearance'],['general','settingsGeneral'],['saving','settingsSaving'],['about','settingsAbout']]" :key="tab[0]">
+      <button role="tab" :data-settings-tab="tab[0]" :aria-selected="settingsTab === tab[0]" @click="settingsTab = tab[0]" x-text="t(tab[1])"></button>
     </template>
   </nav>
   <section class="appearance-page" x-show="settingsTab === 'appearance'">
@@ -953,67 +1016,6 @@
       <li class="row record-preflight"><span class="row-main"><b x-text="lang==='zh'?'检查录制环境':'Check recording readiness'"></b><small x-text="lang==='zh'?'检查文件夹、空间和录制环境。提交任务时也会自动检查；空间提示仅作参考，所需空间随内容而变。':'Check folders, free space and recording readiness. Submitting a task checks again automatically. Space needed depends on the content.'"></small></span><button class="btn" :disabled="recordChecking" @click="checkRecording()" x-text="recordChecking?(lang==='zh'?'检查中…':'Checking…'):(lang==='zh'?'检查':'Check')"></button>
         <div class="record-checks" x-show="recordChecks" aria-live="polite"><p class="hint" x-text="(lang==='zh'?'上次检查：':'Last checked: ')+(recordChecks?.at || '')"></p><ul><template x-for="row in (recordChecks?.checks || [])" :key="row.key"><li :data-state="row.state"><span class="check-symbol" aria-hidden="true" x-text="row.state==='ok'?'✓':row.state==='error'?'!':'·'"></span><span x-text="checkLabel(row)"></span></li></template></ul></div>
       </li>
-    </ul>
-  </section>
-  <section class="auto-page" x-show="settingsTab === 'auto'"><h2 class="settings-heading" x-text="t('settingsAuto')"></h2>
-    <p class="auto-intro" x-text="lang==='zh'?'在 CS2 里下载官匹（优先 / 竞技）回放后，PovForge 会自动剪辑并录制你自己的视角。你不需要自己打开 CS2。':'After you download an official matchmaking (Premier / Competitive) replay in CS2, PovForge cuts and records your own POV automatically. You never need to open CS2 for it.'"></p>
-    <ol class="group auto-steps">
-      <li><b x-text="lang==='zh'?'打开下面的开关':'Turn on the switch below'"></b><small x-text="lang==='zh'?'保持 PovForge 开着，最小化也可以。关掉窗口后不会自动录制。':'Keep PovForge open; minimized is fine. Nothing is recorded while it is closed.'"></small></li>
-      <li><b x-text="lang==='zh'?'在 CS2 里点下载':'Download the match in CS2'"></b><small x-text="lang==='zh'?'CS2 →「观看」→「你的比赛」，在想要的比赛上点下载，等它下载完。':'CS2 → Watch → Your Matches, click download on the match and let it finish.'"></small></li>
-      <li><b x-text="lang==='zh'?'退出 CS2':'Quit CS2'"></b><small x-text="lang==='zh'?'完全退出游戏。PovForge 发现游戏关闭后才会开始。':'Exit the game completely. PovForge starts once the game has closed.'"></small></li>
-      <li><b x-text="lang==='zh'?'等它自动完成':'Let it finish'"></b><small x-text="lang==='zh'?'软件会自己启动 CS2 录制，录完自动关闭并恢复你的游戏设置。视频保存在成片库里你的选手文件夹。':'PovForge launches CS2 itself, closes it afterwards and restores your game settings. The video appears in your player folder in the Video library.'"></small></li>
-    </ol>
-    <ul class="group">
-      <li class="row">
-        <label class="row-main" for="auto-mm"><b x-text="lang==='zh'?'开启官匹自动录制':'Record matchmaking downloads automatically'"></b><small x-text="autoStatusText"></small></label>
-        <input type="checkbox" class="switch" id="auto-mm" :checked="!!auto?.enabled" :disabled="autoBusy" @change="setAuto({enabled: $event.target.checked})">
-      </li>
-      <li class="row">
-        <label class="row-main" for="auto-account"><b x-text="lang==='zh'?'录制谁':'Whose POV'"></b><small x-text="lang==='zh'?'默认是这台电脑上最近登录 Steam 的账号。比赛里找不到这个账号时会跳过。':'The Steam account most recently signed in on this PC. Matches without it are skipped.'"></small></label>
-        <select id="auto-account" class="select" :value="auto?.steamid || ''" :disabled="autoBusy || !(auto?.accounts || []).length" @change="setAuto({steamid: $event.target.value})">
-          <option value="" x-show="!(auto?.accounts || []).length" x-text="lang==='zh'?'未找到 Steam 账号':'No Steam account found'"></option>
-          <template x-for="a in (auto?.accounts || [])" :key="a.steamid"><option :value="a.steamid" :selected="a.steamid === auto?.steamid" x-text="a.name"></option></template>
-        </select>
-      </li>
-      <li class="row">
-        <label class="row-main" for="auto-mode"><b x-text="lang==='zh'?'做成什么视频':'What to make'"></b><small x-text="lang==='zh'?'高光集锦挑选三杀以上或残局获胜的回合；没有的话使用有击杀的回合。帧率等其他设置沿用「录制与保存」。':'Highlights pick rounds with 3+ kills or a won clutch, otherwise rounds with kills. FPS and other options follow Recording & saving.'"></small></label>
-        <select id="auto-mode" class="select" :value="auto?.mode || 'kills'" :disabled="autoBusy" @change="setAuto({mode: $event.target.value})">
-          <template x-for="m in ['kills','kill_events','kills_deaths','match']" :key="m"><option :value="m" :selected="m === (auto?.mode || 'kills')" x-text="autoModeLabel(m)"></option></template>
-        </select>
-      </li>
-      <li class="row">
-        <span class="row-main"><b x-text="lang==='zh'?'CS2 回放文件夹':'CS2 replays folder'"></b>
-          <small class="path" x-show="auto?.folder" x-text="auto?.folder" :title="auto?.folder"></small>
-          <small x-show="!auto?.folder_found" x-text="lang==='zh'?'没有找到这个文件夹。下载过一次比赛后会出现；也可以手动选择。':'Folder not found. It appears after your first download, or choose it manually.'"></small></span>
-        <button class="btn" :disabled="autoBusy" @click="setAuto({folder: 'pick'})" x-text="t('chooseFolder')"></button>
-        <button class="link small" x-show="auto?.custom_folder" @click="setAuto({folder: 'reset'})" x-text="t('useDefaultFolder')"></button>
-      </li>
-    </ul>
-    <h3 class="group-title" x-show="(auto?.recent || []).length" x-text="lang==='zh'?'最近处理':'Recent'"></h3>
-    <ul class="group auto-recent" x-show="(auto?.recent || []).length">
-      <template x-for="r in (auto?.recent || [])" :key="r.name + r.at">
-        <li class="row" :data-state="r.state"><span class="row-main"><b x-text="r.title || r.name"></b><small x-text="r.state === 'queued' ? r.message : autoStateText(r) + ' · ' + r.message"></small></span></li>
-      </template>
-    </ul>
-    <h3 class="group-title" x-text="lang==='zh'?'注意事项':'Good to know'"></h3>
-    <ul class="group auto-notes">
-      <template x-for="(note, i) in (lang==='zh' ? [
-          '不需要、也不要自己打开 CS2。录制时软件会自己启动游戏；录制期间请不要操作游戏窗口。',
-          '下载完一定要退出 CS2。游戏开着时软件只会等待，不会替你关闭游戏。',
-          '录制前请关闭 FACEIT、5E、完美等平台的反作弊客户端，否则会一直等待。',
-          '只处理开启开关之后新下载的比赛。以前下载的比赛可以在比赛列表里手动选择。',
-          '官匹回放只保留一段时间，过期后就无法下载，想做集锦的比赛请尽早下载。',
-          '一次下载多场比赛时，会按下载顺序逐个加入队列。',
-          '自动任务和手动任务一样出现在左侧队列里，可以随时取消或删除。'
-        ] : [
-          'Do not open CS2 yourself. PovForge launches the game for recording; leave its window alone while it records.',
-          'Always quit CS2 after downloading. While the game is open PovForge only waits; it never closes your game.',
-          'Close anti-cheat clients such as FACEIT before recording, or PovForge keeps waiting.',
-          'Only matches downloaded after you turn this on are handled. Older ones can be picked manually in the match list.',
-          'Official replays are kept only for a limited time, so download the matches you want soon.',
-          'Several downloads are queued one after another in download order.',
-          'Automatic tasks appear in the queue like any other and can be cancelled or removed.'
-        ])" :key="i"><li class="row"><span class="row-main"><small x-text="note"></small></span></li></template>
     </ul>
   </section>
   <section class="about-page" x-show="settingsTab === 'about'">

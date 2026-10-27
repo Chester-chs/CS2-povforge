@@ -33,7 +33,7 @@ Recording starts CS2 through HLAE with `-insecure`. Use this session only for de
 4. **Start and wait.** POVForge launches CS2, seeks to the required rounds, records and composes the video. Avoid playing another game during recording.
 5. **Open the result.** Use the play or folder button. New installs save to `Videos/职业选手POV`, with every mode organized by player ID; change this under **Settings › Saving & folders**.
 
-The sidebar lists **Whole match**, **Demo kill POV**, **Demo kills and deaths POV**, **Head-to-head data**, and **Highlight reel**, in that order. Open **Highlight reel**, select matches in the main area, and click **Continue** to choose players and rounds. Use **Choose matches** to change the selection later. While a job runs, you can browse and add more jobs to the queue; recordings run one at a time.
+The top of the sidebar holds **Read before you start** (please read it before the first use), followed by **Whole match**, **Demo kill POV**, **Demo kills and deaths POV**, **Head-to-head data**, **Highlight reel** and **Auto matchmaking**, in that order. Open **Highlight reel**, select matches in the main area, and click **Continue** to choose players and rounds. Use **Choose matches** to change the selection later. While a job runs, you can browse and add more jobs to the queue; recordings run one at a time.
 
 Frame rate is under **Recording & saving** in the main area; after you pick a player it also shows exactly where this video will be saved (duels go to player A's folder, reels with several players go to “Multi-player reels”). Settings has appearance, general/storage, saving & folders, and about/update pages. **Saving & folders** holds the output folder, the **Create a folder per player ID** switch, every known player folder, and preflight checks. The sidebar grows with large windows. Choose a theme, accent, font and popup corner radius, adjust language and storage, or check for updates.
 
@@ -43,12 +43,14 @@ Demo analysis is saved locally and reused after restarting the app. **Analysis s
 
 Official matchmaking (Premier / Competitive) replays can be handled end to end: download the match in CS2, quit CS2, and PovForge cuts and records your own POV automatically. **You never open CS2 yourself for this.**
 
-1. In PovForge open **Settings › Auto matchmaking** and turn on **Record matchmaking downloads automatically**. Keep PovForge open (minimized is fine).
+1. In PovForge click **Auto matchmaking** in the sidebar (next to Whole match, Demo kill POV and the other modes) and turn on **Record matchmaking downloads automatically**. Keep PovForge open (minimized is fine).
 2. In CS2 go to Watch → Your Matches, click download on the match and let it finish.
 3. **Quit CS2.**
 4. Once the game has closed, PovForge reads the match, picks your rounds, queues the recording, launches CS2 itself, then closes it and restores your game settings. The video appears in your player folder in the Video library.
 
 The same page lets you choose **Whose POV** (by default the Steam account most recently signed in on this PC), **What to make** (Highlights, Kill POV, Kills & deaths POV or Whole match) and the CS2 replays folder (normally found automatically).
+
+Before the first use, read **Read before you start** at the top of the sidebar; it opens automatically on first launch. Click **Got it, let’s start** when done.
 
 Good to know:
 

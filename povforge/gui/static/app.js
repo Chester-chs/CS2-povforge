@@ -291,7 +291,7 @@ document.addEventListener("alpine:init", () => {
       { key: "intro", label: "optIntro" }, { key: "minimap", label: "optMinimap" }, { key: "keyboard", label: "optKeyboard" },
       { key: "show_enemies", label: "optEnemies" }, { key: "upload", label: "optUpload" },
     ],
-    queue: { items: [], paused: false }, auto: null, autoBusy: false, update: null, showRun: false, viewId: null, toasts: [], toastSeq: 0,
+    queue: { items: [], paused: false }, auto: null, autoBusy: false, page: '', update: null, showRun: false, viewId: null, toasts: [], toastSeq: 0,
 
     async boot() {
       this.loadVideos();
@@ -310,6 +310,7 @@ document.addEventListener("alpine:init", () => {
       this.lang = this.prefs.lang || (navigator.language.startsWith("zh") ? "zh" : "en");
       document.documentElement.lang = this.lang === "zh" ? "zh-CN" : "en";
       this.setupOpen = this.setupNeedsAttention;
+      if (!this.prefs.notes_seen) this.page = 'notes';     // first use: read this first
       this.booted = true;
       this.loadDemos();
       const tick = async () => {
@@ -366,7 +367,7 @@ document.addEventListener("alpine:init", () => {
         .map(l => (/^\s{2,}\S/.test(l) ? "• " : "") + l.trim().replace(/^- /, "• "));
       return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
     },
-    openSetup() { this.closeVideo(); this.videosOpen = false; this.settingsOpen = false; this.setupOpen = true; this.showRun = false; this.reelOpen = false; this.leaveInspection(); },
+    openSetup() { this.page = ''; this.closeVideo(); this.videosOpen = false; this.settingsOpen = false; this.setupOpen = true; this.showRun = false; this.reelOpen = false; this.leaveInspection(); },
 
     // --- appearance ---
     applyTheme() {
@@ -390,6 +391,66 @@ document.addEventListener("alpine:init", () => {
       catch (e) { this.toast(e.message); }
       finally { this.autoBusy = false; }
     },
+    openAuto() {
+      this.closeVideo(); this.leaveInspection();
+      this.page = 'auto';
+      this.scrollContentTop();
+      this.setAuto({refresh: true});      // CS2 or Steam may have changed since last time
+    },
+    openNotes() { this.closeVideo(); this.leaveInspection(); this.page = 'notes'; this.scrollContentTop(); },
+    async ackNotes() {
+      const first = !this.prefs.notes_seen;
+      if (first) {
+        try { this.prefs = await this.post('/api/prefs', { notes_seen: true }); }
+        catch (e) { this.prefs.notes_seen = true; }
+      }
+      this.page = '';
+      this.scrollContentTop();
+    },
+    get noteSections() {
+      const zh = this.lang === 'zh';
+      return zh ? [
+        {title: '录制前', notes: [
+          ['保持 Steam 运行', '录制需要 Steam 在后台运行；CS2 由软件自己启动，不需要你打开。'],
+          ['先关掉 CS2 和反作弊客户端', '录制前完全退出 CS2，并关闭 FACEIT、5E、完美等平台的反作弊客户端。'],
+          ['第一次先下载录制组件', '首次打开时点「一键下载录制组件」（HLAE）。CS2 更新后如录制异常，可在「设置 › 通用与存储 › 环境检查」重新检查。'],
+          ['留够磁盘空间', '成片和临时录像都要占空间。可在「设置 › 保存与文件夹」运行录制前检查。'],
+        ]},
+        {title: '录制时', notes: [
+          ['不要操作录制用的 CS2', '软件以 -insecure 方式启动 CS2，只用于播放 demo。不要加入在线服务器，也不要点击、切换游戏窗口。'],
+          ['不要同时玩其他游戏', '录制会占用显卡和 CPU，期间请让电脑专心录制。'],
+          ['不用担心游戏设置', '录制前会备份你的 CS2 设置，录完自动恢复。录完后可以正常从 Steam 打开游戏。'],
+        ]},
+        {title: '官匹自动录制', notes: [
+          ['下载完一定要退出 CS2', '在 CS2 里下载官匹后退出游戏，软件才会开始。游戏开着时只会等待，不会替你关闭游戏。'],
+          ['不需要、也不要自己打开 CS2', '软件会自己启动 CS2 录制，录完自动关闭。'],
+          ['保持 PovForge 开着', '可以最小化；关掉窗口后不会自动录制，下次打开时会补上期间下载的比赛。'],
+          ['只处理开启后新下载的比赛', '以前下载的比赛可以在比赛列表里手动选择。'],
+          ['尽早下载', '官匹回放只保留一段时间，过期后无法下载。'],
+          ['任务可以随时取消', '自动任务和手动任务一样出现在左侧队列里，可以取消或删除。'],
+        ]},
+      ] : [
+        {title: 'Before recording', notes: [
+          ['Keep Steam running', 'Recording needs Steam in the background. PovForge launches CS2 itself; you do not open it.'],
+          ['Close CS2 and anti-cheat clients', 'Quit CS2 completely and close anti-cheat clients such as FACEIT before recording.'],
+          ['Download the recording add-on first', 'On first launch click “Download the recording add-on” (HLAE). If recording breaks after a CS2 update, re-run Settings › General & storage › Environment check.'],
+          ['Leave enough disk space', 'Finished videos and temporary recordings both need space. Run the preflight check in Settings › Saving & folders.'],
+        ]},
+        {title: 'While recording', notes: [
+          ['Leave the recording CS2 alone', 'CS2 runs with -insecure only to play the demo. Do not join online servers or click or switch its window.'],
+          ['Do not play other games', 'Recording uses the GPU and CPU heavily.'],
+          ['Your game settings are safe', 'Your CS2 settings are backed up before recording and restored afterwards. Start CS2 from Steam normally afterwards.'],
+        ]},
+        {title: 'Auto matchmaking', notes: [
+          ['Always quit CS2 after downloading', 'Download the match in CS2, then quit the game. While the game is open PovForge only waits; it never closes your game.'],
+          ['Do not open CS2 yourself', 'PovForge launches CS2 for recording and closes it afterwards.'],
+          ['Keep PovForge open', 'Minimized is fine. Nothing is recorded while it is closed; matches downloaded meanwhile are picked up next time.'],
+          ['Only new downloads', 'Matches downloaded before turning it on can be picked manually in the match list.'],
+          ['Download soon', 'Official replays are kept only for a limited time.'],
+          ['Tasks can be cancelled', 'Automatic tasks appear in the queue like any other and can be cancelled or removed.'],
+        ]},
+      ];
+    },
     autoModeLabel(mode) {
       const zh = this.lang === 'zh';
       return ({kills: zh ? '高光集锦' : 'Highlights', kill_events: zh ? '击杀视角' : 'Kill POV',
@@ -410,7 +471,7 @@ document.addEventListener("alpine:init", () => {
     },
     async openSettings(tab) {
       if (typeof tab === 'string') this.settingsTab = tab;
-      if (this.settingsTab === 'auto') this.setAuto({refresh: true});   // CS2 or Steam may have changed
+      this.page = '';
       this.closeVideo();
       this.videosOpen = false;
       this.settingsOpen = true;
@@ -618,7 +679,7 @@ document.addEventListener("alpine:init", () => {
         document.querySelector('.content')?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       });
     },
-    openLibrary() { this.closeVideo(); this.videosOpen = false; this.settingsOpen = false; this.leaveInspection(); this.libraryOpen = true; this.setupOpen = false; this.showRun = false; this.viewId = null; this.scrollContentTop(); this.loadVideos(); },
+    openLibrary() { this.page = ''; this.closeVideo(); this.videosOpen = false; this.settingsOpen = false; this.leaveInspection(); this.libraryOpen = true; this.setupOpen = false; this.showRun = false; this.viewId = null; this.scrollContentTop(); this.loadVideos(); },
     openMatchMode() { this.reelOpen = false; this.openLibrary(); },
     editReel() { if (this.reel.sources.length) { this.libraryOpen = false; this.scrollContentTop(); } },
     get libraryDemos() {
@@ -638,6 +699,7 @@ document.addEventListener("alpine:init", () => {
     },
     // --- highlight reel ---
     openReel(fromMatch, content = 'kills') {
+      this.page = '';
       this.closeVideo();
       this.videosOpen = false;
       this.settingsOpen = false;
@@ -838,6 +900,7 @@ document.addEventListener("alpine:init", () => {
       catch (e) { this.videosError = e.message; }
     },
     async openVideos(folder = null) {
+      this.page = '';
       this.leaveInspection(); this.settingsOpen = false; this.showRun = false; this.videosOpen = true;
       if (folder !== null) this.videoFolder = folder;
       this.videoFoldersOpen = true;
@@ -1527,6 +1590,7 @@ document.addEventListener("alpine:init", () => {
     async clearQueue() { this.queue = await this.post("/api/queue/clear"); },
     async resumeQueue() { this.queue = await this.post("/api/queue/resume"); },
     openItem(it) {
+      this.page = '';
       this.closeVideo();
       this.videosOpen = false;
       this.settingsOpen = false; this.setupOpen = false; this.reelOpen = false;

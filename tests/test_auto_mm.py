@@ -200,7 +200,7 @@ def test_server_reports_and_configures_auto_recording(tmp_path, monkeypatch):
 
 
 @pytest.mark.skipif(cdp.find_browser() is None, reason='Edge/Chrome required')
-def test_auto_settings_explain_the_flow_and_save_choices(workspace_site):
+def test_auto_mode_is_a_sidebar_peer_that_explains_the_flow(workspace_site):
     url, state = workspace_site
     with cdp.Browser(size=(1920, 1080)) as browser:
         page = browser.page()
@@ -210,11 +210,14 @@ def test_auto_settings_explain_the_flow_and_save_choices(workspace_site):
             page.call('Page.navigate', url=url)
             assert page.wait_for("document.querySelectorAll('.demo-card').length===5", 15)
             page.evaluate("window.app=Alpine.$data(document.body)")
-            assert page.wait_for("document.querySelector('.auto-nav')?.textContent.includes('未开启')", 3)
-            page.evaluate("document.querySelector('.auto-nav').click()")
-            assert page.wait_for("document.querySelector('.auto-page')?.checkVisibility()", 3)
+            assert page.evaluate("document.querySelectorAll('.modes button')[5].textContent.trim()") == '官匹自动录制'
+            assert page.evaluate("document.querySelector('.settings-tabs [data-settings-tab=auto]')") is None
+            page.evaluate("document.querySelectorAll('.modes button')[5].click()")
+            assert page.wait_for("document.querySelector('.auto-page')?.checkVisibility() && !document.querySelector('.library').checkVisibility()", 3)
+            assert page.evaluate("document.querySelectorAll('.modes button')[5].getAttribute('aria-selected')") == 'true'
+            assert page.evaluate("document.querySelectorAll('.modes button')[0].getAttribute('aria-selected')") == 'false'
             text = page.evaluate("document.querySelector('.auto-page').textContent")
-            for phrase in ('你的比赛', '退出 CS2', '不需要、也不要自己打开 CS2', '反作弊', '开启开关之后新下载'):
+            for phrase in ('你的比赛', '退出 CS2', '你不需要自己打开 CS2', '注意事项'):
                 assert phrase in text, phrase
             assert page.evaluate("document.querySelectorAll('.auto-steps li').length") == 4
             page.evaluate("const s=document.querySelector('#auto-mm');s.checked=true;s.dispatchEvent(new Event('change',{bubbles:true}))")
@@ -222,16 +225,55 @@ def test_auto_settings_explain_the_flow_and_save_choices(workspace_site):
             page.evaluate("const m=document.querySelector('#auto-mode');m.value='kill_events';m.dispatchEvent(new Event('change',{bubbles:true}))")
             assert page.wait_for("app.auto.mode==='kill_events'", 3)
             assert [p for p in state['auto_posts'] if not p.get('refresh')] == [{'enabled': True}, {'mode': 'kill_events'}]
+            assert page.wait_for("document.querySelector('.auto-tab.on')", 3), 'the sidebar entry shows it is on'
             state['auto'].update(waiting='cs2', recent=[{'name': 'match730_x.dem', 'title': 'Chester 官匹击杀视角 · Mirage', 'state': 'queued', 'message': '已加入录制队列：3 个回合。', 'at': 1}])
             page.evaluate("app.refresh()", await_promise=True)
-            assert page.wait_for("document.querySelector('.auto-nav').textContent.includes('退出 CS2 后自动开始')", 3)
+            assert page.wait_for("document.querySelector('#auto-mm').closest('.row').textContent.includes('退出 CS2 后自动开始')", 3)
             assert page.wait_for("document.querySelector('.auto-recent')?.textContent.includes('已加入录制队列：3 个回合')", 3)
-            page.evaluate("app.lang='en'")
+            page.evaluate("document.querySelector('.auto-notes-link').click()")
+            assert page.wait_for("document.querySelector('.notes-page')?.checkVisibility()", 3)
+            page.evaluate("document.querySelectorAll('.modes button')[1].click()")
+            assert page.wait_for("!document.querySelector('.notes-page').checkVisibility() && app.reelOpen", 3)
+            page.evaluate("app.lang='en';app.openAuto()")
             assert page.wait_for("document.querySelector('.auto-page').textContent.includes('Your Matches')", 3)
             assert page.evaluate('uiErrors') == []
         finally:
             page.close()
 
+
+@pytest.mark.skipif(cdp.find_browser() is None, reason='Edge/Chrome required')
+def test_first_use_opens_the_notes_at_the_top_of_the_sidebar(workspace_site):
+    url, state = workspace_site
+    state['prefs']['notes_seen'] = False
+    with cdp.Browser(size=(1920, 1080)) as browser:
+        page = browser.page()
+        try:
+            page.call('Page.enable')
+            page.call('Page.addScriptToEvaluateOnNewDocument', source="window.uiErrors=[];window.addEventListener('error',e=>uiErrors.push(e.message))")
+            page.call('Page.navigate', url=url)
+            assert page.wait_for("document.querySelector('.notes-page')?.checkVisibility()", 15)
+            page.evaluate("window.app=Alpine.$data(document.body)")
+            assert page.evaluate("document.querySelector('.sidebar').firstElementChild.classList.contains('notes-nav')"), 'notes are the first sidebar entry'
+            first = page.evaluate("document.querySelector('.notes-nav').getBoundingClientRect().top")
+            modes = page.evaluate("document.querySelector('.modes').getBoundingClientRect().top")
+            assert first < modes
+            assert page.evaluate("document.querySelector('.notes-nav').textContent").count('第一次使用请先看') == 1
+            assert page.evaluate("document.querySelector('.notes-dot').checkVisibility()")
+            text = page.evaluate("document.querySelector('.notes-page').textContent")
+            for phrase in ('录制前', '录制时', '官匹自动录制', '下载完一定要退出 CS2', '不需要、也不要自己打开 CS2', '反作弊'):
+                assert phrase in text, phrase
+            assert not page.evaluate("document.querySelector('.library').checkVisibility()")
+            page.evaluate("document.querySelector('.notes-ack').click()")
+            assert page.wait_for("app.prefs.notes_seen===true && document.querySelector('.library').checkVisibility()", 3)
+            assert state['prefs']['notes_seen'] is True
+            assert page.wait_for("!document.querySelector('.notes-dot').checkVisibility()", 3)
+            assert page.evaluate("document.querySelector('.notes-nav').textContent").count('录制前须知') == 1
+            page.call('Page.navigate', url=url)
+            assert page.wait_for("document.querySelectorAll('.demo-card').length===5 && document.querySelector('.library').checkVisibility()", 15)
+            assert not page.evaluate("document.querySelector('.notes-page').checkVisibility()"), 'shown only until read'
+            assert page.evaluate('uiErrors') == []
+        finally:
+            page.close()
 
 def test_main_runs_with_an_app_that_has_no_watcher(monkeypatch):
     """Isolated hosts (like the native-window probe) replace App without a watcher."""
