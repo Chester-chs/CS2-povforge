@@ -363,7 +363,7 @@ document.addEventListener("alpine:init", () => {
         .map(l => (/^\s{2,}\S/.test(l) ? "• " : "") + l.trim().replace(/^- /, "• "));
       return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
     },
-    openSetup() { this.videosOpen = false; this.settingsOpen = false; this.setupOpen = true; this.showRun = false; this.reelOpen = false; this.leaveInspection(); },
+    openSetup() { this.closeVideo(); this.videosOpen = false; this.settingsOpen = false; this.setupOpen = true; this.showRun = false; this.reelOpen = false; this.leaveInspection(); },
 
     // --- appearance ---
     applyTheme() {
@@ -608,7 +608,12 @@ document.addEventListener("alpine:init", () => {
                      clutch: c, score: k * 10 + hs + (c ? 25 * c : 0) });
         });
       }
-      return out;
+      if (!this.reel.weapons?.length) return out;
+      return out.map(item => {
+        const events=this.itemEvents(item), kills=events.filter(e=>e.attacker===item.steamid && e.victim!==item.steamid);
+        return {...item,k:item.mode==='duel'?events.length:kills.length,hs:kills.filter(e=>e.headshot).length,
+          died:events.some(e=>e.victim===item.steamid)};
+      });
     },
     roundTotals(player, rounds) {
       return [...new Set(rounds)].reduce((sum, round) => ({
@@ -780,8 +785,9 @@ document.addEventListener("alpine:init", () => {
       return [event.round?this.t('roundN',{r:event.round}):'',labels[event.kind],event.player,
         event.weapon?this.weaponName(event.weapon):'',event.headshot?(this.lang==='zh'?'爆头':'HS'):''].filter(Boolean).join(' · ');
     },
+    weaponKey(raw) { return String(raw || '').toLowerCase().replace(/^weapon_/,''); },
     weaponName(raw) {
-      const key = String(raw || '').replace(/^weapon_/, '').toLowerCase();
+      const key = this.weaponKey(raw);
       return ({ak47:'AK-47',m4a1:'M4A4',m4a1_silencer:'M4A1-S',awp:'AWP',ssg08:'SSG 08',
         deagle:'Desert Eagle',usp_silencer:'USP-S',hkp2000:'P2000',glock:'Glock-18',
         mp9:'MP9',mac10:'MAC-10',hegrenade:'HE',inferno:'Molotov',world:'World'})[key] ||
@@ -798,7 +804,7 @@ document.addEventListener("alpine:init", () => {
     get reelWeaponOptions() {
       return [...new Set(this.reel.sources.flatMap(s => (s.info?.recording_details?.events || []).filter(e =>
         e.pov && e.attacker !== e.victim && (e.attacker === this.srcPlayerId(s) || (this.reel.content === 'duel' && e.attacker === s.opponent)))
-        .map(e => String(e.weapon || '').replace(/^weapon_/,'').toLowerCase()).filter(Boolean)))].sort();
+        .map(e => this.weaponKey(e.weapon)).filter(Boolean)))].sort();
     },
     weaponMatch(item) { return !this.reel.weapons?.length || this.eventWindows(item).length > 0; },
     eventWindows(item, info = this.itemInfo(item), mode = this.reel.content) {
@@ -815,7 +821,7 @@ document.addEventListener("alpine:init", () => {
       const selected=this.reel.weapons || [];
       return !selected.length ? windows : windows.filter(w => w.events.some(e =>
         (mode === 'duel' || e.attacker === item.steamid) && e.attacker !== e.victim && e.pov &&
-        selected.includes(String(e.weapon || '').replace(/^weapon_/,'').toLowerCase())));
+        selected.includes(this.weaponKey(e.weapon))));
     },
     itemEvents(item, info = this.itemInfo(item), mode = this.reel.content) {
       if (mode === 'match' || !this.reel.weapons?.length) return this.rawItemEvents(item,info,mode);

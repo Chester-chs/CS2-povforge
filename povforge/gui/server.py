@@ -256,6 +256,8 @@ def _move_video(video: Path, folder: Path) -> None:
     """A video and the cover and description that share its name."""
     extras = [video.with_suffix(x) for x in (".jpg", ".txt") if video.with_suffix(x).exists()]
     dest = _move_into(video, folder)
+    from ..video_index import relocate
+    relocate(video,dest)
     for e in extras:
         target = dest.with_suffix(e.suffix)
         if not target.exists():
@@ -991,6 +993,9 @@ class Queue:
 
     def _save(self):
         from ..queue_store import save
+        if self.recovered and not any(i['state']=='queued' for i in self.items):
+            self.recovered=False
+            self.paused=False
         self.save_error = save(self.store, self.items)
 
     def snapshot(self) -> dict:

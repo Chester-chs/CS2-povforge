@@ -1,4 +1,6 @@
 import subprocess
+import os
+from pathlib import Path
 
 import pytest
 
@@ -46,6 +48,14 @@ def test_recovered_queue_weapon_ui_and_real_video_event_seeking(workspace_site,t
             assert page.wait_for("Math.abs(document.querySelector('.library-video').currentTime-1)<.15",4)
             page.evaluate("app.lang='en';app.prefs.appearance='dark';app.applyTheme()")
             assert page.wait_for("getComputedStyle(document.querySelector('.player-event span')).color==='rgb(255, 255, 255)'",3)
+            if os.environ.get('POVFORGE_PLAYER_SHOTS'):
+                folder=Path(os.environ['POVFORGE_PLAYER_SHOTS']);folder.mkdir(parents=True,exist_ok=True)
+                for theme in ('light','dark'):
+                    page.evaluate(f"app.lang='zh';app.prefs.appearance='{theme}';app.applyTheme()")
+                    page.call('Emulation.setDeviceMetricsOverride',width=1920,height=1080,deviceScaleFactor=1,mobile=False)
+                    page.screenshot(folder/f'player-{theme}.png')
+            page.call('Emulation.setDeviceMetricsOverride',width=900,height=812,deviceScaleFactor=1,mobile=False)
+            assert page.wait_for('document.documentElement.scrollWidth<=900',3)
             page.evaluate("app.openMatchMode()")
             assert page.wait_for("document.querySelector('.library-video')===null",3)
             assert page.evaluate('uiErrors')==[]

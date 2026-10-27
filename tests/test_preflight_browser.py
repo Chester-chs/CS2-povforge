@@ -26,6 +26,8 @@ def test_preflight_weapons_and_finished_library_are_visible_and_responsive(works
             assert page.wait_for("document.querySelectorAll('.video-row').length===1", 4)
             assert page.wait_for("document.querySelector('.finished-library').getBoundingClientRect().width>900",3)
             page.evaluate("window.opened=[];app.openPath=(path,select)=>opened.push({path,select});document.querySelector('.video-actions button').click()")
+            assert page.wait_for("app.playingVideo?.path==='C:/Videos/A.mp4'",3)
+            page.evaluate("document.querySelector('.player-tools button').click();app.closeVideo()")
             assert page.evaluate('opened[0].path') == 'C:/Videos/A.mp4'
             page.evaluate("app.videoQuery='no-match'")
             assert page.wait_for("document.querySelectorAll('.video-row').length===0", 3)

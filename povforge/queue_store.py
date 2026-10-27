@@ -1,5 +1,6 @@
 """Bounded, atomic task snapshots. Reading never starts a task."""
 import json
+import os
 from pathlib import Path
 import secrets
 
@@ -63,7 +64,10 @@ def save(path,items):
         if len(body.encode('utf-8'))>MAX_BYTES or len(items)>2000:
             raise ValueError('Task snapshot is too large.')
         path.parent.mkdir(parents=True,exist_ok=True)
-        temporary.write_text(body,encoding='utf-8')
+        with temporary.open('w',encoding='utf-8') as stream:
+            stream.write(body)
+            stream.flush()
+            os.fsync(stream.fileno())
         temporary.replace(path)
         return ''
     except (OSError,ValueError,TypeError):

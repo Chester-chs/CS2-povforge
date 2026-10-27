@@ -251,6 +251,10 @@ def test_reel_run_records_extra_shots_and_publishes_real_composite(tmp_path, mon
     assert len(calls) == 1 and calls[0][0]["cam"] == "pov" and calls[0][0]["steamid"] == "33"
     # The default 3s tail retains all 6s of available main footage, plus 1.15s replay.
     assert probe(out, cfg.compose.ffmpeg).duration == pytest.approx(7.15, abs=.1)
+    from povforge.video_index import read
+    events=read(out)
+    assert next(e['at'] for e in events if e['kind']=='kill')==pytest.approx(4,abs=.05)
+    assert next(e['at'] for e in events if e['kind']=='replay')==pytest.approx(6,abs=.05)
     assert not (pipeline.work_root(cfg) / "camera pieces" / "Camera Test").exists()
     # The main reel stays red; only the ending replay is blue.
     rgb = subprocess.run([cfg.compose.ffmpeg, "-v", "error", "-ss", "6.5", "-i", str(out),
