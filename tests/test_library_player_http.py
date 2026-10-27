@@ -18,6 +18,8 @@ def test_player_streams_only_library_videos_with_opaque_ids_and_ranges(http_app,
     data=json.loads(payload);src=data['src']
     assert str(video) not in src and data['events'][0]['weapon']=='awp'
     assert request(src,headers={'Range':'bytes=2-5'})==(206,b'2345')
+    assert request(src,headers={'Range':'bytes=-3'})==(206,b'789')
+    assert request(src,headers={'Range':'bytes=99-100'})[0]==416
     assert request(src,headers={'Host':'evil.example'})[0]==403
     assert request('/api/library/video?id=guessed')[0]==404
     outside=tmp_path/'outside.mp4';outside.write_bytes(b'private')

@@ -919,8 +919,10 @@ document.addEventListener("alpine:init", () => {
       const entries = new Map();
       for (const item of this.reel.items) {
         const source = this.reel.sources.find(s => s.path === item.path);
+        const retained=this.reel.weapons?.length ? new Set(this.itemEvents(item).map(e=>`${e.tick}|${e.attacker}|${e.victim}`)) : null;
         for (const event of source?.info?.duels || []) {
           if (event.round !== item.round) continue;
+          if (retained && !retained.has(`${event.tick}|${event.attacker}|${event.victim}`)) continue;
           const duel = this.reel.content === "duel";
           if (duel ? !((event.attacker === item.steamid && event.victim === item.opponent) ||
                         (event.attacker === item.opponent && event.victim === item.steamid))

@@ -41,7 +41,9 @@ def write(video,events):
     try:
         st=Path(video).stat()
         data={'version':1,'size':st.st_size,'mtime_ns':st.st_mtime_ns,'events':clean(events)}
-        temp.write_text(json.dumps(data,ensure_ascii=False,allow_nan=False),encoding='utf-8')
+        body=json.dumps(data,ensure_ascii=False,allow_nan=False)
+        if len(body.encode('utf-8'))>MAX_BYTES: return
+        temp.write_text(body,encoding='utf-8')
         temp.replace(path)
     except (OSError,ValueError,TypeError):
         pass  # A missing index must never discard a valid video.
