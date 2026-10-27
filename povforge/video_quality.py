@@ -10,7 +10,6 @@ import secrets
 import subprocess
 import tempfile
 import threading
-import time
 
 _store_lock = threading.Lock()
 MAX_BYTES = 4 * 1024**2
@@ -88,7 +87,7 @@ def check(path, *, ffmpeg=None, owner=None):
         issues = [] if info['audio'] else [{'kind':'no_audio','at':0,'end':0}]
         windows = sample_windows(info['duration'])
         for start, span in windows:
-            _, log = _run([str(ffmpeg),'-nostdin','-hide_banner','-v','info','-ss',str(start),'-i',str(path),
+            _, log = _run([str(ffmpeg),'-nostdin','-hide_banner','-v','info','-xerror','-ss',str(start),'-i',str(path),
                 '-t',str(span),'-an','-sn','-dn','-map','0:v:0','-vf',
                 'scale=320:-2,fps=5,blackdetect=d=2:pix_th=0.10,freezedetect=n=-50dB:d=3',
                 '-f','null','-'], 45, owner)
@@ -137,6 +136,8 @@ def save(root, path, report, *, stamp=None):
         body = json.dumps(data, ensure_ascii=False, allow_nan=False)
         while len(body.encode('utf-8'))>MAX_BYTES and len(data)>1:
             data.pop(next(iter(data)));body=json.dumps(data,ensure_ascii=False,allow_nan=False)
+        if len(body.encode('utf-8'))>MAX_BYTES:
+            raise ValueError('Quality report is too large.')
         root.mkdir(parents=True,exist_ok=True)
         temp = root/('quality-'+secrets.token_hex(8)+'.tmp')
         try:
