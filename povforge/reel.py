@@ -114,6 +114,7 @@ def _cut_points(cfg: Config, job: Path, rounds: set[int], plan=None, clips=None,
 def run(cfg: Config, title: str, items: list[ReelItem], placeholder: bool = False,
         fx: dict | None = None) -> Path:
     cfg.record.limit_output()
+    effects.check_music(fx)
     if any(it.mode != "kills" for it in items):
         from .reel_events import run_events
         return run_events(cfg, title, items, placeholder, fx)
@@ -200,7 +201,6 @@ def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
 
     requests, groups = [], {}
     context_cache = {}
-    selected = set(choice["selected"]) if choice["selected"] is not None else None
     for source, span in sources:
         demo, steamid, round_number = source
         job, plan = contexts[source]
@@ -217,8 +217,6 @@ def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
             kill_ticks=[round(start_tick + k * plan.tickrate) for k in kills],
             victims=victims, steamid=steamid, tickrate=plan.tickrate,
             camera=choice, key=f"{demo_key}:{steamid}:{round_number}", index=len(requests))
-        if selected is not None:
-            shots = [s for s in shots if camera.event_key(demo, steamid, s["focus"], s["steamid"]) in selected]
         requests.append((span, shots, demo_key, plan.tickrate, actual))
         if shots:
             group = groups.setdefault(demo_key, {"job": job, "plan": plan, "shots": {}})

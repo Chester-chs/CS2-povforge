@@ -75,6 +75,29 @@ def _sid(v) -> str | None:
     return s if s and s not in ("0", "nan", "None") else None
 
 
+def _int(v) -> int:
+    """A demo number as int; missing values (None/NaN, e.g. a disconnected player) are 0."""
+    try:
+        return 0 if v is None or pd.isna(v) else int(v)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _float(v) -> float:
+    try:
+        return 0.0 if v is None or pd.isna(v) else float(v)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _flag(v) -> bool:
+    """A demo boolean; missing values (None/NaN) are False, never truthy NaN."""
+    try:
+        return False if v is None or pd.isna(v) else bool(v)
+    except (TypeError, ValueError):
+        return False
+
+
 def prepare_demo(path: str | Path, work_dir: Path | None = None) -> Path:
     """Accept .dem, or compressed .dem.zst (FACEIT) / .dem.gz / .dem.bz2.
 
@@ -397,19 +420,19 @@ def load_scoreboard(path: str | Path, rounds_played: int) -> list[TeamStats]:
             continue
         players = []
         for _, r in rows.iterrows():
-            kills = int(r.get("kills_total") or 0)
+            kills = _int(r.get("kills_total"))
             players.append(PlayerStats(
                 steamid=_sid(r["steamid"]) or "", name=str(r["name"]),
-                kills=kills, deaths=int(r.get("deaths_total") or 0),
-                assists=int(r.get("assists_total") or 0),
-                adr=float(r.get("damage_total") or 0) / rounds,
-                hs_pct=100.0 * int(r.get("headshot_kills_total") or 0) / kills if kills else 0.0,
-                mvps=int(r.get("mvps") or 0),
+                kills=kills, deaths=_int(r.get("deaths_total")),
+                assists=_int(r.get("assists_total")),
+                adr=_float(r.get("damage_total")) / rounds,
+                hs_pct=100.0 * _int(r.get("headshot_kills_total")) / kills if kills else 0.0,
+                mvps=_int(r.get("mvps")),
             ))
         players.sort(key=lambda p: (-p.kills, p.deaths))
         name = str(rows["team_clan_name"].iloc[0] or "") if "team_clan_name" in rows else ""
         teams.append(TeamStats(name or ("T" if team_num == 2 else "CT"),
-                               int(rows["team_rounds_total"].iloc[0] or 0), players))
+                               _int(rows["team_rounds_total"].iloc[0]), players))
     return teams
 
 
@@ -424,8 +447,9 @@ def round_sides(path: str | Path, rounds: list[Round]) -> dict[int, dict[str, in
     by_tick: dict[int, dict[str, int]] = {}
     for _, row in df.iterrows():
         sid = _sid(row.get("steamid"))
-        team = int(row.get("team_num") or 0)
-        if sid and team in (2, 3) and bool(row.get("is_alive")):
+        # A disconnected player has no team (NaN) and must not break the whole match.
+        team = _int(row.get("team_num"))
+        if sid and team in (2, 3) and _flag(row.get("is_alive")):
             by_tick.setdefault(int(row["tick"]), {})[sid] = team
     return {r.number: by_tick.get(t, {}) for r, t in zip(rounds, ticks)}
 

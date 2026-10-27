@@ -64,17 +64,17 @@ def test_corrupt_cache_recovers_without_leaving_partial_file(tmp_path, monkeypat
     assert not list(saved.parent.glob('*.tmp'))
 
 
-def test_existing_v4_cache_is_used_without_reparse(tmp_path, monkeypatch):
+def test_existing_current_cache_is_used_without_reparse(tmp_path, monkeypatch):
     monkeypatch.setenv('POVFORGE_STATE', str(tmp_path / 'state'))
     monkeypatch.setattr(server, '_inspect_cache', {})
     src = tmp_path / 'legacy.dem'
     src.write_bytes(b'demo')
     st = src.stat()
-    key = f'{src.resolve()}|{st.st_mtime}|{st.st_size}|v4'
+    key = f'{src.resolve()}|{st.st_mtime}|{st.st_size}|v{server.INSPECT_VERSION}'
     saved = server.app_dir() / 'demo-info' / (hashlib.sha1(key.encode()).hexdigest() + '.json')
     saved.parent.mkdir(parents=True)
     saved.write_text(json.dumps({'map': 'de_dust2', 'rounds': 24}))
-    monkeypatch.setattr(server.subprocess, 'run', lambda *a, **kw: pytest.fail('valid v4 cache must not parse again'))
+    monkeypatch.setattr(server.subprocess, 'run', lambda *a, **kw: pytest.fail('valid current cache must not parse again'))
     assert server.inspect_isolated(str(src), tmp_path)['rounds'] == 24
 
 

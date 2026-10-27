@@ -157,26 +157,22 @@ def test_per_kill_replay_choices_reach_event_and_duel_requests(workspace_site):
                       camera:app.cameraSettings({victim:true})};
               app.post=async (url,body)=>{window.sent={url,body};return {queue:{items:[]},state:'idle'}};
               app.toast=()=>{};""")
-            assert page.wait_for("document.querySelectorAll('.victim-list input').length===2", 3)
-            page.evaluate("document.querySelector('.victim-list input').click()")
-            assert page.evaluate("Array.from(document.querySelectorAll('.victim-list input'),n=>n.checked)") == [False, True]
+            # One switch: no per-kill picker, every kill is replayed.
+            assert page.wait_for("document.querySelector('.victim-controls select') !== null", 3)
+            assert page.evaluate("document.querySelector('.victim-list') === null")
             page.evaluate("app.startReel(false)", await_promise=True)
             sent = page.evaluate('window.sent')
             fx = sent['body']['effects']
             assert fx['camera']['victim'] is True
             assert fx['camera']['placement'] == 'after_kill'
-            assert fx['camera']['selected'] == ['["c:/demos/match.dem.zst","11",200,"33"]']
+            assert 'selected' not in fx['camera']
             assert fx.get('transition', 'cut') == 'cut'
             assert not fx.get('kill_slowmo') and fx.get('pace', 'normal') == 'normal'
-            page.evaluate("app.reel.content='duel';app.reel.items[0].opponent='33';app.selectAllVictims(true)")
+            page.evaluate("app.reel.content='duel';app.reel.items[0].opponent='33'")
             assert page.wait_for("document.querySelector('.camera-options') === null", 3)
             page.evaluate("app.startReel(false)", await_promise=True)
             assert page.evaluate('window.sent.body.effects.camera.victim') is False
             assert page.evaluate('app.fx.camera.victim') is True
-            page.evaluate("app.reel.content='kill_events'")
-            assert page.wait_for("document.querySelectorAll('.victim-list input').length===2", 3)
-            page.evaluate("app.selectAllVictims(false)")
-            assert page.evaluate('JSON.stringify(app.fx.camera.selected)') == '[]'
         finally:
             page.close()
 

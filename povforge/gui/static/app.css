@@ -731,8 +731,6 @@ body .sheet, .popup-preview { border-radius: var(--popup-radius, 14px); }
 
 .editor-layout .reel { padding-bottom: 110px; }
 .victim-controls { margin-top: 18px; }
-.victim-list { max-height: 420px; overflow-y: auto; }
-.victim-list input[type=checkbox] { accent-color: var(--accent); width: 17px; height: 17px; flex-shrink: 0; }
 
 /* Reuse the app's grouped surfaces and keep details quiet until expanded. */
 .preflight { margin: 18px 0 22px; display: grid; gap: 10px; }

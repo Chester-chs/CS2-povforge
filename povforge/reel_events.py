@@ -137,6 +137,7 @@ def cut_view(view: View, plan, clip: Path, actual: float, duration: float) -> tu
 def run_events(cfg, title, items, placeholder=False, fx=None):
     from . import reel
     fx = effects.for_event_reel(fx)
+    effects.check_music(fx)
     if items and items[0].mode == "duel":
         fx["camera"]["victim"] = False
     pace = effects.pace_seconds(fx, cfg.highlights.before, cfg.highlights.after)
