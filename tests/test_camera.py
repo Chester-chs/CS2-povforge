@@ -254,7 +254,7 @@ def test_short_late_victim_replay_keeps_actual_audio_time_and_available_frames(t
 
 
 @pytest.mark.skipif(not FFMPEG, reason="needs FFmpeg")
-@pytest.mark.parametrize("recorded, kept", [(2.4, 2.4), (3.0, 3.0), (1.6, None)])
+@pytest.mark.parametrize("recorded, kept", [(2.5, 2.5), (3.0, 3.0), (1.6, None)])
 def test_after_death_tail_may_end_early_but_the_part_before_death_may_not(tmp_path, recorded, kept):
     """CS2 can move the camera off a dead victim; the director then stops the take
     early. Losing (part of) the 1s after death keeps the replay; losing footage
@@ -272,3 +272,21 @@ def test_after_death_tail_may_end_early_but_the_part_before_death_may_not(tmp_pa
         assert out is None  # stopped 0.4s before the death (at 2s): not a usable replay
     else:
         assert out is not None and out[2] == pytest.approx(kept, abs=.06)
+
+
+@pytest.mark.skipif(not FFMPEG, reason="needs FFmpeg")
+def test_replay_stops_before_the_camera_left_the_dead_victim(tmp_path):
+    """Where the camera left the victim (cut), the replay ends a safety margin
+    earlier, so no frame of another player can appear."""
+    base = make_video(tmp_path / "base.mp4", "red", 6)
+    victim = make_video(tmp_path / "victim.mp4", "blue", 3.0)
+    shot = dict(id="shot_victim_cut", start=0, end=192, steamid="222", cam="pov",
+                focus=128, death=128, cut=160.0, kind="victim", at=1.0, until=1.0,
+                insert=True, audio_at=0.0)
+    out = camera_module().render_replay(
+        clip=base, start=1.0, end=5.0, shot=shot,
+        shot_paths={shot["id"]: victim}, actual_starts={shot["id"]: 0},
+        tickrate=64, out=tmp_path / "replay.mp4", size=(96, 54), fps=20,
+        compose=ComposeSettings(ffmpeg=FFMPEG))
+    # The camera left at 2.5s; the replay keeps 2.5 - 0.3 = 2.2s (death at 2.0s).
+    assert out is not None and out[2] == pytest.approx(2.2, abs=.06)

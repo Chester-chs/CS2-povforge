@@ -722,16 +722,25 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg",
 
     collect()
     log_text = saved_log.read_text(encoding="utf-8", errors="replace") if saved_log.exists() else ""
+    cuts = shot_cuts(job_dir)
     for item, out in zip(shots, shot_paths):
         cid = item["id"]
         if out.exists():
             continue
         # A failed view or an interrupted demo must not be cached as a successful shot.
-        completed = re.search(rf"\[povforge\] END {re.escape(cid)} tick=[\d.]+ why=(?:end_tick|after_death)\b", log_text)
+        completed = re.search(rf"\[povforge\] END {re.escape(cid)} tick=([\d.]+) why=(end_tick|after_death)\b", log_text)
         take = latest_take(raw_dir, cid)
         if completed and cid in starts and take is not None:
             mux_take(take, out, ffmpeg, s)
             manifest[cid]["complete"] = True
+            # The camera left the dead victim: frames from that tick on may show
+            # another player, so the replay must stop before it (see camera.py).
+            if completed.group(2) == "after_death":
+                cuts[cid] = float(completed.group(1))
+            else:
+                cuts.pop(cid, None)
+    if shots:
+        (job_dir / "shot-cuts.json").write_text(json.dumps(cuts, indent=2), encoding="utf-8")
     if shots:
         manifest_file.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     missing = ([] if shots_only else [clip_id(sg) for sg, out in zip(plan.segments, clips) if not out.exists()])
@@ -740,6 +749,17 @@ def record(plan: Plan, job_dir: Path, s: RecordSettings, ffmpeg: str = "ffmpeg",
         raise RuntimeError(f"These clips were not recorded: {', '.join(missing)}. "
                            f"See {job_dir / 'cs2_console.log'}; run the same command again to retry them.")
     return result
+
+
+def shot_cuts(job_dir: Path) -> dict[str, float]:
+    """{shot id: demo tick at which the camera left the dead victim}."""
+    f = job_dir / "shot-cuts.json"
+    try:
+        data = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    except (OSError, ValueError):
+        return {}
+    return {str(k): float(v) for k, v in data.items()
+            if isinstance(v, (int, float)) and math.isfinite(v)} if isinstance(data, dict) else {}
 
 
 def actual_starts(job_dir: Path) -> dict[str, float]:

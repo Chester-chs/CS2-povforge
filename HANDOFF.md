@@ -15,12 +15,13 @@ and tested, push it to main and publish the matching release (version bump,
 release notes, Windows workflow manual dispatch with release=vX.Y.Z) without
 asking again. Launching CS2/HLAE or touching real game settings stays forbidden.
 
-Unreleased (v0.20.2 on main, owner said hold the release; a draft release from a
-cancelled run exists): victim replays are 3 s before the death + 1 s after it
-(camera.VICTIM_BEFORE/AFTER, owner request). After the death tick director.js
-stops sending spec commands and ends the take with why=after_death when CS2
-moves the camera off the dead victim; a short after-death tail is accepted in
-_prepare_shots. Not yet checked in a real CS2 recording.
+v0.20.3 (owner request; v0.20.2 was never published, its draft came from a
+cancelled run): victim replays are 3 s before the death + 1 s after it
+(camera.VICTIM_BEFORE/AFTER). After the death director.js sends no spec
+commands; when CS2 moves the camera off the dead victim it ends the take with
+why=after_death. hlae writes that END tick to shot-cuts.json and _prepare_shots
+drops everything from VICTIM_SWITCH_MARGIN (0.3 s) before it: owner requires
+that no other player ever appears after the death. Not yet checked in real CS2.
 
 v0.20.1 (owner request): victim perspective is ONE switch — every kill is
 replayed, no per-kill picker (do not reintroduce `camera.selected`). Disconnected

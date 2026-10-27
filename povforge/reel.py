@@ -231,6 +231,7 @@ def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
                             extra_shots=shots, shots_only=True)
         group["paths"] = {shot["id"]: path for shot, path in zip(shots, paths)}
         group["starts"] = actual_starts(group["job"])
+        group["cuts"] = hlae.shot_cuts(group["job"])
 
     work = pipeline.work_root(cfg) / "camera pieces" / safe_filename(title)
     result, replays = [], []
@@ -243,8 +244,9 @@ def _camera_order(cfg: Config, title: str, items: list[ReelItem], windows: dict,
         _log(f"Camera editing {i + 1}/{len(requests)}")
         insertions = []
         for j, shot in enumerate(s for s in shots if s["kind"] == "victim"):
+            cut = group["cuts"].get(shot["id"])
             replay = camera.render_replay(
-                clip=clip, start=a, end=b, shot=shot,
+                clip=clip, start=a, end=b, shot=shot if cut is None else {**shot, "cut": cut},
                 shot_paths=group["paths"], actual_starts=group["starts"], tickrate=tickrate,
                 out=work / f"replay_{i:03d}_{j:03d}.mp4", size=(cfg.record.width, cfg.record.height),
                 fps=cfg.record.fps, compose=cfg.compose,

@@ -25,6 +25,10 @@ def _number(value, default: float) -> float:
 # after it, from the victim's own view (owner request; fixed, not a setting).
 VICTIM_BEFORE = 3.0   # seconds before the death
 VICTIM_AFTER = 1.0    # seconds after the death
+# When CS2 moves the camera off the dead victim, the director notices on the
+# next frame. Footage this close to that moment may already show another
+# player, so it is never used.
+VICTIM_SWITCH_MARGIN = 0.3
 
 
 def normalize_camera(raw) -> dict:
@@ -146,6 +150,10 @@ def _prepare_shots(*, start: float, end: float, shots: list[dict], shot_paths: d
             fallback(shot, "recording is missing")
             continue
         duration = (shot["end"] - shot["start"]) / tickrate
+        cut = _number(shot.get("cut"), float("nan"))
+        if math.isfinite(cut):
+            # Only the victim: stop well before the camera left them.
+            duration = min(duration, (cut - shot["start"]) / tickrate - VICTIM_SWITCH_MARGIN)
         duration = math.floor((duration + 1e-9) * fps) / fps
         audio_at = _number(shot.get("audio_at"), float("nan"))
         if not math.isfinite(audio_at) or audio_at < 0 or audio_at + duration > length + frame / 2:

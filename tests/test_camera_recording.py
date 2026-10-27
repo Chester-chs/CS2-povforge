@@ -332,3 +332,23 @@ def test_output_permission_error_preserves_complete_raw_take(tmp_path, monkeypat
         hlae.record(plan, job, hlae.RecordSettings())
     assert video.read_bytes() == b'complete recording'
     assert state['launched'] == 0
+
+
+def test_victim_take_that_left_after_death_is_kept_with_its_cut_tick(tmp_path, monkeypatch):
+    """The director ends a victim take when CS2 moves the camera off the dead
+    victim; the shot is usable, and where the camera left is remembered so the
+    replay never shows the other player."""
+    plan = plan_at(tmp_path)
+    fake_game(tmp_path, monkeypatch, end_reason="after_death")
+    job = tmp_path / "job"
+    item = {**shot(), "death": 1060}
+    paths = hlae.record(plan, job, hlae.RecordSettings(), extra_shots=[item], shots_only=True)
+    assert paths[0].is_file()
+    assert hlae.shot_cuts(job) == {"shot_victim": 1100.0}
+
+
+def test_shot_cuts_ignore_damaged_files(tmp_path):
+    (tmp_path / "shot-cuts.json").write_text("{broken", encoding="utf-8")
+    assert hlae.shot_cuts(tmp_path) == {}
+    (tmp_path / "shot-cuts.json").write_text('{"a": 12.5, "b": "x", "c": null}', encoding="utf-8")
+    assert hlae.shot_cuts(tmp_path) == {"a": 12.5}

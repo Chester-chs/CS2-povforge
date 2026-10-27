@@ -1,6 +1,6 @@
 ; Inno Setup script for the PovForge installer (https://jrsoftware.org/isinfo.php).
 ; Built by .github/workflows/windows-app.yml:
-;   iscc /DAppVersion=0.20.2 packaging\povforge.iss
+;   iscc /DAppVersion=0.20.3 packaging\povforge.iss
 ; Installs for the current user only (no admin rights), adds a desktop icon and
 ; a Start menu entry, and registers an uninstaller.
 
