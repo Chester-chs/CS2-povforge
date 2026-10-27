@@ -5,6 +5,19 @@ and optional completed-video sample checks. Journeys were derived from the
 agreed remaining feature list. No CS2/HLAE launch or game/Steam setting edit
 was performed. No runtime dependency was added.
 
+## Published package
+
+- Tag/source: `1641268b1bbd7987a3b96976208e1c23a5b9b2ba`.
+- [Release](https://github.com/Chester-chs/CS2-povforge/releases/tag/v0.18.0)
+  published 2026-10-27T14:03:00Z; public, both assets uploaded.
+- [Windows workflow](https://github.com/Chester-chs/CS2-povforge/actions/runs/40516477921):
+  **398 passed, 24 skipped in 108.81s**. Build, bundled FFmpeg, smoke, installer,
+  incremental update, native WebView2 window and uninstall checks passed.
+- Installer: 139379520 bytes; SHA-256
+  `cabd9a38bccbd100d708be584372425699de8a406ba7fe11f993aab3d03a88a6`.
+- Portable ZIP: 218443850 bytes; SHA-256
+  `927496ea284d5f46b857407e2661e3d317ba0a5ac0e4f9c5b10684e73eb9045f`.
+
 ## TDD checkpoints
 
 | Guarantee | RED evidence | GREEN evidence |

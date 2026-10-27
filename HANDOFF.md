@@ -2,6 +2,13 @@
 
 ## Current agreed scope
 
+Published v0.18.0: main/tag source 1641268b1bbd7987a3b96976208e1c23a5b9b2ba.
+Release https://github.com/Chester-chs/CS2-povforge/releases/tag/v0.18.0
+is public (2026-10-27T14:03:00Z), with both installer/portable assets uploaded.
+Workflow 40516477921: 398 passed, 24 skipped in 108.81s; build, bundled FFmpeg,
+smoke, installer, incremental-update, native WebView2 and uninstall checks passed.
+Final docs-only release verification may follow that source commit on main.
+
 v0.18.0 adds recording preflight, named recording presets, local diagnostics
 and optional completed-video sample checks. Preflight probes configured
 output/work/current-player destinations without creating player folders and
