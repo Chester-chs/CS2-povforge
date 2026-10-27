@@ -852,3 +852,23 @@ button:disabled, input:disabled, textarea:disabled, select:disabled { color: var
 }
 @media (max-width: 900px) { .hud { left: 50%; } }
 .saving-page .record-preflight > .row-main { flex: 1 1 0; flex-basis: 0; min-width: 240px; }
+
+/* Official matchmaking auto recording */
+.auto-nav { margin: -6px 0 12px; }
+.auto-nav .auto-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--label-3); }
+.auto-nav.on .auto-dot { background: var(--green); }
+.auto-nav[aria-current="page"] { background: var(--fill); }
+.auto-intro { color: var(--label); margin: -6px 0 18px; line-height: 1.7; max-width: 70ch; }
+.auto-steps { counter-reset: step; padding: 6px 0; margin-bottom: 22px; }
+.auto-steps li { counter-increment: step; display: grid; grid-template-columns: 30px 1fr; column-gap: 12px; row-gap: 3px; padding: 12px 20px; }
+.auto-steps li + li { border-top: 1px solid var(--separator); }
+.auto-steps li::before { content: counter(step); grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--action-fill); color: var(--on-accent); font-weight: 600; font-size: 13px; }
+.auto-steps b { font-weight: 600; }
+.auto-steps small { color: var(--label); line-height: 1.6; }
+.auto-page .group + .group-title { margin-top: 26px; }
+.auto-page .path { overflow-wrap: anywhere; }
+.auto-notes .row { padding-top: 11px; padding-bottom: 11px; }
+.auto-notes small { line-height: 1.65; font-size: 13px; }
+.auto-recent .row-main b { overflow-wrap: anywhere; }
+.auto-recent .row[data-state=error] .row-main b::after { content: " !"; }
+.auto-nav .row-text small { white-space: normal; line-height: 1.45; }

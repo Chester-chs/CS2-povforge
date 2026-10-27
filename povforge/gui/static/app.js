@@ -3,7 +3,7 @@
 const TEXT = {
   zh: {
     workspace: "比赛列表", uploadDemo: "上传 Demo", modeKills: "Demo击杀视角", modeKillsDeaths: "Demo击杀和死亡视角", modeDuel: "双人对位数据",
-    settingsAppearance: "外观", settingsGeneral: "通用与存储", settingsSaving: "保存与文件夹", settingsAbout: "关于与更新", backRecording: "返回录制",
+    settingsAppearance: "外观", settingsGeneral: "通用与存储", settingsSaving: "保存与文件夹", settingsAuto: "官匹自动录制", settingsAbout: "关于与更新", backRecording: "返回录制",
     recordingSettings: "录制与保存", themeHelp: "应用于主界面和弹出窗口。", fontLabel: "字体", fontHelp: "应用于整个界面；缺少所选字体时使用系统字体。",
     font_system: "系统默认", font_segoe: "Segoe UI", font_yahei: "微软雅黑", font_simsun: "宋体", font_arial: "Arial",
     popupRadius: "弹出窗口圆角", popupRadiusHelp: "调整软件内的对话框，不改变 Windows 系统窗口。", appearancePreview: "弹窗预览", appearanceExample: "比赛已准备好，可以开始选择选手。",
@@ -130,7 +130,7 @@ const TEXT = {
   },
   en: {
     workspace: "Matches", uploadDemo: "Upload Demo", modeKills: "Demo kill POV", modeKillsDeaths: "Demo kills and deaths POV", modeDuel: "Head-to-head data",
-    settingsAppearance: "Appearance", settingsGeneral: "General & storage", settingsSaving: "Saving & folders", settingsAbout: "About & updates", backRecording: "Back to recording",
+    settingsAppearance: "Appearance", settingsGeneral: "General & storage", settingsSaving: "Saving & folders", settingsAuto: "Auto matchmaking", settingsAbout: "About & updates", backRecording: "Back to recording",
     recordingSettings: "Recording & saving", themeHelp: "Applies to the app and its dialogs.", fontLabel: "Font", fontHelp: "Used throughout the app, with system fallback when unavailable.",
     font_system: "System default", font_segoe: "Segoe UI", font_yahei: "Microsoft YaHei", font_simsun: "SimSun", font_arial: "Arial",
     popupRadius: "Dialog corner radius", popupRadiusHelp: "Changes in-app dialogs, not Windows system windows.", appearancePreview: "Dialog preview", appearanceExample: "Your match is ready. Choose a player to continue.",
@@ -291,7 +291,7 @@ document.addEventListener("alpine:init", () => {
       { key: "intro", label: "optIntro" }, { key: "minimap", label: "optMinimap" }, { key: "keyboard", label: "optKeyboard" },
       { key: "show_enemies", label: "optEnemies" }, { key: "upload", label: "optUpload" },
     ],
-    queue: { items: [], paused: false }, update: null, showRun: false, viewId: null, toasts: [], toastSeq: 0,
+    queue: { items: [], paused: false }, auto: null, autoBusy: false, update: null, showRun: false, viewId: null, toasts: [], toastSeq: 0,
 
     async boot() {
       this.loadVideos();
@@ -382,8 +382,35 @@ document.addEventListener("alpine:init", () => {
       if (meta) meta.content = color;
       this.post('/api/window-theme', {dark: !!dark}).catch(() => {});
     },
+    // --- official matchmaking downloads, recorded automatically ---
+    async setAuto(values) {
+      if (this.autoBusy) return;
+      this.autoBusy = true;
+      try { const r = await this.post('/api/auto-mm', values); this.auto = r.auto; this.prefs = r.prefs; }
+      catch (e) { this.toast(e.message); }
+      finally { this.autoBusy = false; }
+    },
+    autoModeLabel(mode) {
+      const zh = this.lang === 'zh';
+      return ({kills: zh ? '高光集锦' : 'Highlights', kill_events: zh ? '击杀视角' : 'Kill POV',
+               kills_deaths: zh ? '击杀和死亡视角' : 'Kills & deaths POV', match: zh ? '整场录制' : 'Whole match'})[mode] || mode;
+    },
+    get autoStatusText() {
+      const a = this.auto, zh = this.lang === 'zh';
+      if (!a?.enabled) return zh ? '未开启' : 'Off';
+      if (!a.folder_found) return zh ? '没有找到回放文件夹' : 'Replays folder not found';
+      if (a.working) return zh ? '正在读取新下载的比赛…' : 'Reading the new match…';
+      if (a.waiting === 'cs2') return zh ? '已发现新比赛，退出 CS2 后自动开始' : 'New match found. Quit CS2 to start';
+      if (a.waiting === 'anticheat') return zh ? '已发现新比赛，请关闭反作弊客户端' : 'New match found. Close anti-cheat clients';
+      return zh ? '已开启 · 等待下载' : 'On · waiting for downloads';
+    },
+    autoStateText(row) {
+      const zh = this.lang === 'zh';
+      return ({queued: zh ? '已加入队列' : 'Queued', skipped: zh ? '已跳过' : 'Skipped', error: zh ? '失败' : 'Failed'})[row.state] || row.state;
+    },
     async openSettings(tab) {
       if (typeof tab === 'string') this.settingsTab = tab;
+      if (this.settingsTab === 'auto') this.setAuto({refresh: true});   // CS2 or Steam may have changed
       this.closeVideo();
       this.videosOpen = false;
       this.settingsOpen = true;
@@ -1396,6 +1423,9 @@ document.addEventListener("alpine:init", () => {
       this.version = s.version; this.prefs = s.prefs; this.setup = s.setup; this.job = s.job;
       if (this.popupRadiusDraft !== null) this.prefs.popup_radius = this.popupRadiusDraft;
       this.queue = s.queue; this.update = s.update; this.screen = s.screen; this.sizes = s.sizes;
+      const autoSeen = JSON.stringify((s.auto?.recent || []).map(r => [r.name, r.state, r.at]));
+      if (this.auto && this.booted && autoSeen !== this.autoSeen) this.loadDemos();   // a download just arrived
+      this.auto = s.auto || null; this.autoSeen = autoSeen;
       if (s.effects) this.fxMeta = s.effects;
       if (!this.fx && s.effects) {             // once: the effects used last time
         this.fx = { ...this.fxDefaults(), ...(this.prefs.reel_fx || {}) };

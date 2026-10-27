@@ -39,6 +39,28 @@ Frame rate is under **Recording & saving** in the main area; after you pick a pl
 
 Demo analysis is saved locally and reused after restarting the app. **Analysis saved** marks a reusable result. The first read, a changed file, or an update to parsing rules requires analysis again; ordinary app updates keep compatible results. This cache speeds up choosing a match, not the real-time recording itself.
 
+## Automatic matchmaking recording
+
+Official matchmaking (Premier / Competitive) replays can be handled end to end: download the match in CS2, quit CS2, and PovForge cuts and records your own POV automatically. **You never open CS2 yourself for this.**
+
+1. In PovForge open **Settings › Auto matchmaking** and turn on **Record matchmaking downloads automatically**. Keep PovForge open (minimized is fine).
+2. In CS2 go to Watch → Your Matches, click download on the match and let it finish.
+3. **Quit CS2.**
+4. Once the game has closed, PovForge reads the match, picks your rounds, queues the recording, launches CS2 itself, then closes it and restores your game settings. The video appears in your player folder in the Video library.
+
+The same page lets you choose **Whose POV** (by default the Steam account most recently signed in on this PC), **What to make** (Highlights, Kill POV, Kills & deaths POV or Whole match) and the CS2 replays folder (normally found automatically).
+
+Good to know:
+
+- Do not open CS2 yourself, and leave the game window alone while it records.
+- Always quit CS2 after downloading. While the game is open PovForge only waits; it never closes your game.
+- Close anti-cheat clients such as FACEIT before recording, or PovForge keeps waiting.
+- Only matches downloaded after you turn this on are handled; older ones can be picked manually in the match list.
+- Official replays are kept only for a limited time, so download the matches you want soon.
+- Nothing is recorded while PovForge is closed; matches downloaded meanwhile are picked up next time it opens.
+- Highlights use rounds with 3+ kills or a won clutch, otherwise rounds with kills. Matches without the chosen account are skipped.
+- Automatic tasks appear in the queue like any other and can be cancelled or removed.
+
 ## Before recording and your video library
 
 - **Preflight checks:** use **Check** under Settings › Saving & folders to verify output/work/player folders, write access, free space and Steam/CS2/component readiness. Submission checks these again. Unwritable folders or less than 512 MB free block starting; less than 8 GB shows a space advisory. This is not a capacity guarantee for the whole job.

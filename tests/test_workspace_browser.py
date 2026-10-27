@@ -19,6 +19,9 @@ def workspace_site():
         'setup': {'windows': True, 'cs2': True, 'hlae': True, 'ffmpeg': True, 'anticheat': [], 'problems': []},
         'job': {'state': 'idle', 'lines': [], 'recorded': [], 'planned': [], 'step': [0, 0]},
         'queue': {'items': [], 'paused': False}, 'update': None, 'screen': [1920, 1080], 'sizes': ['1080'],
+        'auto': {'enabled': False, 'mode': 'kills', 'folder': 'C:/Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/replays',
+                 'folder_found': True, 'custom_folder': False, 'accounts': [{'steamid': '76561198000000001', 'name': 'Example player', 'recent': True}],
+                 'steamid': '76561198000000001', 'account_name': 'Example player', 'waiting': '', 'working': '', 'recent': []},
     }
     demos = [{'path': f'C:/Demos/match-{i}.dem', 'name': f'faceit-match-{i}-example.dem.zst',
               'map': name, 'score': score, 'faceit': True, 'mtime': 1792600000-i*86400,
@@ -105,6 +108,12 @@ def workspace_site():
                                                    {'round':1,'tick':150,'time':15,'attacker':'a','victim':'c','weapon':'m4a1','headshot':False,'pov':True}]}, 'teams': [
                                          {'name': 'Team A', 'score': 1, 'players': [player]},
                                          {'name': 'Team B', 'score': 1, 'players': []}], 'duels': []})
+            if self.path == '/api/auto-mm':
+                state.setdefault('auto_posts', []).append(body)
+                for key in ('enabled', 'mode', 'steamid'):
+                    if key in body:
+                        state['auto'][key] = body[key]
+                return self.respond({'auto': state['auto'], 'prefs': state['prefs']})
             if self.path == '/api/folders/confirm':
                 state['prefs']['folders_set'] = True
                 return self.respond(state['prefs'])

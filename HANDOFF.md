@@ -2,6 +2,16 @@
 
 ## Current agreed scope
 
+v0.19.0 (owner request): automatic official-matchmaking recording. The user
+downloads in CS2 (Watch → Your Matches), quits CS2, and the app queues a reel of
+their own POV; they never open CS2 themselves. auto_mm.Watcher polls the
+replays folder (from find_cs2) every 4 s, only for files newer than the moment
+the switch was turned on, waits while the user's own cs2.exe or an anti-cheat
+client runs (never closes the game), reads via inspect_isolated, picks rounds
+like the editor, and calls Queue.add_reel / Queue.add. Account defaults to the
+most recent Steam login (loginusers.vdf). State: prefs auto_mm*, app_dir
+auto-demos.json. Not yet verified on a real PC with real MM demos.
+
 v0.18.1 (owner-requested UX update, merged as PR #1): by-player folder switch,
 known player folders and preflight moved to Settings → Saving & folders
 (reverses the v0.15.x choice of keeping them in the recording panel). The

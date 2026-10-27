@@ -69,7 +69,8 @@ def load_prefs() -> dict:
              "record_res": "1080",       # fixed app output size
              "record_fps": 60, "check_video": True, "record_profiles": [],
              "player_folders": {},       # steamid -> {"folder": name on disk, "name": in-game name}
-             "folders_set": False}       # first run: the user picks where demos are and where videos go
+             "folders_set": False,       # first run: the user picks where demos are and where videos go
+             "auto_mm": False, "auto_mm_mode": "kills"}   # record new official-matchmaking downloads
     if f.exists():
         try:
             saved = json.loads(f.read_text(encoding="utf-8"))
@@ -1501,7 +1502,29 @@ class App:
         self.window = None             # native window lifetime, or the owned browser process
         self.inspecting = 0
         self.screen = screen_size()
+        from ..auto_mm import Watcher
+        self.auto = Watcher(self.prefs, app_dir(), inspect=self._auto_inspect, queue=self.queue,
+                            game_busy=self._game_busy, save_prefs=save_prefs)
         threading.Thread(target=self._check_update, daemon=True).start()
+
+    def _auto_inspect(self, path: str) -> dict:
+        self.inspecting += 1
+        try:
+            return inspect_isolated(path, Path(self.prefs["output"]), details=True)
+        finally:
+            self.inspecting -= 1
+
+    def _game_busy(self) -> str:
+        """'' when a queued recording may launch CS2; otherwise why not (the user's own game)."""
+        if self.job.busy:
+            return ""                        # the running CS2 is ours; queued work waits its turn
+        from .. import hlae
+        procs = hlae.running_processes()
+        if "cs2.exe" in procs:
+            return "cs2"
+        if any(exe in procs for exe in hlae.ANTI_CHEAT):
+            return "anticheat"
+        return ""
 
     def _check_update(self) -> None:
         # through the updater, so "Update" works straight away from what this found
@@ -1587,7 +1610,7 @@ def make_handler(app: App):
                     from .. import effects
                     return self._json({"version": __version__, "prefs": app.prefs, "update": app.update,
                                        "setup": app.setup.status(), "job": app.job.snapshot(),
-                                       "queue": app.queue.snapshot(),
+                                       "queue": app.queue.snapshot(), "auto": app.auto.status(),
                                        "screen": app.screen, "sizes": fitting_sizes(app.screen),
                                        "effects": {"defaults": effects.DEFAULTS, "presets": effects.PRESETS,
                                                    "transitions": list(effects.TRANSITIONS),
@@ -1608,7 +1631,11 @@ def make_handler(app: App):
                 if url.path == "/api/setup":
                     return self._json(app.setup.status())
                 if url.path == "/api/demos":
-                    return self._json(find_demos(app.prefs["demo_folders"]))
+                    folders = list(app.prefs["demo_folders"])
+                    replays = app.auto.folder() if app.prefs.get("auto_mm") else None
+                    if replays and replays.is_dir():
+                        folders.append(str(replays))      # downloaded matches show up in the list too
+                    return self._json(find_demos(folders))
                 if url.path == '/api/library':
                     from ..recordings import list_videos
                     from .. import video_quality
@@ -1720,6 +1747,22 @@ def make_handler(app: App):
                         return self._json({"error": "Invalid theme"}, 400)
                     from . import window_chrome
                     return self._json({"applied": window_chrome.apply(getattr(app, "window", None), b["dark"])})
+                if url.path == "/api/auto-mm":
+                    values = {k: b[k] for k in ("enabled", "mode", "steamid") if k in b}
+                    if b.get("folder") == "reset":
+                        values["folder"] = ""
+                    elif b.get("folder") == "pick":
+                        start = app.auto.folder()
+                        chosen = pick_folder(str(start if start and start.is_dir() else Path.home()))
+                        if chosen:
+                            values["folder"] = chosen
+                    if b.get("refresh"):
+                        app.auto.accounts(refresh=True)
+                    try:
+                        app.auto.configure(values)
+                    except ValueError as e:
+                        return self._json({"error": str(e)}, 400)
+                    return self._json({"auto": app.auto.status(), "prefs": app.prefs})
                 if url.path == "/api/inspect":
                     path = b.get("path", "")
                     if not is_demo(Path(path)):
@@ -1999,6 +2042,7 @@ def main(port: int = 0, open_browser: bool = True) -> None:
                 return
 
     threading.Thread(target=watch, daemon=True).start()
+    app.auto.start()
     try:
         if native is None:
             server.serve_forever()
@@ -2020,3 +2064,4 @@ def main(port: int = 0, open_browser: bool = True) -> None:
         server.server_close()
         app.references.close()
         app.checker.close()
+        app.auto.close()

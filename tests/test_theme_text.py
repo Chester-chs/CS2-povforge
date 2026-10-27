@@ -52,7 +52,7 @@ def test_black_white_text_across_all_pages_and_dialogs(workspace_site):
                 ('Quality results',"app.libraryVideos[0].quality={state:'warning',issues:[{at:5,kind:'black'}]};await app.playVideo(app.libraryVideos[0])",'.quality-details'),
                 ('Library player',"await app.playVideo(app.libraryVideos[0]);app.playerEvents=[{at:1,kind:'kill',round:1,weapon:'awp',player:'Example'}]",'.video-player'),
                 ('Close player','app.closeVideo()', '.finished-library'),
-                *[(f'Settings {tab}',f"await app.openSettings();app.settingsTab={json.dumps(tab)}",'.settings-page') for tab in ('appearance','general','saving','about')],
+                *[(f'Settings {tab}',f"await app.openSettings();app.settingsTab={json.dumps(tab)}",'.settings-page') for tab in ('appearance','general','saving','auto','about')],
                 ('Preflight and profiles',"app.openMatchMode();app.recordChecks={at:'12:00',ok:false,checks:[{key:'output',reason:'not_writable',state:'error'}]};document.querySelector('.profile-create').open=true;app.profileName='Test profile'",'.record-checks'),
                 ('Recording progress',"app.videosOpen=false;app.settingsOpen=false;app.setupOpen=false;app.showRun=true;app.job={...app.job,state:'running',stage:'record',kind:'match',recorded:[1],planned:[1,2],step:[1,2],elapsed:5,player:'Example',item:1};app.queue={items:[{id:1,state:'running',name:'Example',map:'Dust2',rounds:[1,2],kind:'match'}],paused:false}",'.run'),
                 ('Recording error',"app.job.state='error';app.job.error='Test error';app.queue.items[0].state='error'",'.run'),

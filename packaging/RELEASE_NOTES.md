@@ -1,4 +1,4 @@
-## PovForge v0.18.1
+## PovForge v0.19.0
 
 Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** is the portable edition.
 
@@ -6,19 +6,37 @@ Download **PovForge-Setup.exe** to install or update; **PovForge-windows.zip** i
 
 下载安装或更新请使用 **PovForge-Setup.exe**；免安装版使用 **PovForge-windows.zip**。
 
-- 设置新增 **保存与文件夹**：成片目录、**按选手 ID 建文件夹** 开关（附示例路径）、所有选手文件夹和录制前检查都集中在这里。
-- 右侧 **录制与保存** 只显示本次视频实际保存的位置。整场、击杀视角、击杀和死亡视角、双人对位、高光集锦都按选手 ID 分类；双人对位存到选手 A 的文件夹，包含多位选手的集锦存到“多人集锦”。录制前检查发现问题时仍会在这里提示。
-- 新安装默认保存到 `视频\职业选手POV`；已选好的保存目录不会改变，已有视频不会移动。
-- 窗口放大后，左侧侧边栏的宽度、文字、图标和行高随之变大，右侧录制面板同步加宽；底部操作栏和提示不再被侧边栏遮挡。
-- 成片库用带数量的模式标签替代下拉框，随所选选手文件夹和搜索变化；修复搜索框图标缺失。
+**新功能：官匹自动录制。** 在 CS2 里下载官匹回放，退出 CS2，PovForge 就会自动剪辑并录制你自己的视角，不需要你自己打开 CS2。
+
+使用流程：
+
+1. 打开 PovForge → **设置 › 官匹自动录制**，打开开关。保持 PovForge 开着，最小化也可以。
+2. 进 CS2 →「观看」→「你的比赛」，点下载，等它下载完。
+3. **退出 CS2。**
+4. PovForge 会自动读取比赛、挑选你的回合并开始录制，录完自动关闭游戏并恢复你的设置。视频保存在成片库里你的选手文件夹。
+
+注意事项：
+
+- 不需要、也不要自己打开 CS2；录制期间不要操作游戏窗口。
+- 下载完一定要退出 CS2。游戏开着时软件只会等待，不会替你关闭游戏。
+- 录制前关闭 FACEIT、5E、完美等反作弊客户端。
+- 只处理开启开关之后新下载的比赛；官匹回放有保存期限，请尽早下载。
+- 可以选择录制哪个 Steam 账号（默认是最近登录的账号），以及做成高光集锦、击杀视角、击杀和死亡视角或整场录制。
+
+其他：侧边栏新增“官匹自动录制”入口，可直接看到当前状态（已开启、等待你退出 CS2 等）。开启后，回放文件夹里的比赛也会出现在比赛列表中。
 
 ### English
 
-- New **Settings → Saving & folders** page: output folder, the **Create a folder per player ID** switch with an example path, every known player folder, and preflight checks.
-- The **Recording & saving** panel now shows exactly where this video will be saved. Every mode is sorted by player ID; duels go to player A's folder and reels with several players go to “Multi-player reels”. Preflight problems are still shown there.
-- New installs save to `Videos\职业选手POV`. Existing destinations and videos are unchanged.
-- The sidebar's width, text, icons and row height grow with large windows, the recording panel widens, and the bottom toolbar and notices follow the sidebar width.
-- The video library uses mode chips with counts for the selected folder and search instead of a dropdown; the missing search icon is fixed.
+**New: automatic matchmaking recording.** Download an official matchmaking replay in CS2, quit CS2, and PovForge cuts and records your own POV automatically. You never open CS2 yourself.
+
+1. In PovForge open **Settings › Auto matchmaking** and turn it on. Keep PovForge open; minimized is fine.
+2. In CS2 go to Watch → Your Matches, click download and let it finish.
+3. **Quit CS2.**
+4. PovForge reads the match, picks your rounds and records them, then closes the game and restores your settings. The video appears in your player folder in the Video library.
+
+Good to know: do not open CS2 yourself; always quit CS2 after downloading (PovForge only waits and never closes your game); close anti-cheat clients such as FACEIT; only matches downloaded after turning this on are handled, and official replays expire, so download soon. Choose which Steam account to record and whether to make Highlights, Kill POV, Kills & deaths POV or a Whole match.
+
+The sidebar shows an Auto matchmaking entry with its current status. When it is on, matches in the replays folder also appear in the match list.
 
 Development and testing did not launch CS2 or change the owner's game settings.
 开发和验证未启动 CS2，未修改用户游戏设置。
