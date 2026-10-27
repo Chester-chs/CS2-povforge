@@ -251,7 +251,9 @@ def test_first_use_opens_the_notes_at_the_top_of_the_sidebar(workspace_site):
             page.call('Page.enable')
             page.call('Page.addScriptToEvaluateOnNewDocument', source="window.uiErrors=[];window.addEventListener('error',e=>uiErrors.push(e.message))")
             page.call('Page.navigate', url=url)
-            assert page.wait_for("document.querySelector('.notes-page')?.checkVisibility()", 15)
+            # Before the stylesheet/Alpine load, x-cloak sections can look visible; wait for boot.
+            assert page.wait_for("!!window.Alpine && !!document.body._x_dataStack && Alpine.$data(document.body).booted"
+                                 " && document.querySelector('.notes-page')?.checkVisibility()", 15)
             page.evaluate("window.app=Alpine.$data(document.body)")
             assert page.evaluate("document.querySelector('.sidebar').firstElementChild.classList.contains('notes-nav')"), 'notes are the first sidebar entry'
             first = page.evaluate("document.querySelector('.notes-nav').getBoundingClientRect().top")
