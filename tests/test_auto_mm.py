@@ -231,3 +231,28 @@ def test_auto_settings_explain_the_flow_and_save_choices(workspace_site):
             assert page.evaluate('uiErrors') == []
         finally:
             page.close()
+
+
+def test_main_runs_with_an_app_that_has_no_watcher(monkeypatch):
+    """Isolated hosts (like the native-window probe) replace App without a watcher."""
+    from povforge.gui import server
+    from types import SimpleNamespace
+    started = []
+
+    class App:
+        references = SimpleNamespace(close=lambda: started.append('refs'))
+        checker = SimpleNamespace(close=lambda: started.append('checker'))
+        window = None
+        def quit_reason(self, now): return ''
+
+    class FakeServer:
+        server_address = ('127.0.0.1', 1)
+        def __init__(self, *a): pass
+        def serve_forever(self): started.append('served')
+        def shutdown(self): pass
+        def server_close(self): started.append('closed')
+    monkeypatch.setattr(server, 'App', App)
+    monkeypatch.setattr(server, 'ThreadingHTTPServer', FakeServer)
+    monkeypatch.setattr(server, 'make_handler', lambda app: None)
+    server.main(0, open_browser=False)
+    assert started == ['served', 'closed', 'refs', 'checker']

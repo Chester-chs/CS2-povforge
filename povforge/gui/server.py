@@ -2042,7 +2042,9 @@ def main(port: int = 0, open_browser: bool = True) -> None:
                 return
 
     threading.Thread(target=watch, daemon=True).start()
-    app.auto.start()
+    auto = getattr(app, "auto", None)     # optional: hosts without it still run
+    if auto is not None:
+        auto.start()
     try:
         if native is None:
             server.serve_forever()
@@ -2064,4 +2066,5 @@ def main(port: int = 0, open_browser: bool = True) -> None:
         server.server_close()
         app.references.close()
         app.checker.close()
-        app.auto.close()
+        if auto is not None:
+            auto.close()
