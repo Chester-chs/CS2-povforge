@@ -73,6 +73,27 @@ def workspace_site():
 
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))) or b'{}')
+            if self.path == '/api/preflight':
+                return self.respond(state.get('preflight',{'ok':True,'checks':[{'key':'output','state':'ok','reason':'ready','free_bytes':10*1024**3}]}))
+            if self.path.startswith('/api/profiles/'):
+                from povforge import record_profiles
+                if self.path.endswith('/save'):
+                    record_profiles.save(state['prefs'],body['name'],body['mode'],body.get('weapons',[]))
+                elif self.path.endswith('/apply'):
+                    profile=record_profiles.apply(state['prefs'],body['name'])
+                    return self.respond({'prefs':state['prefs'],'profile':profile})
+                elif self.path.endswith('/remove'):
+                    record_profiles.remove(state['prefs'],body['name'])
+                return self.respond(state['prefs'])
+            if self.path == '/api/diagnostics/export':
+                state['diagnostic_exports']=state.get('diagnostic_exports',0)+1
+                return self.respond({'path':'C:/Chosen/PovForge-diagnostics.json'})
+            if self.path in ('/api/queue/add','/api/queue/add-reel'):
+                state.setdefault('submitted',[]).append(body)
+                return self.respond({**state['job'],'queue':state['queue']})
+            if self.path == '/api/library/check':
+                state.setdefault('checked',[]).append(body['path'])
+                return self.respond({'accepted':True})
             if self.path == '/api/library/play':
                 return self.respond(state.get('playback',{'src':'/test-media.mp4','events':[],'name':'Example clip'}))
             if self.path == '/api/inspect':
