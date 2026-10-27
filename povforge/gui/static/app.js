@@ -34,7 +34,7 @@ const TEXT = {
     fromList: "来自 {list}",
     fxCamera: "视角重放",
     cameraHelp: "主画面始终使用所选玩家的第一人称视角。",
-    cameraVictimAppend: "受害者视角", cameraVictimHelp: "勾选要重放的击杀，在对应击杀后插入对方阵亡前的第一人称画面，然后继续主画面。也可选择统一放在片尾。需要额外录制，默认关闭。",
+    cameraVictimAppend: "受害者视角", cameraVictimHelp: "打开后，集锦里的每个击杀都会补上对方阵亡前的第一人称画面：插在该击杀之后再继续主画面，或统一放在片尾。需要额外录制，默认关闭。",
     presetNameLabel: "给这组效果起个名字，存成你的预设", presetSaveRef: "存成预设", presetSaved: "已存为预设「{name}」，以后在上面的预设里直接选。",
     presetReplace: "已有同名预设，保存会替换它。", fromFile: "来自 {name}", vNone: "无", vYes: "有", vNo: "没有", vAbout: "约 {s} 秒", vTimes: "{n} 处",
     vAlso: "也有 {list}", vMatch: "{kind}，会照着它调", vPace: "每段约 {s} 秒，{kind}", vMusic: "有，约 {bpm} BPM", nowLabel: "当前效果：{text}", nowPlain: "当前：原样拼接，不加效果",
@@ -161,7 +161,7 @@ const TEXT = {
     fromList: "from {list}",
     fxCamera: "Perspective replays",
     cameraHelp: "The main footage always uses the selected player's first-person view.",
-    cameraVictimAppend: "Victim perspective", cameraVictimHelp: "Select kills to replay from the victim's first-person view before death. Insert after each selected kill, then resume the main footage, or collect at the end. Requires extra recording; off by default.",
+    cameraVictimAppend: "Victim perspective", cameraVictimHelp: "When on, every kill in the reel also gets the victim's first-person view before death: inserted after that kill before the main footage resumes, or collected at the end. Requires extra recording; off by default.",
     presetNameLabel: "Name these effects to keep them as your preset", presetSaveRef: "Save preset", presetSaved: "Saved as \u201c{name}\u201d; pick it from the presets above any time.",
     presetReplace: "A preset with this name exists; saving replaces it.", fromFile: "from {name}", vNone: "None", vYes: "Yes", vNo: "No", vAbout: "about {s} s", vTimes: "{n}×",
     vAlso: "also {list}", vMatch: "{kind}; yours will be matched to it", vPace: "about {s} s per moment, {kind}", vMusic: "yes, about {bpm} BPM", nowLabel: "Now: {text}", nowPlain: "Now: plain join, no effects",
@@ -1154,7 +1154,6 @@ document.addEventListener("alpine:init", () => {
           .filter(k => this.fx?.[k] !== undefined).map(k => [k, this.fx[k]])) } : { ...this.fx };
       effects.camera = this.cameraSettings(effects.camera);
       if (this.reel.content === "duel") effects.camera.victim = false;
-      if (effects.camera.victim) effects.camera.selected = this.victimEntries.filter(e => this.victimSelected(e.key)).map(e => e.key);
       if (effects.intro === "title" && !effects.intro_sub) effects.intro_sub = this.reelPlayersLine;
       if (effects.outro === "card" && !effects.outro_text) effects.outro_text = this.t("outroTextDefault");
       const body = { title: this.reel.title.trim() || this.t(this.currentReelMode.label), summary: this.t("reelSummary", { n: this.reel.items.length }),
@@ -1172,44 +1171,7 @@ document.addEventListener("alpine:init", () => {
       const duration = raw?.durations?.victim;
       return { mode: "pov", victim: raw?.victim === true,
         placement: raw?.placement === "end" ? "end" : "after_kill",
-        selected: raw?.selected == null ? null : Array.isArray(raw.selected)
-          ? [...new Set(raw.selected.slice(0, 50000).filter(s => typeof s === "string" && s.length <= 2048))] : [],
         durations: { victim: typeof duration === "number" && Number.isFinite(duration) ? Math.min(1.5, Math.max(0.5, duration)) : 1.2 } };
-    },
-    victimKey(path, attacker, tick, victim) {
-      return JSON.stringify([String(path).replaceAll("\\", "/").toLowerCase(), String(attacker), Number(tick), String(victim)]);
-    },
-    get victimEntries() {
-      const entries = new Map();
-      for (const item of this.reel.items) {
-        const source = this.reel.sources.find(s => s.path === item.path);
-        const retained=this.reel.weapons?.length ? new Set(this.itemEvents(item).map(e=>`${e.tick}|${e.attacker}|${e.victim}`)) : null;
-        for (const event of source?.info?.duels || []) {
-          if (event.round !== item.round) continue;
-          if (retained && !retained.has(`${event.tick}|${event.attacker}|${event.victim}`)) continue;
-          const duel = this.reel.content === "duel";
-          if (duel ? !((event.attacker === item.steamid && event.victim === item.opponent) ||
-                        (event.attacker === item.opponent && event.victim === item.steamid))
-                   : event.attacker !== item.steamid) continue;
-          const key = this.victimKey(item.path, event.attacker, event.tick, event.victim);
-          entries.set(key, {key, round: event.round, tick: event.tick, map: this.sourceLabel(source),
-            attacker: this.playerIn(source.info, event.attacker)?.name || event.attacker,
-            victim: this.playerIn(source.info, event.victim)?.name || event.victim});
-        }
-      }
-      return [...entries.values()];
-    },
-    victimSelected(key) {
-      const selected = this.fx?.camera?.selected;
-      return selected == null || selected.includes(key);
-    },
-    selectVictim(key, checked) {
-      const selected = new Set(this.victimEntries.filter(e => this.victimSelected(e.key)).map(e => e.key));
-      if (checked) selected.add(key); else selected.delete(key);
-      this.fx.camera.selected = [...selected]; this.fxChanged();
-    },
-    selectAllVictims(checked) {
-      this.fx.camera.selected = checked ? null : []; this.fxChanged();
     },
     // the parts of the effects that make a look (not the music file or the texts)
     fxLook(fx) {

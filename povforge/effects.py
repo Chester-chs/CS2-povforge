@@ -129,6 +129,16 @@ def for_event_reel(fx: dict | None) -> dict:
         "camera", "music", "music_volume", "music_start", "music_sync", "game_audio")})
 
 
+def check_music(fx: dict | None) -> None:
+    """Stop before recording when the chosen background music is gone, instead of
+    quietly publishing a reel without it."""
+    music = normalize(fx)["music"]
+    if music and not Path(music).is_file():
+        raise FileNotFoundError(
+            f"Background music not found (moved, renamed or deleted?): {music}. "
+            "Choose the music again, or remove it, then record again.")
+
+
 def is_plain(fx: dict | None) -> bool:
     """Nothing chosen (the pace aside): the reel is joined the quick way, as before."""
     fx = normalize(fx)
@@ -651,7 +661,9 @@ def mix_sound(rendered: list[Rendered], crossings: list[float], fx: dict, total:
         cur = nxt
     game = {"keep": 1.0, "low": 0.35, "mute": 0.0}[fx["game_audio"]]
     music = Path(fx["music"]) if fx["music"] else None
-    if music is not None and music.is_file():
+    if music is not None and not music.is_file():
+        check_music(fx)  # raises: never drop the chosen music silently
+    if music is not None:
         cmd += ["-stream_loop", "-1", "-ss", _f(fx["music_start"]), "-i", str(music)]
         m = len(rendered)
         fade_out = min(2.5, total / 4)
@@ -692,7 +704,7 @@ def describe(fx: dict) -> list[str]:
         out.append(f"music {Path(fx['music']).name}")
     camera = fx["camera"]
     if camera["victim"]:
-        out.append("victim perspectives " + ("at the end" if fx["camera"]["placement"] == "end" else "after selected kills"))
+        out.append("victim perspectives " + ("at the end" if fx["camera"]["placement"] == "end" else "after each kill"))
     return out
 
 

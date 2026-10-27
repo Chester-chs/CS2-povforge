@@ -22,24 +22,16 @@ def _number(value, default: float) -> float:
 
 
 def normalize_camera(raw) -> dict:
-    """Migrate legacy camera preferences to first-person-only recording."""
+    """Migrate legacy camera preferences to first-person-only recording.
+
+    Victim replays are one switch: on replays every kill in the reel. A legacy
+    per-kill ``selected`` list is dropped (an empty one used to mean "none")."""
     raw = raw if isinstance(raw, dict) else {}
     durations = raw.get("durations")
     durations = durations if isinstance(durations, dict) else {}
-    selected = raw.get("selected")
-    if selected is not None:
-        selected = list(dict.fromkeys(s for s in selected[:50000]
-                                     if isinstance(s, str) and len(s) <= 2048)) if isinstance(selected, list) else []
     return {"mode": "pov", "victim": raw.get("victim") is True,
             "placement": "end" if raw.get("placement") == "end" else "after_kill",
-            "selected": selected,
             "durations": {"victim": min(1.5, max(.5, _number(durations.get("victim"), 1.2)))}}
-
-
-def event_key(demo: str, attacker: str, tick: int, victim: str) -> str:
-    """Stable UI selection identity using the original (possibly compressed) path."""
-    return json.dumps([str(demo).replace('\\', '/').lower(), str(attacker), int(tick), str(victim)],
-                      ensure_ascii=False, separators=(',', ':'))
 
 
 def interleave_replays(span: tuple, insertions: list, fps: float) -> list:

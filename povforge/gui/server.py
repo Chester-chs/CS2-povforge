@@ -610,13 +610,17 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
     # kills, headshots and won clutches per round (for the highlight reel)
     table = {}
     sides = {}
+    sides_error = ""
     try:
         from ..demo import round_sides
         from ..highlights import round_table
         sides = round_sides(dem, d.rounds)
         table = round_table(d.rounds, d.deaths, d.winners, sides)
-    except Exception:
-        pass
+    except Exception as exc:
+        # Keep the demo usable, but say so: without sides there are no duels,
+        # victim replays, headshot or clutch counts.
+        sides_error = f"{type(exc).__name__}: {exc}"
+        print(f"Reading the teams of {src.name} failed: {sides_error}", flush=True)
 
     def per_round(sid: str) -> dict:
         rows = table.get(sid)
@@ -639,7 +643,7 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
                                        "adr": None, "hs": None, **per_round(p.steamid)} for p in loose]})
     from ..reel_events import duel_events
     info = {"path": str(src), "name": src.name, "map": d.map_name, "map_pretty": pretty_map(d.map_name),
-            "duels": duel_events(d, sides),
+            "duels": duel_events(d, sides), "sides_error": sides_error,
             "rounds": n, "minutes": round(d.last_tick / d.tickrate / 60, 1), "faceit_match": match_id(src.name),
             "date": time.strftime("%Y-%m-%d %H:%M", time.localtime(src.stat().st_mtime)), "teams": out_teams}
     from ..recording_details import build
@@ -650,7 +654,7 @@ def inspect_demo(path: str, work_dir: Path) -> dict:
     return info
 
 
-INSPECT_VERSION = 4       # v4 excludes posthumous kills from event counts and duels
+INSPECT_VERSION = 5       # v5 reads teams when a player disconnected (v4 lost all duels)
 _inspect_locks = [threading.Lock() for _ in range(32)]
 
 

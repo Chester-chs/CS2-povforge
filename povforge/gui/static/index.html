@@ -600,27 +600,11 @@
             <label class="row">
               <span class="row-main"><b x-text="lang === 'zh' ? '插入位置' : 'Placement'"></b></span>
               <select class="select" x-model="fx.camera.placement" @change="fxChanged()" :aria-label="lang === 'zh' ? '受害者视角插入位置' : 'Victim replay placement'">
-                <option value="after_kill" x-text="lang === 'zh' ? '对应击杀之后' : 'After each selected kill'"></option>
+                <option value="after_kill" x-text="lang === 'zh' ? '每个击杀之后' : 'After each kill'"></option>
                 <option value="end" x-text="lang === 'zh' ? '统一放在片尾' : 'At the end'"></option>
               </select>
             </label>
           </div>
-          <div class="group-title with-control">
-            <h3 x-text="lang === 'zh' ? '选择要插入的击杀' : 'Choose kills to replay'"></h3>
-            <span class="title-tools">
-              <button class="btn small" @click="selectAllVictims(true)" x-text="lang === 'zh' ? '全选' : 'Select all'"></button>
-              <button class="btn small" @click="selectAllVictims(false)" x-text="lang === 'zh' ? '清空' : 'Clear'"></button>
-            </span>
-          </div>
-          <ul class="group victim-list">
-            <template x-for="(event, i) in victimEntries" :key="event.key">
-              <li><label class="row">
-                <input type="checkbox" :checked="victimSelected(event.key)" @change="selectVictim(event.key, $event.target.checked)" :aria-label="event.attacker + ' → ' + event.victim + ' · ' + t('roundN', {r:event.round})">
-                <span class="row-main"><b x-text="event.attacker + ' → ' + event.victim"></b><small x-text="[event.map, t('roundN', {r:event.round}), (lang === 'zh' ? '事件 ' : 'Event ') + (i + 1)].join(' · ')"></small></span>
-              </label></li>
-            </template>
-            <li class="row" x-show="!victimEntries.length"><span class="row-main"><small x-text="lang === 'zh' ? '所选内容暂无可重放的击杀；请先选择选手和回合。' : 'No replayable kills in this selection. Choose a player and rounds first.'"></small></span></li>
-          </ul>
         </div>
       </div>
     </template>

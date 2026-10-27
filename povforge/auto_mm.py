@@ -365,6 +365,9 @@ class Watcher:
         fx = saved if mode == "kills" else {**effects.normalize(None),
                                              **{k: saved[k] for k in ("camera", "music", "music_volume",
                                                                       "music_start", "music_sync", "game_audio")}}
+        if fx.get("music") and not Path(fx["music"]).is_file():
+            # Unattended: record without the vanished track rather than failing the match.
+            fx = {**fx, "music": "", "music_sync": False}
         summary = f"{map_pretty}  " + (f"{len(rounds)} 个回合" if zh else f"{len(rounds)} rounds")
         self.queue.add_reel(title, items, summary.strip(), fx)
         self._mark(folder, path, "queued", ("已加入录制队列：" if zh else "Queued: ") +

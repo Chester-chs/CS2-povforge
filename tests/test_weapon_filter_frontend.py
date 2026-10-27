@@ -26,7 +26,6 @@ async function main(){
  assert.strictEqual(app.reelEstimate.seconds,13);assert.strictEqual(app.reelEstimate.segments,1);
  assert.match(app.weaponSummary(app.reel.items[0]),/AK-47 ×1/);assert.match(app.weaponSummary(app.reel.items[0]),/AWP ×1/);
  assert.strictEqual(app.itemEvents(app.reel.items[0]).length,2);
- assert.strictEqual(app.victimEntries.length,2,'victim choices follow retained kills');
  let sent;app.post=async(url,body)=>{sent=body;return {queue:{items:[]},state:'idle'}};
  await app.startReel(false);assert.deepStrictEqual(Array.from(sent.items[0].weapons),['awp']);
  app.reel.weapons=['deagle'];app.recompute();assert.strictEqual(app.reel.items.length,0);
