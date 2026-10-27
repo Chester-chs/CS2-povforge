@@ -1056,6 +1056,7 @@ class Queue:
         except Exception as e:
             with self.lock:
                 item["state"], item["error"] = "error", str(e)
+                self.paused = True
                 self._save()
 
     def _finished(self) -> None:
